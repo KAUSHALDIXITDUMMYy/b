@@ -16,28 +16,21 @@
       
       <!-- Controls -->
       <div class="header-controls">
-        <!-- Coin Type Toggle -->
-        <div class="coin-toggle">
-          <button id="coin-btn" class="toggle-btn active" onclick="setCoinType('coin')">
-            🪙 Fliff Coin
-          </button>
-          <button id="cash-btn" class="toggle-btn" onclick="setCoinType('cash')">
-            💵 Fliff Cash
-          </button>
-        </div>
-        
         <!-- Wager Amount -->
         <div class="wager-select">
           <label>Wager:</label>
           <select id="wager-amount" onchange="setWager(this.value)">
-            <!-- Coin amounts (shown when Fliff Coin selected) -->
-            <option value="10" class="coin-opt">$10</option>
-            <option value="25" class="coin-opt">$25</option>
-            <option value="50" class="coin-opt">$50</option>
-            <option value="100" class="coin-opt" selected>$100</option>
-            <option value="250" class="coin-opt">$250</option>
-            <option value="500" class="coin-opt">$500</option>
-            <option value="1000" class="coin-opt">$1000</option>
+            <option value="0.20">$0.20</option>
+            <option value="0.50">$0.50</option>
+            <option value="1">$1</option>
+            <option value="2">$2</option>
+            <option value="5">$5</option>
+            <option value="10" selected>$10</option>
+            <option value="25">$25</option>
+            <option value="50">$50</option>
+            <option value="100">$100</option>
+            <option value="200">$200</option>
+            <option value="500">$500</option>
           </select>
         </div>
       </div>
@@ -77,7 +70,7 @@
           <h2 id="panel-title">Game Details</h2>
           <div class="panel-controls">
             <span class="wager-display">💰 $<span id="current-wager">10.00</span></span>
-            <span id="coin-type-display" class="coin-type">🪙 Coin</span>
+            <span id="coin-type-display" class="coin-type">💵 Cash</span>
           </div>
         </div>
         

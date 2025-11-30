@@ -12,8 +12,7 @@ let selectedGame = null;
 let gameOdds = {};
 
 // Betting Settings
-let wagerAmount = 100; // Default $100 for Fliff Coin testing
-let coinType = 'coin'; // 'coin' or 'cash'
+let wagerAmount = 100; // Default $100 for betting
 let isPrefiring = false;
 
 // =============================================
@@ -28,16 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function loadSettings() {
   const savedWager = localStorage.getItem('fliff_wager');
-  const savedCoinType = localStorage.getItem('fliff_coin_type');
   
   if (savedWager) {
     wagerAmount = parseFloat(savedWager);
     document.getElementById('wager-amount').value = savedWager;
-  }
-  
-  if (savedCoinType) {
-    coinType = savedCoinType;
-    setCoinType(savedCoinType, false);
   }
   
   updateDisplays();
@@ -53,63 +46,13 @@ function setWager(value) {
   updateDisplays();
 }
 
-function setCoinType(type, save = true) {
-  coinType = type;
-  
-  document.getElementById('coin-btn').classList.toggle('active', type === 'coin');
-  document.getElementById('cash-btn').classList.toggle('active', type === 'cash');
-  
-  // Update wager dropdown based on coin type
-  const select = document.getElementById('wager-amount');
-  
-  if (type === 'cash') {
-    // Fliff Cash: $0.20 - $500
-    select.innerHTML = `
-      <option value="0.20">$0.20</option>
-      <option value="0.50">$0.50</option>
-      <option value="1">$1</option>
-      <option value="2">$2</option>
-      <option value="5">$5</option>
-      <option value="10" selected>$10</option>
-      <option value="25">$25</option>
-      <option value="50">$50</option>
-      <option value="100">$100</option>
-      <option value="200">$200</option>
-      <option value="500">$500</option>
-    `;
-    wagerAmount = 10;
-  } else {
-    // Fliff Coin: $10 - $1000
-    select.innerHTML = `
-      <option value="10">$10</option>
-      <option value="25">$25</option>
-      <option value="50">$50</option>
-      <option value="100" selected>$100</option>
-      <option value="250">$250</option>
-      <option value="500">$500</option>
-      <option value="1000">$1000</option>
-    `;
-    wagerAmount = 100;
-  }
-  
-  if (save) {
-    localStorage.setItem('fliff_coin_type', type);
-  }
-  
-  updateDisplays();
-}
-
 function updateDisplays() {
   document.getElementById('current-wager').textContent = wagerAmount.toFixed(2);
   
+  // Always show Cash (coin selection removed)
   const coinDisplay = document.getElementById('coin-type-display');
-  if (coinType === 'cash') {
-    coinDisplay.textContent = '💵 Cash';
-    coinDisplay.classList.add('cash');
-  } else {
-    coinDisplay.textContent = '🪙 Coin';
-    coinDisplay.classList.remove('cash');
-  }
+  coinDisplay.textContent = '💵 Cash';
+  coinDisplay.classList.add('cash');
 }
 
 // =============================================
@@ -301,7 +244,7 @@ function getBetButtonsHTML(oddId) {
   `;
 }
 
-// Lock and Load - Places bet with Fliff Coin and reloads page
+// Lock and Load - Selects bet (clicks on it) and reloads page to lock odds
 async function lockAndLoad(oddId) {
   if (isPrefiring) {
     console.log('⏳ Already processing...');
@@ -320,7 +263,7 @@ async function lockAndLoad(oddId) {
   }
   
   isPrefiring = true;
-  showPrefireStatus(`🔒 LOCK & LOAD: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → $${wagerAmount} (Coin)`);
+  showPrefireStatus(`🔒 LOCK & LOAD: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → $0.20 (Cash)`);
   
   const betData = {
     gameId: selectedGame.id,
@@ -328,9 +271,8 @@ async function lockAndLoad(oddId) {
     selection: String(odd.selection || ''),
     odds: Number(odd.odds) || 0,
     param: String(odd.param || ''),
-    market: String(odd.market || ''),
-    wager: Number(wagerAmount) || 100,
-    coinType: 'coin' // Always use coin for lock and load
+    market: String(odd.market || '')
+    // wager is always $0.20 for lock and load (set in backend)
   };
   
   try {
@@ -342,23 +284,28 @@ async function lockAndLoad(oddId) {
     
     const result = await response.json();
     
-    if (result.success) {
-      const statusMsg = result.betPlaced && result.pageReloaded 
-        ? `✅ LOCKED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - Bet placed with Coin, page reloaded!`
-        : result.betPlaced 
-          ? `✅ BET PLACED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - Page reload in progress...`
-          : `✅ LOCKED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds}`;
-      
-      showPrefireStatus(statusMsg);
-      
-      // Show success pop-up with detailed info
-      const toastMsg = result.betPlaced && result.pageReloaded
-        ? `🔒 LOCK & LOAD COMPLETE!<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ Bet placed with Fliff Coin<br>✅ Page reloaded to lock odds`
-        : result.betPlaced
-          ? `🔒 LOCK & LOAD IN PROGRESS<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ Bet placed with Fliff Coin<br>⏳ Reloading page...`
-          : `🔒 LOCK & LOAD SUCCESS<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}`;
-      
-      showToast(toastMsg, 'lock', 6000);
+    // Check if bet was placed (regardless of odds verification)
+    if (result.betPlaced) {
+      // Only show "Locked & Loaded" if odds are actually verified as locked
+      if (result.oddsLocked) {
+        const statusMsg = `✅ LOCKED & LOADED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - $0.20 bet placed, odds verified locked!`;
+        showPrefireStatus(statusMsg);
+        
+        const toastMsg = `🔒 LOCKED & LOADED!<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ $0.20 bet placed<br>✅ Page refreshed<br>✅ Odds verified locked - Ready to place bet!`;
+        showToast(toastMsg, 'lock', 6000);
+      } else if (result.oddsChanged) {
+        const statusMsg = `⚠️ ODDS CHANGED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → ${result.currentOdds !== null ? (result.currentOdds > 0 ? '+' : '') + result.currentOdds : 'N/A'}`;
+        showPrefireStatus(statusMsg);
+        
+        const toastMsg = `⚠️ ODDS CHANGED<br><strong>${odd.selection}</strong><br>Expected: @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>Found: @ ${result.currentOdds !== null ? (result.currentOdds > 0 ? '+' : '') + result.currentOdds : 'N/A'}<br>Odds moved after refresh`;
+        showToast(toastMsg, 'warning', 6000);
+      } else {
+        const statusMsg = `✅ BET PLACED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - $0.20 bet placed, verifying odds...`;
+        showPrefireStatus(statusMsg);
+        
+        const toastMsg = `✅ BET PLACED<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ $0.20 bet placed<br>⏳ Verifying odds...`;
+        showToast(toastMsg, 'info', 4000);
+      }
       
       setTimeout(hidePrefireStatus, 4000);
     } else {
@@ -405,7 +352,7 @@ async function placeBet(oddId) {
     param: String(odd.param || ''),
     market: String(odd.market || ''),
     wager: Number(wagerAmount) || 100,
-    coinType: 'cash' // Always use cash for place bet
+    coinType: 'cash' // Always use cash
   };
   
   try {
@@ -1584,7 +1531,6 @@ window.FliffApp = {
   lockAndLoad,
   placeBet,
   setWager,
-  setCoinType,
   toggleSection,
   toggleSubsection
 };

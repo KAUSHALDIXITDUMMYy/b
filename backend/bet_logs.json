@@ -1466,14 +1466,36 @@
       "result": "unknown",
       "timestamp": 1764525069229,
       "id": "mim0o14db3mfp"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Over 3.5",
+      "odds": -110,
+      "wager": 0.2,
+      "coinType": "cash",
+      "profile": "IPRoyal 60757833 2",
+      "result": "unknown",
+      "timestamp": 1764534775895,
+      "id": "mim6g2tz190bt"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Over 3.5",
+      "odds": -110,
+      "wager": 0.2,
+      "coinType": "cash",
+      "profile": "IPRoyal 60757816",
+      "result": "unknown",
+      "timestamp": 1764534775896,
+      "id": "mim6g2u027uz9"
     }
   ],
   "stats": {
-    "totalBets": 48,
+    "totalBets": 50,
     "wins": 0,
     "losses": 0,
     "pending": 44,
-    "totalWagered": 3140.7999999999993,
+    "totalWagered": 3141.1999999999994,
     "totalWon": 0,
     "prefireAttempts": 83,
     "prefireSuccess": 46

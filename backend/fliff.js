@@ -42,6 +42,9 @@ class FliffClient {
     
     // Load settings
     this.settings = this.loadSettings();
+    
+    // Load persisted API credentials
+    this.loadAPICredentials();
   }
 
   loadSettings() {
@@ -53,6 +56,58 @@ class FliffClient {
         proxy: 'Yd0IwkF5:wWXhE4@156.228.210.149:6666',
         name: 'Default'
       };
+    }
+  }
+
+  // Load persisted API credentials from disk
+  loadAPICredentials() {
+    try {
+      const credentialsPath = path.join(__dirname, '..', 'ray', 'api_credentials.json');
+      if (fs.existsSync(credentialsPath)) {
+        const data = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+        if (data.bettingEndpoint) {
+          this.bettingEndpoint = data.bettingEndpoint;
+          console.log('📂 Loaded persisted betting endpoint:', this.bettingEndpoint);
+        }
+        if (data.bearerToken) {
+          this.bearerToken = data.bearerToken;
+          console.log('📂 Loaded persisted bearer token');
+        }
+        if (data.authToken) {
+          this.authToken = data.authToken;
+          console.log('📂 Loaded persisted auth token');
+        }
+        if (data.apiHeaders) {
+          this.apiHeaders = data.apiHeaders;
+        }
+        if (data.capturedBetRequests && Array.isArray(data.capturedBetRequests)) {
+          // Only keep recent requests (last 10)
+          this.capturedBetRequests = data.capturedBetRequests.slice(-10);
+          console.log(`📂 Loaded ${this.capturedBetRequests.length} persisted bet request templates`);
+        }
+      }
+    } catch (e) {
+      console.log('⚠️ Could not load API credentials:', e.message);
+    }
+  }
+
+  // Save API credentials to disk
+  saveAPICredentials() {
+    try {
+      const credentialsPath = path.join(__dirname, '..', 'ray', 'api_credentials.json');
+      const data = {
+        bettingEndpoint: this.bettingEndpoint,
+        bearerToken: this.bearerToken,
+        authToken: this.authToken,
+        apiHeaders: this.apiHeaders,
+        // Only save last 10 requests to keep file size manageable
+        capturedBetRequests: this.capturedBetRequests.slice(-10),
+        lastUpdated: new Date().toISOString()
+      };
+      fs.writeFileSync(credentialsPath, JSON.stringify(data, null, 2), 'utf8');
+      console.log('💾 Saved API credentials to disk');
+    } catch (e) {
+      console.log('⚠️ Could not save API credentials:', e.message);
     }
   }
 
@@ -89,6 +144,14 @@ class FliffClient {
     const proxy = this.parseProxy(this.settings.proxy);
     if (proxy) {
       console.log(`Proxy: ${proxy.host}:${proxy.port}`);
+    }
+    
+    // Show API credentials status
+    if (this.bettingEndpoint) {
+      console.log(`📂 Using persisted betting endpoint: ${this.bettingEndpoint}`);
+    }
+    if (this.bearerToken || this.authToken) {
+      console.log(`📂 Using persisted authentication tokens`);
     }
 
     try {
@@ -201,16 +264,24 @@ class FliffClient {
         
         // Look for auth/bearer token in headers
         if (headers.Authorization) {
-          this.bearerToken = headers.Authorization;
-          console.log('🔑 Captured bearer token');
+          const newToken = headers.Authorization;
+          if (this.bearerToken !== newToken) {
+            this.bearerToken = newToken;
+            console.log('🔑 Captured bearer token');
+            this.saveAPICredentials(); // Persist immediately
+          }
         }
         
         // Check URL for auth_token
         if (url.includes('auth_token=')) {
           const match = url.match(/auth_token=([^&]+)/);
           if (match) {
-            this.authToken = match[1];
-            console.log('🔑 Captured auth token:', this.authToken);
+            const newToken = match[1];
+            if (this.authToken !== newToken) {
+              this.authToken = newToken;
+              console.log('🔑 Captured auth token:', this.authToken);
+              this.saveAPICredentials(); // Persist immediately
+            }
           }
         }
         
@@ -246,6 +317,10 @@ class FliffClient {
             if (this.capturedBetRequests.length > 20) {
               this.capturedBetRequests.shift();
             }
+            // Periodically save (every 5 new requests to avoid too frequent writes)
+            if (this.capturedBetRequests.length % 5 === 0) {
+              this.saveAPICredentials();
+            }
             
             // Always update if we find a better match (more specific URL)
             const isBetterMatch = !this.bettingEndpoint || 
@@ -266,6 +341,8 @@ class FliffClient {
                   console.log('   Request body (non-JSON):', postData.substring(0, 200));
                 }
               }
+              // Persist the endpoint immediately
+              this.saveAPICredentials();
             }
           }
         }

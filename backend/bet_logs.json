@@ -1416,14 +1416,34 @@
       "error": "No matching element found",
       "timestamp": 1764475932553,
       "id": "mil7ev0pkbkqi"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Over 5.5",
+      "odds": -125,
+      "wager": 100,
+      "coinType": "coin",
+      "result": "locked",
+      "timestamp": 1764516604175,
+      "id": "milvmlg08n76b"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Over 5.5",
+      "odds": -125,
+      "wager": 100,
+      "coinType": "coin",
+      "result": "locked",
+      "timestamp": 1764517409478,
+      "id": "milw3utiytld5"
     }
   ],
   "stats": {
-    "totalBets": 44,
+    "totalBets": 46,
     "wins": 0,
     "losses": 0,
     "pending": 44,
-    "totalWagered": 2940.3999999999996,
+    "totalWagered": 3140.3999999999996,
     "totalWon": 0,
     "prefireAttempts": 83,
     "prefireSuccess": 46

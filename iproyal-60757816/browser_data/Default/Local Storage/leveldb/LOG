@@ -1,0 +1,45 @@
+2025/11/07-21:39:24.094 15d8 Reusing MANIFEST C:\Users\Administrator\Desktop\fliff\profiles\iproyal-60757816\browser_data\Default\Local Storage\leveldb/MANIFEST-000001
+2025/11/07-21:39:24.099 15d8 Recovering log #7
+2025/11/07-21:39:24.100 15d8 Reusing old log C:\Users\Administrator\Desktop\fliff\profiles\iproyal-60757816\browser_data\Default\Local Storage\leveldb/000007.log 
+2025/11/07-23:47:04.865 2b00 Level-0 table #11: started
+2025/11/07-23:47:04.921 2b00 Level-0 table #11: 32097 bytes OK
+2025/11/07-23:47:04.925 2b00 Delete type=0 #7
+2025/11/08-04:54:50.325 2b00 Level-0 table #13: started
+2025/11/08-04:54:50.334 2b00 Level-0 table #13: 32364 bytes OK
+2025/11/08-04:54:50.338 2b00 Delete type=0 #10
+2025/11/08-10:02:40.820 2b00 Level-0 table #15: started
+2025/11/08-10:02:40.826 2b00 Level-0 table #15: 32357 bytes OK
+2025/11/08-10:02:40.830 2b00 Delete type=0 #12
+2025/11/08-15:10:28.317 2b00 Level-0 table #17: started
+2025/11/08-15:10:28.324 2b00 Level-0 table #17: 32402 bytes OK
+2025/11/08-15:10:28.328 2b00 Delete type=0 #14
+2025/11/08-15:10:28.329 2b00 Compacting 4@0 + 1@1 files
+2025/11/08-15:10:28.334 2b00 Generated table #18@0: 115 keys, 3580 bytes
+2025/11/08-15:10:28.334 2b00 Compacted 4@0 + 1@1 files => 3580 bytes
+2025/11/08-15:10:28.337 2b00 compacted to: files[ 0 1 1 0 0 0 0 ]
+2025/11/08-15:10:28.337 2b00 Delete type=2 #8
+2025/11/08-15:10:28.338 2b00 Delete type=2 #11
+2025/11/08-15:10:28.338 2b00 Delete type=2 #13
+2025/11/08-15:10:28.338 2b00 Delete type=2 #15
+2025/11/08-15:10:28.338 2b00 Delete type=2 #17
+2025/11/08-20:18:20.204 2b00 Level-0 table #20: started
+2025/11/08-20:18:20.210 2b00 Level-0 table #20: 32332 bytes OK
+2025/11/08-20:18:20.215 2b00 Delete type=0 #16
+2025/11/09-01:26:15.244 2b00 Level-0 table #22: started
+2025/11/09-01:26:15.253 2b00 Level-0 table #22: 32346 bytes OK
+2025/11/09-01:26:15.259 2b00 Delete type=0 #19
+2025/11/09-06:34:05.668 2b00 Level-0 table #24: started
+2025/11/09-06:34:05.675 2b00 Level-0 table #24: 32311 bytes OK
+2025/11/09-06:34:05.679 2b00 Delete type=0 #21
+2025/11/09-11:41:55.715 2b00 Level-0 table #26: started
+2025/11/09-11:41:55.721 2b00 Level-0 table #26: 32436 bytes OK
+2025/11/09-11:41:55.729 2b00 Delete type=0 #23
+2025/11/09-11:41:55.729 2b00 Compacting 4@0 + 1@1 files
+2025/11/09-11:41:55.735 2b00 Generated table #27@0: 115 keys, 3580 bytes
+2025/11/09-11:41:55.735 2b00 Compacted 4@0 + 1@1 files => 3580 bytes
+2025/11/09-11:41:55.737 2b00 compacted to: files[ 0 1 1 0 0 0 0 ]
+2025/11/09-11:41:55.738 2b00 Delete type=2 #18
+2025/11/09-11:41:55.738 2b00 Delete type=2 #20
+2025/11/09-11:41:55.738 2b00 Delete type=2 #22
+2025/11/09-11:41:55.738 2b00 Delete type=2 #24
+2025/11/09-11:41:55.738 2b00 Delete type=2 #26

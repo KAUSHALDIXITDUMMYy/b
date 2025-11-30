@@ -1,0 +1,44 @@
+2025/11/07-21:39:29.213 2330 Reusing MANIFEST C:\Users\Administrator\Desktop\fliff\profiles\iproyal-60757833-1\browser_data\Default\Local Storage\leveldb/MANIFEST-000001
+2025/11/07-21:39:29.218 2330 Recovering log #7
+2025/11/07-21:39:29.220 2330 Reusing old log C:\Users\Administrator\Desktop\fliff\profiles\iproyal-60757833-1\browser_data\Default\Local Storage\leveldb/000007.log 
+2025/11/08-01:01:40.772 21e0 Level-0 table #11: started
+2025/11/08-01:01:40.780 21e0 Level-0 table #11: 27159 bytes OK
+2025/11/08-01:01:40.784 21e0 Delete type=0 #7
+2025/11/08-01:01:40.784 21e0 Compacting 4@0 + 0@1 files
+2025/11/08-01:01:40.790 21e0 Generated table #12@0: 34 keys, 3360 bytes
+2025/11/08-01:01:40.790 21e0 Compacted 4@0 + 0@1 files => 3360 bytes
+2025/11/08-01:01:40.794 21e0 compacted to: files[ 0 1 0 0 0 0 0 ]
+2025/11/08-01:01:40.795 21e0 Delete type=2 #3
+2025/11/08-01:01:40.795 21e0 Delete type=2 #6
+2025/11/08-01:01:40.795 21e0 Delete type=2 #8
+2025/11/08-01:01:40.795 21e0 Delete type=2 #11
+2025/11/08-06:09:35.882 21e0 Level-0 table #14: started
+2025/11/08-06:09:35.889 21e0 Level-0 table #14: 31985 bytes OK
+2025/11/08-06:09:35.893 21e0 Delete type=0 #10
+2025/11/08-11:17:33.731 21e0 Level-0 table #16: started
+2025/11/08-11:17:33.743 21e0 Level-0 table #16: 32032 bytes OK
+2025/11/08-11:17:33.750 21e0 Delete type=0 #13
+2025/11/08-16:25:26.365 21e0 Level-0 table #18: started
+2025/11/08-16:25:26.370 21e0 Level-0 table #18: 32028 bytes OK
+2025/11/08-16:25:26.374 21e0 Delete type=0 #15
+2025/11/08-21:33:27.604 21e0 Level-0 table #20: started
+2025/11/08-21:33:28.045 21e0 Level-0 table #20: 32058 bytes OK
+2025/11/08-21:33:28.472 21e0 Delete type=0 #17
+2025/11/08-21:33:28.752 21e0 Compacting 4@0 + 1@1 files
+2025/11/08-21:33:28.760 21e0 Generated table #21@0: 34 keys, 3364 bytes
+2025/11/08-21:33:28.760 21e0 Compacted 4@0 + 1@1 files => 3364 bytes
+2025/11/08-21:33:28.762 21e0 compacted to: files[ 0 1 0 0 0 0 0 ]
+2025/11/08-21:33:28.763 21e0 Delete type=2 #12
+2025/11/08-21:33:28.763 21e0 Delete type=2 #14
+2025/11/08-21:33:28.763 21e0 Delete type=2 #16
+2025/11/08-21:33:28.763 21e0 Delete type=2 #18
+2025/11/08-21:33:28.763 21e0 Delete type=2 #20
+2025/11/09-02:41:21.567 21e0 Level-0 table #23: started
+2025/11/09-02:41:21.575 21e0 Level-0 table #23: 32028 bytes OK
+2025/11/09-02:41:21.579 21e0 Delete type=0 #19
+2025/11/09-07:49:19.583 21e0 Level-0 table #25: started
+2025/11/09-07:49:19.590 21e0 Level-0 table #25: 32038 bytes OK
+2025/11/09-07:49:19.594 21e0 Delete type=0 #22
+2025/11/09-12:57:20.104 21e0 Level-0 table #27: started
+2025/11/09-12:57:20.111 21e0 Level-0 table #27: 32002 bytes OK
+2025/11/09-12:57:20.115 21e0 Delete type=0 #24

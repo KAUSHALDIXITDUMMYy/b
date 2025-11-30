@@ -1,0 +1,11 @@
+2025/11/07-14:45:52.154 22b4 Reusing MANIFEST C:\Users\Administrator\Desktop\fliff\profiles\iproyal-60757833-1\browser_data\Default\Local Storage\leveldb/MANIFEST-000001
+2025/11/07-14:45:52.164 22b4 Recovering log #3
+2025/11/07-14:45:52.165 22b4 Level-0 table #3: started
+2025/11/07-14:45:52.178 22b4 Level-0 table #3: 23084 bytes OK
+2025/11/07-14:45:52.184 22b4 Delete type=0 #3
+2025/11/07-16:27:51.993 2608 Level-0 table #6: started
+2025/11/07-16:27:52.000 2608 Level-0 table #6: 18827 bytes OK
+2025/11/07-16:27:52.004 2608 Delete type=0 #4
+2025/11/07-21:24:24.193 2608 Level-0 table #8: started
+2025/11/07-21:24:24.204 2608 Level-0 table #8: 23499 bytes OK
+2025/11/07-21:24:24.211 2608 Delete type=0 #5

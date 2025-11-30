@@ -1,0 +1,17 @@
+{
+  "ignore": [
+    "bet_logs.json",
+    "**/bet_logs.json",
+    "*.log",
+    "**/*.log",
+    "node_modules/**",
+    "ray/**",
+    "**/ray/**"
+  ],
+  "watch": [
+    "server.js",
+    "fliff.js"
+  ],
+  "ext": "js"
+}
+

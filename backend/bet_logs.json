@@ -1436,14 +1436,44 @@
       "result": "locked",
       "timestamp": 1764517409478,
       "id": "milw3utiytld5"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Over 2.5",
+      "odds": 100,
+      "wager": 0,
+      "coinType": "none",
+      "result": "locked",
+      "timestamp": 1764519883072,
+      "id": "milxkvggg3oib"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Over 3.5",
+      "odds": -140,
+      "wager": 0.2,
+      "coinType": "cash",
+      "result": "locked",
+      "timestamp": 1764521942616,
+      "id": "milyt0m0vax7k"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Over 3.5",
+      "odds": -135,
+      "wager": 0.2,
+      "coinType": "cash",
+      "result": "unknown",
+      "timestamp": 1764525069229,
+      "id": "mim0o14db3mfp"
     }
   ],
   "stats": {
-    "totalBets": 46,
+    "totalBets": 48,
     "wins": 0,
     "losses": 0,
     "pending": 44,
-    "totalWagered": 3140.3999999999996,
+    "totalWagered": 3140.7999999999993,
     "totalWon": 0,
     "prefireAttempts": 83,
     "prefireSuccess": 46

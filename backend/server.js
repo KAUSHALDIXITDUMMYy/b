@@ -64,6 +64,7 @@ function loadLogs() {
 function saveLogs() {
   try {
     const logsPath = path.join(__dirname, 'bet_logs.json');
+    // Use writeFileSync with a small delay to batch writes and reduce nodemon restarts
     fs.writeFileSync(logsPath, JSON.stringify({
       logs: betLogs.slice(-1000), // Keep last 1000
       stats: accountStats
@@ -346,7 +347,7 @@ app.post('/api/prefire', async (req, res) => {
             message: `✅ Bet placed: ${finalSelection} @ ${finalOdds} - $${wager}`
           });
           
-          saveLogs();
+          setImmediate(() => saveLogs());
           return res.json({ success: true, message: 'Bet accepted!' });
         }
         
@@ -417,7 +418,7 @@ app.post('/api/prefire', async (req, res) => {
             message: `✅ Bet placed: ${selection} @ ${odds} - $${wager}`
           });
           
-          saveLogs();
+          setImmediate(() => saveLogs());
           return res.json({ success: true, message: 'Bet accepted!' });
         }
         
@@ -470,13 +471,13 @@ app.post('/api/prefire', async (req, res) => {
   }
 });
 
-// LOCK AND LOAD - Places bet with Fliff Coin and reloads page
+// LOCK AND LOAD - Places $0.20 bet with Cash and refreshes page during submission to lock odds
 app.post('/api/lock-and-load', async (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Invalid request body' });
   }
   
-  const { gameId, oddId, selection, odds, param, market, wager } = req.body;
+  const { gameId, oddId, selection, odds, param, market } = req.body;
   
   if (!selection || odds === undefined) {
     return res.status(400).json({ error: 'Missing selection or odds' });
@@ -486,7 +487,8 @@ app.post('/api/lock-and-load', async (req, res) => {
     return res.status(500).json({ error: 'Fliff not connected' });
   }
   
-  logBetting(`🔒 LOCK & LOAD: ${selection} @ ${odds} - $${wager} (Coin)`);
+  const lockWager = 0.20; // Always use $0.20 for lock and load
+  logBetting(`🔒 LOCK & LOAD: ${selection} @ ${odds} - $${lockWager} (Cash)`);
   
   try {
     const gameOddsMap = gameOdds.get(parseInt(gameId));
@@ -505,67 +507,115 @@ app.post('/api/lock-and-load', async (req, res) => {
       }
     }
     
-    // Step 1: Place bet with Fliff Coin
-    logBetting(`   Step 1: Placing bet with Fliff Coin...`);
-    const betResult = await fliffClient.placeBet(finalSelection, finalOdds, wager, 'coin', finalParam, finalMarket, oddId);
+    // Step 1: Place bet with $0.20 Cash
+    logBetting(`   Step 1: Placing $${lockWager} bet with Cash...`);
+    const betPromise = fliffClient.placeBet(finalSelection, finalOdds, lockWager, 'cash', finalParam, finalMarket, oddId);
+    
+    // Step 2: While bet is submitting, refresh the page to lock odds
+    // Start refresh immediately (don't wait for bet to complete)
+    logBetting(`   Step 2: Refreshing page during submission to lock odds...`);
+    const reloadPromise = fliffClient.reloadPage();
+    
+    // Wait for both to complete (bet submission and page refresh happen simultaneously)
+    const [betResult, reloadResult] = await Promise.all([betPromise, reloadPromise]);
     
     if (betResult.success) {
-      logBetting(`   ✅ Step 1 Complete: Bet placed with Fliff Coin`);
-      
-      // Small delay to ensure bet is fully processed before reload
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Step 2: Reload the page to lock the odds (this is the bug exploit)
-      logBetting(`   Step 2: Reloading page to lock odds...`);
-      const reloadResult = await fliffClient.reloadPage();
+      logBetting(`   ✅ Step 1 Complete: $${lockWager} bet placed`);
       
       if (reloadResult.success) {
-        logBetting(`   ✅ Step 2 Complete: Page reloaded - odds should be locked`);
+        logBetting(`   ✅ Step 2 Complete: Page refreshed`);
       } else {
-        logBetting(`   ⚠️ Step 2 Warning: Page reload had issues: ${reloadResult.error}`);
-        // Still continue - bet was placed, reload is just for locking
+        logBetting(`   ⚠️ Step 2 Warning: Page refresh had issues: ${reloadResult.error}`);
+      }
+      
+      // Step 3: Verify odds haven't changed after refresh
+      logBetting(`   Step 3: Verifying odds are locked...`);
+      const oddsCheck = await fliffClient.getCurrentOddsAfterRefresh(finalSelection, finalOdds, finalParam, finalMarket, oddId);
+      
+      let oddsLocked = false;
+      let oddsChanged = false;
+      
+      if (oddsCheck.found) {
+        // Compare odds - allow small tolerance for rounding
+        const oddsMatch = oddsCheck.currentOdds !== null && 
+                          Math.abs(oddsCheck.currentOdds - finalOdds) <= 1;
+        
+        // Check if selection text still matches
+        const selectionMatch = oddsCheck.currentSelection && 
+                               oddsCheck.currentSelection.toLowerCase().includes(finalSelection.toLowerCase());
+        
+        if (oddsMatch && selectionMatch) {
+          oddsLocked = true;
+          logBetting(`   ✅ Step 3 Complete: Odds verified - ${finalSelection} @ ${oddsCheck.currentOdds} (locked)`);
+        } else {
+          oddsChanged = true;
+          logBetting(`   ⚠️ Step 3 Warning: Odds changed - Expected: ${finalSelection} @ ${finalOdds}, Found: ${oddsCheck.currentSelection} @ ${oddsCheck.currentOdds}`);
+        }
+      } else {
+        logBetting(`   ⚠️ Step 3 Warning: Could not verify odds - ${oddsCheck.error || 'Element not found'}`);
       }
       
       logBet({
         type: 'lock_and_load',
         selection: finalSelection,
         odds: finalOdds,
-        wager,
-        coinType: 'coin',
-        result: 'locked',
+        wager: lockWager,
+        coinType: 'cash',
+        result: oddsLocked ? 'locked' : (oddsChanged ? 'odds_changed' : 'unknown'),
         timestamp: Date.now()
       });
       
       accountStats.totalBets++;
-      accountStats.totalWagered += wager;
+      accountStats.totalWagered += lockWager;
+      
+      // Only show "Locked & Loaded" if odds are actually locked
+      const message = oddsLocked 
+        ? `🔒 LOCKED & LOADED: ${finalSelection} @ ${finalOdds} - $${lockWager} bet placed, odds verified locked!`
+        : oddsChanged
+          ? `⚠️ Odds Changed: ${finalSelection} @ ${finalOdds} - Odds changed after refresh`
+          : `✅ Bet Placed: ${finalSelection} @ ${finalOdds} - $${lockWager} bet placed, could not verify odds`;
       
       broadcast({
         type: 'prefire_result',
-        success: true,
-        message: `🔒 Locked: ${finalSelection} @ ${finalOdds} - Bet placed with Coin, page reloaded`
+        success: oddsLocked,
+        message: message
       });
       
-      saveLogs();
+      // Save logs after response is sent to prevent nodemon restart during request
+      setImmediate(() => saveLogs());
+      
       return res.json({ 
-        success: true, 
-        message: 'Lock & Load complete! Bet placed with Fliff Coin and page reloaded to lock odds.',
+        success: oddsLocked, // Only true if odds are actually locked
+        message: oddsLocked 
+          ? `Locked & Loaded! $${lockWager} bet placed, odds verified locked at ${finalOdds}.`
+          : oddsChanged
+            ? `Odds changed after refresh. Expected ${finalOdds}, but odds may have moved.`
+            : `Bet placed but could not verify if odds are locked.`,
         betPlaced: true,
-        pageReloaded: reloadResult.success
+        pageReloaded: reloadResult.success,
+        oddsLocked: oddsLocked,
+        oddsChanged: oddsChanged,
+        lockedOdds: oddsLocked ? finalOdds : null,
+        currentOdds: oddsCheck.found ? oddsCheck.currentOdds : null
+      });
+    } else {
+      // Bet failed - save logs after response
+      setImmediate(() => saveLogs());
+      
+      return res.json({ 
+        success: false, 
+        error: betResult.error || 'Lock & Load failed - could not place $0.20 bet' 
       });
     }
     
-    return res.json({ 
-      success: false, 
-      error: betResult.error || 'Lock & Load failed - could not place bet with Fliff Coin' 
-    });
-    
   } catch (e) {
     console.error('Lock & Load error:', e);
+    setImmediate(() => saveLogs());
     return res.status(500).json({ error: e.message });
   }
 });
 
-// PLACE BET - Places bet with Fliff Cash
+// PLACE BET - Places bet with Fliff Cash (uses wager amount from dashboard)
 app.post('/api/place-bet', async (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Invalid request body' });
@@ -624,7 +674,7 @@ app.post('/api/place-bet', async (req, res) => {
         message: `✅ Bet placed: ${finalSelection} @ ${finalOdds} - $${wager}`
       });
       
-      saveLogs();
+      setImmediate(() => saveLogs());
       return res.json({ success: true, message: 'Bet placed!' });
     }
     
@@ -683,7 +733,7 @@ app.post('/api/admin/result', (req, res) => {
       accountStats.losses++;
     }
     
-    saveLogs();
+    setImmediate(() => saveLogs());
     res.json({ success: true });
   } else {
     res.status(404).json({ error: 'Bet not found' });
@@ -718,9 +768,9 @@ function logBet(bet) {
   const timestamp = new Date().toLocaleTimeString();
   console.log(`💰 [BET ${timestamp}] ${bet.type.toUpperCase()}: ${bet.selection} @ ${bet.odds > 0 ? '+' : ''}${bet.odds} = ${bet.result}`);
   
-  // Auto-save every 10 bets
+  // Auto-save every 10 bets (use setImmediate to prevent nodemon restart)
   if (betLogs.length % 10 === 0) {
-    saveLogs();
+    setImmediate(() => saveLogs());
   }
 }
 

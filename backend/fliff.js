@@ -263,11 +263,17 @@ class FliffClient {
         const postData = params.request.postData;
         
         // Look for auth/bearer token in headers
+        // Note: Bearer token changes on refresh, so we update it but don't treat it as an error
         if (headers.Authorization) {
           const newToken = headers.Authorization;
           if (this.bearerToken !== newToken) {
+            const wasNew = !this.bearerToken;
             this.bearerToken = newToken;
-            console.log('🔑 Captured bearer token');
+            if (wasNew) {
+              console.log('🔑 Captured bearer token');
+            } else {
+              console.log('🔄 Bearer token updated (normal on page refresh)');
+            }
             this.saveAPICredentials(); // Persist immediately
           }
         }
@@ -1309,12 +1315,12 @@ class FliffClient {
 
       await this.page.waitForTimeout(300);
 
-      // Step 2: Select Fliff Coin (always use coin for prefire)
+      // Step 2: Select Cash (always use cash)
       await this.page.evaluate(() => {
-        const coinBtns = document.querySelectorAll('button, [role="button"]');
-        for (const btn of coinBtns) {
+        const cashBtns = document.querySelectorAll('button, [role="button"]');
+        for (const btn of cashBtns) {
           const text = (btn.textContent || '').toLowerCase();
-          if (text.includes('coin') || text.includes('fliff coin')) {
+          if (text.includes('cash')) {
             btn.click();
             break;
           }
@@ -1457,6 +1463,8 @@ class FliffClient {
   // =============================================
 
   async placeBetViaAPI(selection, targetOdds, wager, coinType, param = null, market = null, oddId = null) {
+    // Always use cash - coinType parameter kept for compatibility but ignored
+    coinType = 'cash';
     if (!this.bettingEndpoint) {
       return { success: false, error: 'Betting API endpoint not captured yet. Place a bet manually in the browser first to capture it.' };
     }
@@ -1505,8 +1513,8 @@ class FliffClient {
         if (requestBody.wager !== undefined) requestBody.wager = wager;
         if (requestBody.stake !== undefined) requestBody.stake = wager;
         
-        if (requestBody.coin_type !== undefined) requestBody.coin_type = coinType === 'cash' ? 'cash' : 'coin';
-        if (requestBody.currency !== undefined) requestBody.currency = coinType === 'cash' ? 'cash' : 'coin';
+        if (requestBody.coin_type !== undefined) requestBody.coin_type = 'cash';
+        if (requestBody.currency !== undefined) requestBody.currency = 'cash';
         
         if (requestBody.odds !== undefined) requestBody.odds = targetOdds;
         if (requestBody.coeff !== undefined) requestBody.coeff = targetOdds;
@@ -1519,8 +1527,8 @@ class FliffClient {
           id: oddId,
           amount: wager,
           wager: wager,
-          coin_type: coinType === 'cash' ? 'cash' : 'coin',
-          currency: coinType === 'cash' ? 'cash' : 'coin',
+          coin_type: 'cash',
+          currency: 'cash',
           odds: targetOdds,
           coeff: targetOdds,
           selection: selection,
@@ -1663,7 +1671,8 @@ class FliffClient {
   // =============================================
 
   async placeBet(selection, targetOdds, wager, coinType, param = null, market = null, oddId = null) {
-    console.log(`\n💰 PLACING BET: ${selection} @ ${targetOdds} - $${wager} (${coinType})`);
+    // Always use cash - coinType parameter kept for compatibility but ignored
+    console.log(`\n💰 PLACING BET: ${selection} @ ${targetOdds} - $${wager} (Cash)`);
     if (param) console.log(`   Param: ${param}`);
     if (market) console.log(`   Market: ${market}`);
     if (oddId) console.log(`   Odd ID: ${oddId}`);
@@ -1671,7 +1680,7 @@ class FliffClient {
     // Try API method first (much faster) - ALWAYS try if we have endpoint
     if (this.bettingEndpoint && (this.bearerToken || this.authToken)) {
       console.log('🚀 Attempting direct API bet (preferred method)...');
-      const apiResult = await this.placeBetViaAPI(selection, targetOdds, wager, coinType, param, market, oddId);
+      const apiResult = await this.placeBetViaAPI(selection, targetOdds, wager, 'cash', param, market, oddId);
       
       if (apiResult.success) {
         console.log('✅ Bet placed via API! (Fast method)');
@@ -1987,20 +1996,17 @@ class FliffClient {
 
       await this.page.waitForTimeout(800);
 
-      // Step 2: Select coin type
-      await this.page.evaluate((type) => {
+      // Step 2: Select cash type (always use cash)
+      await this.page.evaluate(() => {
         const buttons = document.querySelectorAll('button, [role="button"]');
         for (const btn of buttons) {
           const text = (btn.textContent || '').toLowerCase();
-          if (type === 'cash' && text.includes('cash')) {
-            btn.click();
-            break;
-          } else if (type === 'coin' && text.includes('coin')) {
+          if (text.includes('cash')) {
             btn.click();
             break;
           }
         }
-      }, coinType);
+      });
 
       await this.page.waitForTimeout(300);
 
@@ -2090,6 +2096,79 @@ class FliffClient {
     }
   }
 
+  // Get current odds and selection text from page for a specific oddId
+  async getCurrentOddsAfterRefresh(selection, targetOdds, param = null, market = null, oddId = null) {
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      await this.page.waitForTimeout(1000); // Wait for page to fully render
+      
+      const result = await this.page.evaluate((sel, odds, param, market, oddId) => {
+        // Try to find the element by oddId first (most reliable)
+        let foundElement = null;
+        
+        if (oddId) {
+          const idSelectors = [
+            `[data-id="${oddId}"]`,
+            `[data-proposal="${oddId}"]`,
+            `[data-odd-id="${oddId}"]`,
+            `[data-proposal-fkey="${oddId}"]`
+          ];
+          
+          for (const selector of idSelectors) {
+            try {
+              const el = document.querySelector(selector);
+              if (el && el.offsetParent !== null) {
+                foundElement = el;
+                break;
+              }
+            } catch (e) {}
+          }
+        }
+        
+        // If not found by ID, search by text
+        if (!foundElement) {
+          const selLower = (sel || '').toLowerCase();
+          const allElements = document.querySelectorAll('[class*="odds"], [class*="coeff"], [class*="proposal"], button, [role="button"]');
+          
+          for (const el of Array.from(allElements)) {
+            if (el.offsetParent === null) continue;
+            const text = (el.textContent || '').toLowerCase();
+            if (text.includes(selLower)) {
+              foundElement = el;
+              break;
+            }
+          }
+        }
+        
+        if (!foundElement) {
+          return { found: false, error: 'Element not found' };
+        }
+        
+        const text = foundElement.textContent || '';
+        // Extract odds from text
+        const oddsMatch = text.match(/([+-]?\d+)/);
+        const currentOdds = oddsMatch ? parseInt(oddsMatch[1]) : null;
+        
+        // Extract selection text
+        const selectionText = text.trim().substring(0, 100);
+        
+        return {
+          found: true,
+          currentOdds: currentOdds,
+          currentSelection: selectionText,
+          originalOdds: odds,
+          originalSelection: sel
+        };
+      }, selection, targetOdds, param, market, oddId);
+      
+      return result;
+    } catch (e) {
+      console.error('❌ Error getting current odds:', e.message);
+      return { found: false, error: e.message };
+    }
+  }
+
   // Get current odds from page
   async getCurrentOdds(selection) {
     if (!this.page) throw new Error('Browser not connected');
@@ -2146,6 +2225,194 @@ class FliffClient {
       return { success: true };
     } catch (e) {
       console.error('❌ Navigation error:', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  // Select bet (click on it) without placing - used for Lock & Load
+  async selectBet(selection, targetOdds, param = null, market = null, oddId = null) {
+    console.log(`\n🔒 SELECTING BET (Lock & Load): ${selection} @ ${targetOdds}`);
+    if (param) console.log(`   Param: ${param}`);
+    if (market) console.log(`   Market: ${market}`);
+    if (oddId) console.log(`   Odd ID: ${oddId}`);
+    
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      // Wait for page to be ready
+      try {
+        await this.page.waitForSelector('body', { timeout: 5000 });
+      } catch (e) {
+        console.log('Page not ready, waiting...');
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      
+      // Use similar matching logic as placeBet but just click to select (not place)
+      const clicked = await this.page.evaluate(async (sel, odds, param, market, oddId) => {
+        console.log('🔍 Looking for bet to select:', {
+          selection: sel,
+          odds: odds,
+          param: param,
+          market: market,
+          oddId: oddId
+        });
+        
+        // Normalize the search terms
+        const selLower = (sel || '').toLowerCase().trim();
+        const oddsStr = odds > 0 ? `+${odds}` : odds.toString();
+        const paramLower = (param || '').toLowerCase().trim();
+        const marketLower = (market || '').toLowerCase().trim();
+        
+        // Extract number with word boundaries
+        const numberMatch = selLower.match(/(?:over|under|o|u)\s+(\d+\.?\d*)|^(\d+\.?\d*)$|(\d+\.?\d*)/);
+        const numberInSel = numberMatch ? (numberMatch[1] || numberMatch[2] || numberMatch[3]) : null;
+        
+        // Get all clickable elements
+        const selectors = [
+          'button',
+          '[role="button"]',
+          '[class*="odds"]', '[class*="Odds"]',
+          '[class*="coeff"]', '[class*="Coeff"]',
+          '[class*="proposal"]', '[class*="Proposal"]',
+          '[class*="cell"]', '[class*="Cell"]',
+          '[class*="pick"]', '[class*="Pick"]',
+          '[class*="bet"]', '[class*="Bet"]',
+          '[class*="line"]', '[class*="Line"]',
+          '[class*="option"]', '[class*="Option"]',
+          '[data-proposal]', '[data-odd]', '[data-id]'
+        ];
+        
+        const allElements = [];
+        selectors.forEach(selector => {
+          try {
+            const found = document.querySelectorAll(selector);
+            allElements.push(...Array.from(found));
+          } catch (e) {}
+        });
+        
+        // Also try to find by data attributes if oddId is provided
+        let elementsById = [];
+        if (oddId) {
+          const idSelectors = [
+            `[data-id="${oddId}"]`,
+            `[data-proposal="${oddId}"]`,
+            `[data-odd-id="${oddId}"]`,
+            `[data-proposal-fkey="${oddId}"]`,
+            `[id*="${oddId}"]`
+          ];
+          idSelectors.forEach(selector => {
+            try {
+              const found = document.querySelectorAll(selector);
+              elementsById.push(...Array.from(found));
+            } catch (e) {}
+          });
+        }
+        
+        // Filter to only visible elements
+        const elements = Array.from(allElements).filter(el => {
+          return el.offsetParent !== null && 
+                 el.offsetWidth > 0 && 
+                 el.offsetHeight > 0 &&
+                 window.getComputedStyle(el).display !== 'none' &&
+                 window.getComputedStyle(el).visibility !== 'hidden';
+        });
+        
+        // Combine with elements found by ID
+        const allCandidates = [...elements];
+        elementsById.forEach(el => {
+          if (!allCandidates.includes(el) && el.offsetParent !== null) {
+            allCandidates.push(el);
+          }
+        });
+        
+        // Helper function to check if number matches exactly
+        function numberMatchesExactly(text, targetNumber) {
+          if (!targetNumber) return false;
+          const exactNumberRegex = new RegExp(`\\b${targetNumber.replace('.', '\\.')}\\b`);
+          return exactNumberRegex.test(text);
+        }
+        
+        // Score each element
+        let bestMatch = null;
+        let bestScore = 0;
+        
+        for (const el of allCandidates) {
+          const text = (el.textContent || '').toLowerCase();
+          const elId = el.id || '';
+          const dataAttrs = Array.from(el.attributes)
+            .filter(attr => attr.name.startsWith('data-'))
+            .map(attr => attr.value)
+            .join(' ');
+          
+          let score = 0;
+          let reasons = [];
+          
+          // ID match gets highest priority
+          if (oddId && (elId.includes(oddId) || dataAttrs.includes(oddId))) {
+            score += 200;
+            reasons.push('id-match');
+          }
+          
+          // Selection text match
+          if (selLower && text.includes(selLower)) {
+            score += 50;
+            reasons.push('selection-match');
+          }
+          
+          // Number match (exact)
+          if (numberInSel && numberMatchesExactly(text, numberInSel)) {
+            score += 40;
+            reasons.push('has-exact-number');
+          }
+          
+          // Odds match
+          if (text.includes(oddsStr) || text.includes(odds.toString())) {
+            score += 30;
+            reasons.push('odds-match');
+          }
+          
+          // Param match (for totals/spreads)
+          if (paramLower && text.includes(paramLower)) {
+            score += 20;
+            reasons.push('param-match');
+          }
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = { element: el, score, reasons };
+          }
+        }
+        
+        if (bestMatch && bestScore > 0) {
+          console.log('✅ Found match, clicking to select:', {
+            score: bestScore,
+            reasons: bestMatch.reasons,
+            text: bestMatch.element.textContent?.substring(0, 50)
+          });
+          
+          // Scroll into view and click
+          bestMatch.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          await new Promise(r => setTimeout(r, 300));
+          bestMatch.element.click();
+          
+          return { clicked: true, score: bestScore };
+        }
+        
+        return { clicked: false, error: 'No matching element found' };
+      }, selection, targetOdds, param, market, oddId);
+      
+      if (clicked.clicked) {
+        console.log('✅ Bet selected successfully');
+        // Small delay to ensure selection is registered
+        await new Promise(r => setTimeout(r, 500));
+        return { success: true };
+      } else {
+        console.log('❌ Could not select bet:', clicked.error);
+        return { success: false, error: clicked.error || 'Could not find bet element to select' };
+      }
+      
+    } catch (e) {
+      console.error('❌ Select bet error:', e.message);
       return { success: false, error: e.message };
     }
   }

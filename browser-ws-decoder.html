@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fliff WebSocket Binary Decoder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #1a1a1a;
+      color: #00ff00;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #00ff00;
+      text-shadow: 0 0 10px #00ff00;
+    }
+    .status {
+      background: #000;
+      border: 2px solid #00ff00;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+    }
+    .status.connected { border-color: #00ff00; }
+    .status.disconnected { border-color: #ff0000; color: #ff0000; }
+    .controls {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      background: #000;
+      color: #00ff00;
+      border: 2px solid #00ff00;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #00ff00;
+      color: #000;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .messages {
+      background: #000;
+      border: 2px solid #00ff00;
+      padding: 15px;
+      max-height: 600px;
+      overflow-y: auto;
+      border-radius: 5px;
+    }
+    .message {
+      border-bottom: 1px solid #003300;
+      padding: 10px 0;
+      margin-bottom: 10px;
+    }
+    .message:last-child {
+      border-bottom: none;
+    }
+    .message-header {
+      color: #ffff00;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .message-content {
+      background: #0a0a0a;
+      padding: 10px;
+      border-left: 3px solid #00ff00;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 12px;
+    }
+    .method {
+      color: #00aaff;
+      font-style: italic;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-box {
+      background: #000;
+      border: 2px solid #00ff00;
+      padding: 15px;
+      text-align: center;
+      border-radius: 5px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #00ff00;
+      text-shadow: 0 0 10px #00ff00;
+    }
+    .stat-label {
+      color: #888;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    .export {
+      margin-top: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔌 FLIFF WEBSOCKET BINARY DECODER</h1>
+    
+    <div class="status disconnected" id="status">
+      ⚫ Disconnected
+    </div>
+    
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-value" id="msgCount">0</div>
+        <div class="stat-label">Messages Received</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="decodedCount">0</div>
+        <div class="stat-label">Successfully Decoded</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="dataSize">0</div>
+        <div class="stat-label">Total Data (KB)</div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button id="connectBtn" onclick="connect()">🔌 Connect</button>
+      <button id="disconnectBtn" onclick="disconnect()" disabled>⏹️ Disconnect</button>
+      <button onclick="clearMessages()">🗑️ Clear</button>
+      <button onclick="exportData()">💾 Export JSON</button>
+    </div>
+    
+    <div class="messages" id="messages">
+      <div style="text-align: center; color: #666;">
+        Click "Connect" to start capturing messages...
+      </div>
+    </div>
+    
+    <div class="export">
+      <p style="color: #666; font-size: 12px;">
+        💡 Tip: This will decode binary WebSocket messages in real-time
+      </p>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    let messageCount = 0;
+    let decodedCount = 0;
+    let totalBytes = 0;
+    let allMessages = [];
+
+    // Put your actual values here from the Network tab
+    const params = {
+      device_x_id: 'web.8ad85cd7b6e8d379649eb4f9b91d2b7a',
+      app_x_version: '5.0.23.241',
+      app_install_token: 'DZG3395AH3',
+      app_start_token: 'ZxO29qvc',
+      ip_address: 'unknown',
+      auth_token: 'anon',
+      device_local_stamp_millis: Date.now(),
+      device_server_stamp_millis: Date.now() - 1000,
+      app_uptime_millis: 0,
+      seq_no: 0,
+      platform: 'prod'
+    };
+
+    function connect() {
+      const queryString = Object.entries(params)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('&');
+      
+      const wsUrl = `wss://herald-2.app.getfliff.com/heraldz?${queryString}`;
+      
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+      
+      document.getElementById('connectBtn').disabled = true;
+      document.getElementById('disconnectBtn').disabled = false;
+      
+      ws.onopen = () => {
+        updateStatus('connected', '🟢 Connected to Fliff');
+        addMessage('System', 'Connection established', 'info');
+      };
+      
+      ws.onmessage = (event) => {
+        messageCount++;
+        updateStats();
+        
+        if (event.data instanceof ArrayBuffer) {
+          totalBytes += event.data.byteLength;
+          decodeBinaryMessage(event.data);
+        } else {
+          addMessage('Text Message', event.data, 'text');
+        }
+      };
+      
+      ws.onerror = (error) => {
+        addMessage('Error', error.toString(), 'error');
+      };
+      
+      ws.onclose = () => {
+        updateStatus('disconnected', '⚫ Disconnected');
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = true;
+      };
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.close();
+      }
+    }
+
+    function decodeBinaryMessage(arrayBuffer) {
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let decoded = null;
+      let method = 'Unknown';
+      
+      // Try 1: Plain UTF-8
+      try {
+        const text = new TextDecoder().decode(uint8Array);
+        if (text && !text.includes('�')) {
+          decoded = text;
+          method = 'UTF-8 Text';
+          try {
+            decoded = JSON.parse(text);
+            method = 'UTF-8 JSON';
+          } catch (e) {}
+        }
+      } catch (e) {}
+      
+      // Try 2: GZIP decompression
+      if (!decoded) {
+        try {
+          const inflated = pako.inflate(uint8Array, { to: 'string' });
+          decoded = JSON.parse(inflated);
+          method = 'GZIP + JSON';
+        } catch (e) {}
+      }
+      
+      // Try 3: Deflate
+      if (!decoded) {
+        try {
+          const inflated = pako.inflateRaw(uint8Array, { to: 'string' });
+          decoded = JSON.parse(inflated);
+          method = 'Deflate + JSON';
+        } catch (e) {}
+      }
+      
+      // Fallback: Show hex
+      if (!decoded) {
+        const hex = Array.from(uint8Array.slice(0, 50))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join(' ');
+        decoded = {
+          hex_preview: hex,
+          size: uint8Array.length,
+          note: 'Could not decode - possibly Protobuf or custom format'
+        };
+        method = 'Raw Hex';
+      } else {
+        decodedCount++;
+      }
+      
+      addMessage(`Message #${messageCount} (${method})`, decoded, method);
+      
+      allMessages.push({
+        number: messageCount,
+        timestamp: new Date().toISOString(),
+        method: method,
+        size: uint8Array.length,
+        decoded: decoded
+      });
+      
+      updateStats();
+    }
+
+    function addMessage(header, content, type) {
+      const messagesDiv = document.getElementById('messages');
+      if (messageCount === 1) {
+        messagesDiv.innerHTML = '';
+      }
+      
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message';
+      
+      const contentStr = typeof content === 'object' 
+        ? JSON.stringify(content, null, 2) 
+        : content;
+      
+      msgDiv.innerHTML = `
+        <div class="message-header">
+          ${header} <span class="method">[${type}]</span>
+        </div>
+        <div class="message-content">${contentStr}</div>
+      `;
+      
+      messagesDiv.insertBefore(msgDiv, messagesDiv.firstChild);
+      
+      // Keep only last 50 messages in view
+      if (messagesDiv.children.length > 50) {
+        messagesDiv.removeChild(messagesDiv.lastChild);
+      }
+    }
+
+    function updateStatus(status, text) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.className = `status ${status}`;
+      statusDiv.textContent = text;
+    }
+
+    function updateStats() {
+      document.getElementById('msgCount').textContent = messageCount;
+      document.getElementById('decodedCount').textContent = decodedCount;
+      document.getElementById('dataSize').textContent = (totalBytes / 1024).toFixed(2);
+    }
+
+    function clearMessages() {
+      document.getElementById('messages').innerHTML = '<div style="text-align: center; color: #666;">Messages cleared</div>';
+      messageCount = 0;
+      decodedCount = 0;
+      totalBytes = 0;
+      allMessages = [];
+      updateStats();
+    }
+
+    function exportData() {
+      const dataStr = JSON.stringify(allMessages, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fliff_websocket_${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>

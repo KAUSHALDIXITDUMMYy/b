@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "express": "^5.1.0",
+    "msgpack-lite": "^0.1.26",
+    "pako": "^2.1.0",
+    "puppeteer-core": "^24.31.0",
+    "ws": "^8.18.3"
+  }
+}

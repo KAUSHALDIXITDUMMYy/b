@@ -1,0 +1,5998 @@
+{
+  "timestamp": "2025-11-29T08:13:29.720Z",
+  "messages": 91,
+  "liveGames": [
+    {
+      "id": 345224,
+      "home": "Shinhan Bank S-Birds W",
+      "away": "Samsung Life Blue Minx W",
+      "homeScore": 33,
+      "awayScore": 41,
+      "status": "3rd Quarter",
+      "channel": 4750,
+      "markets": 5
+    }
+  ],
+  "upcomingGames": [
+    {
+      "id": 284563,
+      "home": "Michigan",
+      "away": "Ohio State",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 289877,
+      "home": "Vitoria",
+      "away": "Mirassol",
+      "startTime": 1764442800000,
+      "channel": 4303
+    },
+    {
+      "id": 289880,
+      "home": "Ceará",
+      "away": "Cruzeiro Esporte Clube",
+      "startTime": 1764460800000,
+      "channel": 4303
+    },
+    {
+      "id": 289881,
+      "home": "Fortaleza",
+      "away": "Atletico Mineiro",
+      "startTime": 1764538200000,
+      "channel": 4303
+    },
+    {
+      "id": 290152,
+      "home": "Corinthians",
+      "away": "Botafogo",
+      "startTime": 1764529200000,
+      "channel": 4303
+    },
+    {
+      "id": 290155,
+      "home": "Flamengo",
+      "away": "Ceará",
+      "startTime": 1764808200000,
+      "channel": 4303
+    },
+    {
+      "id": 290161,
+      "home": "Juventude",
+      "away": "Santos",
+      "startTime": 1764801000000,
+      "channel": 4303
+    },
+    {
+      "id": 290163,
+      "home": "Grêmio",
+      "away": "Fluminense",
+      "startTime": 1764721800000,
+      "channel": 4303
+    },
+    {
+      "id": 290164,
+      "home": "São Paulo",
+      "away": "Internacional",
+      "startTime": 1764802800000,
+      "channel": 4303
+    },
+    {
+      "id": 294435,
+      "home": "Union Espanola",
+      "away": "O'Higgins",
+      "startTime": 1764536400000,
+      "channel": 43028
+    },
+    {
+      "id": 294488,
+      "home": "Huachipato",
+      "away": "Universidad Catolica Santiago",
+      "startTime": 1764428400000,
+      "channel": 43028
+    },
+    {
+      "id": 294490,
+      "home": "Audax Italiano",
+      "away": "Nublense",
+      "startTime": 1764630000000,
+      "channel": 43028
+    },
+    {
+      "id": 294491,
+      "home": "Everton Vina Del Mar",
+      "away": "Deportes Iquique",
+      "startTime": 1764536400000,
+      "channel": 43028
+    },
+    {
+      "id": 294493,
+      "home": "Deportes La Serena",
+      "away": "Palestino",
+      "startTime": 1764450000000,
+      "channel": 43028
+    },
+    {
+      "id": 294501,
+      "home": "Union La Calera",
+      "away": "Deportes Limache",
+      "startTime": 1764536400000,
+      "channel": 43028
+    },
+    {
+      "id": 294540,
+      "home": "Universidad de Chile",
+      "away": "Coquimbo Unido",
+      "startTime": 1764709200000,
+      "channel": 43028
+    },
+    {
+      "id": 296371,
+      "home": "Louisiana",
+      "away": "UL Monroe",
+      "startTime": 1764446400000,
+      "channel": 452
+    },
+    {
+      "id": 296386,
+      "home": "Washington",
+      "away": "Oregon",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 296390,
+      "home": "Kansas State",
+      "away": "Colorado",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 296392,
+      "home": "Florida Atlantic",
+      "away": "East Carolina",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 296393,
+      "home": "NC State",
+      "away": "North Carolina",
+      "startTime": 1764462600000,
+      "channel": 452
+    },
+    {
+      "id": 296394,
+      "home": "Rutgers",
+      "away": "Penn State",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297049,
+      "home": "UTSA",
+      "away": "Army",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297052,
+      "home": "Nevada",
+      "away": "UNLV",
+      "startTime": 1764468000000,
+      "channel": 452
+    },
+    {
+      "id": 297053,
+      "home": "USC",
+      "away": "UCLA",
+      "startTime": 1764462600000,
+      "channel": 452
+    },
+    {
+      "id": 297055,
+      "home": "South Florida",
+      "away": "Rice",
+      "startTime": 1764460800000,
+      "channel": 452
+    },
+    {
+      "id": 297057,
+      "home": "West Virginia",
+      "away": "Texas Tech",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 297058,
+      "home": "BYU",
+      "away": "UCF",
+      "startTime": 1764439200000,
+      "channel": 452
+    },
+    {
+      "id": 297059,
+      "home": "Minnesota",
+      "away": "Wisconsin",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297060,
+      "home": "Missouri State",
+      "away": "Louisiana Tech",
+      "startTime": 1764442800000,
+      "channel": 452
+    },
+    {
+      "id": 297061,
+      "home": "Liberty",
+      "away": "Kennesaw State",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297063,
+      "home": "Coastal Carolina",
+      "away": "James Madison",
+      "startTime": 1764449100000,
+      "channel": 452
+    },
+    {
+      "id": 297064,
+      "home": "Michigan State",
+      "away": "Maryland",
+      "startTime": 1764460800000,
+      "channel": 452
+    },
+    {
+      "id": 297066,
+      "home": "Tulsa",
+      "away": "UAB",
+      "startTime": 1764446400000,
+      "channel": 452
+    },
+    {
+      "id": 297067,
+      "home": "Oklahoma",
+      "away": "LSU",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297068,
+      "home": "Duke",
+      "away": "Wake Forest",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297069,
+      "home": "Old Dominion",
+      "away": "Georgia State",
+      "startTime": 1764442800000,
+      "channel": 452
+    },
+    {
+      "id": 297070,
+      "home": "Auburn",
+      "away": "Alabama",
+      "startTime": 1764462600000,
+      "channel": 452
+    },
+    {
+      "id": 297072,
+      "home": "Jacksonville State",
+      "away": "Western Kentucky",
+      "startTime": 1764442800000,
+      "channel": 452
+    },
+    {
+      "id": 297073,
+      "home": "Louisville",
+      "away": "Kentucky",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 297075,
+      "home": "Tulane",
+      "away": "Charlotte",
+      "startTime": 1764462600000,
+      "channel": 452
+    },
+    {
+      "id": 297076,
+      "home": "Pitt",
+      "away": "Miami",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 297077,
+      "home": "Marshall",
+      "away": "Georgia Southern",
+      "startTime": 1764441000000,
+      "channel": 452
+    },
+    {
+      "id": 297078,
+      "home": "Stanford",
+      "away": "Notre Dame",
+      "startTime": 1764473400000,
+      "channel": 452
+    },
+    {
+      "id": 297079,
+      "home": "TCU",
+      "away": "Cincinnati",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297080,
+      "home": "San José State",
+      "away": "Fresno State",
+      "startTime": 1764473400000,
+      "channel": 452
+    },
+    {
+      "id": 297081,
+      "home": "Arkansas",
+      "away": "Missouri",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297082,
+      "home": "Syracuse",
+      "away": "Boston College",
+      "startTime": 1764446400000,
+      "channel": 452
+    },
+    {
+      "id": 297083,
+      "home": "Southern Miss",
+      "away": "Troy",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 297085,
+      "home": "New Mexico State",
+      "away": "Middle Tennessee",
+      "startTime": 1764446400000,
+      "channel": 452
+    },
+    {
+      "id": 297086,
+      "home": "Delaware",
+      "away": "UTEP",
+      "startTime": 1764439200000,
+      "channel": 452
+    },
+    {
+      "id": 297087,
+      "home": "Hawaii",
+      "away": "Wyoming",
+      "startTime": 1764475200000,
+      "channel": 452
+    },
+    {
+      "id": 297088,
+      "home": "Washington State",
+      "away": "Oregon State",
+      "startTime": 1764459000000,
+      "channel": 452
+    },
+    {
+      "id": 297089,
+      "home": "App State",
+      "away": "Arkansas State",
+      "startTime": 1764444600000,
+      "channel": 452
+    },
+    {
+      "id": 297090,
+      "home": "Oklahoma State",
+      "away": "Iowa State",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 297091,
+      "home": "Sam Houston",
+      "away": "Florida International",
+      "startTime": 1764439200000,
+      "channel": 452
+    },
+    {
+      "id": 297092,
+      "home": "Baylor",
+      "away": "Houston",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 297094,
+      "home": "Illinois",
+      "away": "Northwestern",
+      "startTime": 1764462600000,
+      "channel": 452
+    },
+    {
+      "id": 297095,
+      "home": "Virginia",
+      "away": "Virginia Tech",
+      "startTime": 1764460800000,
+      "channel": 452
+    },
+    {
+      "id": 297096,
+      "home": "California",
+      "away": "SMU",
+      "startTime": 1764464400000,
+      "channel": 452
+    },
+    {
+      "id": 297097,
+      "home": "Florida",
+      "away": "Florida State",
+      "startTime": 1764451800000,
+      "channel": 452
+    },
+    {
+      "id": 297098,
+      "home": "Texas State",
+      "away": "South Alabama",
+      "startTime": 1764446400000,
+      "channel": 452
+    },
+    {
+      "id": 297100,
+      "home": "South Carolina",
+      "away": "Clemson",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 297101,
+      "home": "Tennessee",
+      "away": "Vanderbilt",
+      "startTime": 1764448200000,
+      "channel": 452
+    },
+    {
+      "id": 310326,
+      "home": "Bahia",
+      "away": "Sport",
+      "startTime": 1764802800000,
+      "channel": 4303
+    },
+    {
+      "id": 310664,
+      "home": "WSH Commanders",
+      "away": "DEN Broncos",
+      "startTime": 1764552000000,
+      "channel": 451
+    },
+    {
+      "id": 310665,
+      "home": "IND Colts",
+      "away": "HOU Texans",
+      "startTime": 1764525600000,
+      "channel": 451
+    },
+    {
+      "id": 310669,
+      "home": "LA Chargers",
+      "away": "LV Raiders",
+      "startTime": 1764537900000,
+      "channel": 451
+    },
+    {
+      "id": 310807,
+      "home": "TB Buccaneers",
+      "away": "ARI Cardinals",
+      "startTime": 1764525600000,
+      "channel": 451
+    },
+    {
+      "id": 310808,
+      "home": "CLE Browns",
+      "away": "SF 49ers",
+      "startTime": 1764525600000,
+      "channel": 451
+    },
+    {
+      "id": 310809,
+      "home": "CAR Panthers",
+      "away": "LA Rams",
+      "startTime": 1764525600000,
+      "channel": 451
+    },
+    {
+      "id": 310810,
+      "home": "MIA Dolphins",
+      "away": "NO Saints",
+      "startTime": 1764525600000,
+      "channel": 451
+    },
+    {
+      "id": 310811,
+      "home": "NY Jets",
+      "away": "ATL Falcons",
+      "startTime": 1764525600000,
+      "channel": 451
+    },
+    {
+      "id": 310812,
+      "home": "TEN Titans",
+      "away": "JAX Jaguars",
+      "startTime": 1764525600000,
+      "channel": 451
+    },
+    {
+      "id": 310813,
+      "home": "SEA Seahawks",
+      "away": "MIN Vikings",
+      "startTime": 1764536700000,
+      "channel": 451
+    },
+    {
+      "id": 310814,
+      "home": "PIT Steelers",
+      "away": "BUF Bills",
+      "startTime": 1764537900000,
+      "channel": 451
+    },
+    {
+      "id": 310815,
+      "home": "NE Patriots",
+      "away": "NY Giants",
+      "startTime": 1764638100000,
+      "channel": 451
+    },
+    {
+      "id": 310816,
+      "home": "DET Lions",
+      "away": "DAL Cowboys",
+      "startTime": 1764897300000,
+      "channel": 451
+    },
+    {
+      "id": 310817,
+      "home": "TB Buccaneers",
+      "away": "NO Saints",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310818,
+      "home": "CLE Browns",
+      "away": "TEN Titans",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310819,
+      "home": "MIN Vikings",
+      "away": "WSH Commanders",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310820,
+      "home": "GB Packers",
+      "away": "CHI Bears",
+      "startTime": 1765142700000,
+      "channel": 451
+    },
+    {
+      "id": 310821,
+      "home": "JAX Jaguars",
+      "away": "IND Colts",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310822,
+      "home": "NY Jets",
+      "away": "MIA Dolphins",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310823,
+      "home": "ATL Falcons",
+      "away": "SEA Seahawks",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310824,
+      "home": "BAL Ravens",
+      "away": "PIT Steelers",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310825,
+      "home": "LV Raiders",
+      "away": "DEN Broncos",
+      "startTime": 1765141500000,
+      "channel": 451
+    },
+    {
+      "id": 310826,
+      "home": "BUF Bills",
+      "away": "CIN Bengals",
+      "startTime": 1765130400000,
+      "channel": 451
+    },
+    {
+      "id": 310827,
+      "home": "ARI Cardinals",
+      "away": "LA Rams",
+      "startTime": 1765142700000,
+      "channel": 451
+    },
+    {
+      "id": 310828,
+      "home": "KC Chiefs",
+      "away": "HOU Texans",
+      "startTime": 1765156800000,
+      "channel": 451
+    },
+    {
+      "id": 314247,
+      "home": "Odense BK",
+      "away": "Vejle Boldklub FC",
+      "startTime": 1764522000000,
+      "channel": 4396
+    },
+    {
+      "id": 314248,
+      "home": "Brondby",
+      "away": "FC Fredericia",
+      "startTime": 1764612000000,
+      "channel": 4396
+    },
+    {
+      "id": 314249,
+      "home": "FC Midtjylland",
+      "away": "FC Nordsjælland",
+      "startTime": 1764514800000,
+      "channel": 4396
+    },
+    {
+      "id": 314250,
+      "home": "Aarhus AGF",
+      "away": "Copenhagen",
+      "startTime": 1764507600000,
+      "channel": 4396
+    },
+    {
+      "id": 314251,
+      "home": "Silkeborg IF",
+      "away": "Randers FC",
+      "startTime": 1764507600000,
+      "channel": 4396
+    },
+    {
+      "id": 314253,
+      "home": "Copenhagen",
+      "away": "Sonderjyske",
+      "startTime": 1765126800000,
+      "channel": 4396
+    },
+    {
+      "id": 314254,
+      "home": "Viborg FF",
+      "away": "FC Midtjylland",
+      "startTime": 1765112400000,
+      "channel": 4396
+    },
+    {
+      "id": 314255,
+      "home": "FC Fredericia",
+      "away": "Odense BK",
+      "startTime": 1764957600000,
+      "channel": 4396
+    },
+    {
+      "id": 314256,
+      "home": "Randers FC",
+      "away": "Aarhus AGF",
+      "startTime": 1765119600000,
+      "channel": 4396
+    },
+    {
+      "id": 314257,
+      "home": "FC Nordsjælland",
+      "away": "Silkeborg IF",
+      "startTime": 1765112400000,
+      "channel": 4396
+    },
+    {
+      "id": 315012,
+      "home": "Kawasaki",
+      "away": "Sanfrecce",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315025,
+      "home": "Yokohama FM",
+      "away": "Cerezo Osaka",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315026,
+      "home": "Tokyo Verdy",
+      "away": "Kashima Antlers",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315027,
+      "home": "Vissel Kobe",
+      "away": "FC Tokyo",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315028,
+      "home": "Avispa Fukuoka",
+      "away": "Gamba Osaka",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315029,
+      "home": "Yokohama FC",
+      "away": "Kyoto Sanga",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315030,
+      "home": "Okayama",
+      "away": "Urawa Reds",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315031,
+      "home": "Shonan Bellmare",
+      "away": "Shimizu S-Pulse",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315040,
+      "home": "Niigata",
+      "away": "Kashiwa Reysol",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315041,
+      "home": "Machida Zelvia",
+      "away": "Nagoya",
+      "startTime": 1764478800000,
+      "channel": 43037
+    },
+    {
+      "id": 315397,
+      "home": "Sandefjord",
+      "away": "KFUM Oslo",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 315398,
+      "home": "Sarpsborg",
+      "away": "Molde",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 315399,
+      "home": "Brann",
+      "away": "HamKam",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 315400,
+      "home": "Bodø/Glimt",
+      "away": "Fredrikstad",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 315401,
+      "home": "Viking",
+      "away": "Valerenga",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 315402,
+      "home": "Haugesund",
+      "away": "Bryne",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 315403,
+      "home": "Kristiansund",
+      "away": "Tromso",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 315404,
+      "home": "Rosenborg",
+      "away": "Stromsgodset",
+      "startTime": 1764518400000,
+      "channel": 43041
+    },
+    {
+      "id": 316818,
+      "home": "FC Volendam",
+      "away": "NEC Nijmegen",
+      "startTime": 1765114200000,
+      "channel": 43025
+    },
+    {
+      "id": 316931,
+      "home": "Go Ahead Eagles",
+      "away": "FC Utrecht",
+      "startTime": 1764509400000,
+      "channel": 43025
+    },
+    {
+      "id": 316932,
+      "home": "PSV",
+      "away": "FC Volendam",
+      "startTime": 1764501300000,
+      "channel": 43025
+    },
+    {
+      "id": 316933,
+      "home": "Excelsior Rotterdam FC",
+      "away": "NAC Breda",
+      "startTime": 1764430200000,
+      "channel": 43025
+    },
+    {
+      "id": 316934,
+      "home": "Ajax",
+      "away": "FC Groningen",
+      "startTime": 1764529200000,
+      "channel": 43025
+    },
+    {
+      "id": 316936,
+      "home": "NEC Nijmegen",
+      "away": "Sparta Rotterdam",
+      "startTime": 1764446400000,
+      "channel": 43025
+    },
+    {
+      "id": 316937,
+      "home": "FC Twente",
+      "away": "AZ Alkmaar",
+      "startTime": 1764517500000,
+      "channel": 43025
+    },
+    {
+      "id": 316938,
+      "home": "SC Telstar",
+      "away": "Feyenoord",
+      "startTime": 1764509400000,
+      "channel": 43025
+    },
+    {
+      "id": 316939,
+      "home": "Fortuna Sittard",
+      "away": "Heracles Almelo",
+      "startTime": 1764438300000,
+      "channel": 43025
+    },
+    {
+      "id": 316940,
+      "home": "Feyenoord",
+      "away": "PEC Zwolle",
+      "startTime": 1765051200000,
+      "channel": 43025
+    },
+    {
+      "id": 316941,
+      "home": "SC Heerenveen",
+      "away": "PSV",
+      "startTime": 1765035000000,
+      "channel": 43025
+    },
+    {
+      "id": 316942,
+      "home": "Heracles Almelo",
+      "away": "SC Telstar",
+      "startTime": 1765047600000,
+      "channel": 43025
+    },
+    {
+      "id": 316943,
+      "home": "Sparta Rotterdam",
+      "away": "NAC Breda",
+      "startTime": 1765122300000,
+      "channel": 43025
+    },
+    {
+      "id": 316944,
+      "home": "Excelsior Rotterdam FC",
+      "away": "FC Groningen",
+      "startTime": 1764961200000,
+      "channel": 43025
+    },
+    {
+      "id": 316945,
+      "home": "Fortuna Sittard",
+      "away": "Ajax",
+      "startTime": 1765043100000,
+      "channel": 43025
+    },
+    {
+      "id": 316946,
+      "home": "AZ Alkmaar",
+      "away": "Go Ahead Eagles",
+      "startTime": 1765114200000,
+      "channel": 43025
+    },
+    {
+      "id": 316947,
+      "home": "FC Utrecht",
+      "away": "FC Twente",
+      "startTime": 1765106100000,
+      "channel": 43025
+    },
+    {
+      "id": 319046,
+      "home": "VfB Stuttgart",
+      "away": "Bayern Munich",
+      "startTime": 1765031400000,
+      "channel": 4382
+    },
+    {
+      "id": 319054,
+      "home": "SC Freiburg",
+      "away": "Mainz",
+      "startTime": 1764527400000,
+      "channel": 4382
+    },
+    {
+      "id": 319145,
+      "home": "Union Berlin",
+      "away": "Heidenheim",
+      "startTime": 1764426600000,
+      "channel": 4382
+    },
+    {
+      "id": 319147,
+      "home": "Eintracht Frankfurt",
+      "away": "Wolfsburg",
+      "startTime": 1764520200000,
+      "channel": 4382
+    },
+    {
+      "id": 319148,
+      "home": "Bayern Munich",
+      "away": "St. Pauli",
+      "startTime": 1764426600000,
+      "channel": 4382
+    },
+    {
+      "id": 319149,
+      "home": "Werder Bremen",
+      "away": "Köln",
+      "startTime": 1764426600000,
+      "channel": 4382
+    },
+    {
+      "id": 319150,
+      "home": "Hamburger SV",
+      "away": "VfB Stuttgart",
+      "startTime": 1764513000000,
+      "channel": 4382
+    },
+    {
+      "id": 319151,
+      "home": "Hoffenheim",
+      "away": "FC Augsburg",
+      "startTime": 1764426600000,
+      "channel": 4382
+    },
+    {
+      "id": 319152,
+      "home": "Köln",
+      "away": "St. Pauli",
+      "startTime": 1765031400000,
+      "channel": 4382
+    },
+    {
+      "id": 319153,
+      "home": "Mainz",
+      "away": "Mönchengladbach",
+      "startTime": 1764963000000,
+      "channel": 4382
+    },
+    {
+      "id": 319154,
+      "home": "Wolfsburg",
+      "away": "Union Berlin",
+      "startTime": 1765031400000,
+      "channel": 4382
+    },
+    {
+      "id": 319155,
+      "home": "RB Leipzig",
+      "away": "Eintracht Frankfurt",
+      "startTime": 1765042200000,
+      "channel": 4382
+    },
+    {
+      "id": 319157,
+      "home": "Borussia Dortmund",
+      "away": "Hoffenheim",
+      "startTime": 1765125000000,
+      "channel": 4382
+    },
+    {
+      "id": 319158,
+      "home": "FC Augsburg",
+      "away": "Leverkusen",
+      "startTime": 1765031400000,
+      "channel": 4382
+    },
+    {
+      "id": 319160,
+      "home": "Heidenheim",
+      "away": "SC Freiburg",
+      "startTime": 1765031400000,
+      "channel": 4382
+    },
+    {
+      "id": 319161,
+      "home": "Hamburger SV",
+      "away": "Werder Bremen",
+      "startTime": 1765117800000,
+      "channel": 4382
+    },
+    {
+      "id": 319533,
+      "home": "WSG Tirol",
+      "away": "SCR Altach",
+      "startTime": 1765114200000,
+      "channel": 43032
+    },
+    {
+      "id": 319534,
+      "home": "LASK Linz",
+      "away": "SK Rapid Wien",
+      "startTime": 1764518400000,
+      "channel": 43032
+    },
+    {
+      "id": 319608,
+      "home": "TSV Hartberg",
+      "away": "SK Sturm Graz",
+      "startTime": 1764509400000,
+      "channel": 43032
+    },
+    {
+      "id": 319609,
+      "home": "FK Austria Wien",
+      "away": "WSG Tirol",
+      "startTime": 1764432000000,
+      "channel": 43032
+    },
+    {
+      "id": 319610,
+      "home": "SV Ried",
+      "away": "Wolfsberger AC",
+      "startTime": 1764432000000,
+      "channel": 43032
+    },
+    {
+      "id": 319611,
+      "home": "SCR Altach",
+      "away": "Salzburg",
+      "startTime": 1764509400000,
+      "channel": 43032
+    },
+    {
+      "id": 319612,
+      "home": "Grazer AK",
+      "away": "FC Blau-Weiss Linz",
+      "startTime": 1764432000000,
+      "channel": 43032
+    },
+    {
+      "id": 319613,
+      "home": "SK Sturm Graz",
+      "away": "Grazer AK",
+      "startTime": 1765123200000,
+      "channel": 43032
+    },
+    {
+      "id": 319614,
+      "home": "Wolfsberger AC",
+      "away": "FK Austria Wien",
+      "startTime": 1765114200000,
+      "channel": 43032
+    },
+    {
+      "id": 319615,
+      "home": "TSV Hartberg",
+      "away": "LASK Linz",
+      "startTime": 1765036800000,
+      "channel": 43032
+    },
+    {
+      "id": 319616,
+      "home": "FC Blau-Weiss Linz",
+      "away": "Salzburg",
+      "startTime": 1765036800000,
+      "channel": 43032
+    },
+    {
+      "id": 319617,
+      "home": "SK Rapid Wien",
+      "away": "SV Ried",
+      "startTime": 1765036800000,
+      "channel": 43032
+    },
+    {
+      "id": 320189,
+      "home": "Fulham",
+      "away": "Manchester City",
+      "startTime": 1764703800000,
+      "channel": 4385
+    },
+    {
+      "id": 320510,
+      "home": "Atlético Madrid",
+      "away": "Oviedo",
+      "startTime": 1764446400000,
+      "channel": 4395
+    },
+    {
+      "id": 320513,
+      "home": "Athletic Bilbao",
+      "away": "Atlético Madrid",
+      "startTime": 1765051200000,
+      "channel": 4395
+    },
+    {
+      "id": 320645,
+      "home": "Rayo Vallecano",
+      "away": "Valencia",
+      "startTime": 1764619200000,
+      "channel": 4395
+    },
+    {
+      "id": 320646,
+      "home": "Barcelona",
+      "away": "Alaves",
+      "startTime": 1764429300000,
+      "channel": 4395
+    },
+    {
+      "id": 320647,
+      "home": "Levante",
+      "away": "Athletic Bilbao",
+      "startTime": 1764437400000,
+      "channel": 4395
+    },
+    {
+      "id": 320650,
+      "home": "Girona",
+      "away": "Real Madrid",
+      "startTime": 1764532800000,
+      "channel": 4395
+    },
+    {
+      "id": 320651,
+      "home": "Celta Vigo",
+      "away": "Espanyol",
+      "startTime": 1764523800000,
+      "channel": 4395
+    },
+    {
+      "id": 320652,
+      "home": "Real Sociedad",
+      "away": "Villarreal",
+      "startTime": 1764507600000,
+      "channel": 4395
+    },
+    {
+      "id": 320653,
+      "home": "Sevilla",
+      "away": "Real Betis",
+      "startTime": 1764515700000,
+      "channel": 4395
+    },
+    {
+      "id": 320654,
+      "home": "Mallorca",
+      "away": "Osasuna",
+      "startTime": 1764421200000,
+      "channel": 4395
+    },
+    {
+      "id": 320655,
+      "home": "Valencia",
+      "away": "Sevilla",
+      "startTime": 1765120500000,
+      "channel": 4395
+    },
+    {
+      "id": 320656,
+      "home": "Alaves",
+      "away": "Real Sociedad",
+      "startTime": 1765034100000,
+      "channel": 4395
+    },
+    {
+      "id": 320657,
+      "home": "Real Betis",
+      "away": "Barcelona",
+      "startTime": 1765042200000,
+      "channel": 4395
+    },
+    {
+      "id": 320658,
+      "home": "Villarreal",
+      "away": "Getafe",
+      "startTime": 1765026000000,
+      "channel": 4395
+    },
+    {
+      "id": 320659,
+      "home": "Osasuna",
+      "away": "Levante",
+      "startTime": 1765224000000,
+      "channel": 4395
+    },
+    {
+      "id": 320660,
+      "home": "Espanyol",
+      "away": "Rayo Vallecano",
+      "startTime": 1765128600000,
+      "channel": 4395
+    },
+    {
+      "id": 320661,
+      "home": "Real Madrid",
+      "away": "Celta Vigo",
+      "startTime": 1765137600000,
+      "channel": 4395
+    },
+    {
+      "id": 320663,
+      "home": "Oviedo",
+      "away": "Mallorca",
+      "startTime": 1764964800000,
+      "channel": 4395
+    },
+    {
+      "id": 320664,
+      "home": "Elche",
+      "away": "Girona",
+      "startTime": 1765112400000,
+      "channel": 4395
+    },
+    {
+      "id": 320695,
+      "home": "Athletic Bilbao",
+      "away": "Real Madrid",
+      "startTime": 1764784800000,
+      "channel": 4395
+    },
+    {
+      "id": 320700,
+      "home": "Barcelona",
+      "away": "Atlético Madrid",
+      "startTime": 1764705600000,
+      "channel": 4395
+    },
+    {
+      "id": 321540,
+      "home": "Sporting CP",
+      "away": "Estrela Amadora",
+      "startTime": 1764525600000,
+      "channel": 43031
+    },
+    {
+      "id": 321541,
+      "home": "FC Porto",
+      "away": "Estoril",
+      "startTime": 1764534600000,
+      "channel": 43031
+    },
+    {
+      "id": 321542,
+      "home": "Casa Pia",
+      "away": "Alverca",
+      "startTime": 1764430200000,
+      "channel": 43031
+    },
+    {
+      "id": 321543,
+      "home": "Gil Vicente",
+      "away": "Tondela",
+      "startTime": 1764448200000,
+      "channel": 43031
+    },
+    {
+      "id": 321544,
+      "home": "Rio Ave",
+      "away": "Santa Clara",
+      "startTime": 1764516600000,
+      "channel": 43031
+    },
+    {
+      "id": 321545,
+      "home": "Arouca",
+      "away": "Sporting Braga",
+      "startTime": 1764620100000,
+      "channel": 43031
+    },
+    {
+      "id": 321546,
+      "home": "Moreirense",
+      "away": "Famalicão",
+      "startTime": 1764430200000,
+      "channel": 43031
+    },
+    {
+      "id": 321549,
+      "home": "Benfica",
+      "away": "Sporting CP",
+      "startTime": 1764965700000,
+      "channel": 43031
+    },
+    {
+      "id": 321826,
+      "home": "Kasimpasa",
+      "away": "Istanbul Basaksehir",
+      "startTime": 1764435600000,
+      "channel": 43024
+    },
+    {
+      "id": 321827,
+      "home": "Gazisehir Gaziantep",
+      "away": "Eyüpspor",
+      "startTime": 1764424800000,
+      "channel": 43024
+    },
+    {
+      "id": 321828,
+      "home": "Fenerbahçe",
+      "away": "Galatasaray",
+      "startTime": 1764608400000,
+      "channel": 43024
+    },
+    {
+      "id": 321829,
+      "home": "Samsunspor",
+      "away": "Alanyaspor",
+      "startTime": 1764608400000,
+      "channel": 43024
+    },
+    {
+      "id": 321830,
+      "home": "Caykur Rizespor",
+      "away": "Kayserispor",
+      "startTime": 1764415800000,
+      "channel": 43024
+    },
+    {
+      "id": 321831,
+      "home": "Trabzonspor",
+      "away": "Torku Konyaspor",
+      "startTime": 1764435600000,
+      "channel": 43024
+    },
+    {
+      "id": 321832,
+      "home": "Fatih Karagumrukspor",
+      "away": "Besiktas",
+      "startTime": 1764522000000,
+      "channel": 43024
+    },
+    {
+      "id": 321833,
+      "home": "Antalyaspor",
+      "away": "Goztepe",
+      "startTime": 1764511200000,
+      "channel": 43024
+    },
+    {
+      "id": 323888,
+      "home": "FC.V.Dender E.H.",
+      "away": "KVC Westerlo",
+      "startTime": 1764428400000,
+      "channel": 43046
+    },
+    {
+      "id": 323889,
+      "home": "Zulte Waregem",
+      "away": "Cercle Brugge KSV",
+      "startTime": 1764436500000,
+      "channel": 43046
+    },
+    {
+      "id": 323891,
+      "home": "KRC Genk",
+      "away": "Oud-Heverlee Leuven",
+      "startTime": 1764514800000,
+      "channel": 43046
+    },
+    {
+      "id": 323892,
+      "home": "RSC Anderlecht",
+      "away": "Royale Union SG",
+      "startTime": 1764523800000,
+      "channel": 43046
+    },
+    {
+      "id": 323893,
+      "home": "Club Brugge",
+      "away": "Royal Antwerp FC",
+      "startTime": 1764505800000,
+      "channel": 43046
+    },
+    {
+      "id": 323894,
+      "home": "Sporting Charleroi",
+      "away": "RAAL La Louviere",
+      "startTime": 1764445500000,
+      "channel": 43046
+    },
+    {
+      "id": 323895,
+      "home": "KAA Gent",
+      "away": "Saint-Truiden VV",
+      "startTime": 1764526500000,
+      "channel": 43046
+    },
+    {
+      "id": 323896,
+      "home": "Royal Antwerp FC",
+      "away": "KRC Genk",
+      "startTime": 1765128600000,
+      "channel": 43046
+    },
+    {
+      "id": 323897,
+      "home": "KVC Westerlo",
+      "away": "RSC Anderlecht",
+      "startTime": 1765119600000,
+      "channel": 43046
+    },
+    {
+      "id": 323898,
+      "home": "Saint-Truiden VV",
+      "away": "Club Brugge",
+      "startTime": 1765050300000,
+      "channel": 43046
+    },
+    {
+      "id": 323899,
+      "home": "Cercle Brugge KSV",
+      "away": "Standard de Liege",
+      "startTime": 1765033200000,
+      "channel": 43046
+    },
+    {
+      "id": 323900,
+      "home": "RAAL La Louviere",
+      "away": "FC.V.Dender E.H.",
+      "startTime": 1764963900000,
+      "channel": 43046
+    },
+    {
+      "id": 323901,
+      "home": "KV Mechelen",
+      "away": "Sporting Charleroi",
+      "startTime": 1765110600000,
+      "channel": 43046
+    },
+    {
+      "id": 323902,
+      "home": "Oud-Heverlee Leuven",
+      "away": "Zulte Waregem",
+      "startTime": 1765131300000,
+      "channel": 43046
+    },
+    {
+      "id": 323903,
+      "home": "Royale Union SG",
+      "away": "KAA Gent",
+      "startTime": 1765041300000,
+      "channel": 43046
+    },
+    {
+      "id": 324180,
+      "home": "Wigan Athletic",
+      "away": "Stevenage",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324181,
+      "home": "Doncaster Rovers",
+      "away": "Peterborough United",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324182,
+      "home": "Rotherham United",
+      "away": "Wycombe",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324183,
+      "home": "Plymouth Argyle",
+      "away": "Northampton Town",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324184,
+      "home": "Burton Albion",
+      "away": "Leyton Orient",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324185,
+      "home": "Cardiff City",
+      "away": "Mansfield Town",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324186,
+      "home": "Bradford City",
+      "away": "Exeter City",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324187,
+      "home": "Stockport County",
+      "away": "Barnsley",
+      "startTime": 1764419400000,
+      "channel": 43045
+    },
+    {
+      "id": 324188,
+      "home": "Huddersfield Town",
+      "away": "AFC Wimbledon",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324189,
+      "home": "Blackpool",
+      "away": "Reading FC",
+      "startTime": 1764419400000,
+      "channel": 43045
+    },
+    {
+      "id": 324190,
+      "home": "Lincoln City FC",
+      "away": "Port Vale",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324191,
+      "home": "Luton Town",
+      "away": "Bolton Wanderers",
+      "startTime": 1764428400000,
+      "channel": 43045
+    },
+    {
+      "id": 324200,
+      "home": "Wigan Athletic",
+      "away": "Burton Albion",
+      "startTime": 1764704700000,
+      "channel": 43045
+    },
+    {
+      "id": 329388,
+      "home": "Fürth",
+      "away": "VfL Bochum",
+      "startTime": 1764417600000,
+      "channel": 43049
+    },
+    {
+      "id": 329390,
+      "home": "1. FC Magdeburg",
+      "away": "Nurnberg",
+      "startTime": 1764444600000,
+      "channel": 43049
+    },
+    {
+      "id": 329497,
+      "home": "DSC Arminia Bielefeld",
+      "away": "SC Preussen Munster",
+      "startTime": 1764505800000,
+      "channel": 43049
+    },
+    {
+      "id": 329498,
+      "home": "Dynamo",
+      "away": "Fortuna Dusseldorf",
+      "startTime": 1764505800000,
+      "channel": 43049
+    },
+    {
+      "id": 329500,
+      "home": "Holstein Kiel",
+      "away": "Hertha BSC",
+      "startTime": 1764417600000,
+      "channel": 43049
+    },
+    {
+      "id": 329501,
+      "home": "Eintracht Braunschweig",
+      "away": "1. FC Kaiserslautern",
+      "startTime": 1764417600000,
+      "channel": 43049
+    },
+    {
+      "id": 329502,
+      "home": "Elversberg",
+      "away": "Darmstadt",
+      "startTime": 1764505800000,
+      "channel": 43049
+    },
+    {
+      "id": 329505,
+      "home": "Fortuna Dusseldorf",
+      "away": "Schalke",
+      "startTime": 1764955800000,
+      "channel": 43049
+    },
+    {
+      "id": 329509,
+      "home": "SC Preussen Munster",
+      "away": "Hannover 96",
+      "startTime": 1764955800000,
+      "channel": 43049
+    },
+    {
+      "id": 337432,
+      "home": "Opetaia Jai Tapu",
+      "away": "Huseyin Cinkara",
+      "startTime": 1765026000000,
+      "channel": 4951
+    },
+    {
+      "id": 337617,
+      "home": "Isaac Cruz Gonzalez",
+      "away": "Roach Lamont",
+      "startTime": 1765080000000,
+      "channel": 4951
+    },
+    {
+      "id": 337708,
+      "home": "Justis Huni",
+      "away": "Leutele, Kiki Toa",
+      "startTime": 1765022400000,
+      "channel": 4951
+    },
+    {
+      "id": 338226,
+      "home": "Mahoney Ben",
+      "away": "Winston Hill",
+      "startTime": 1765018800000,
+      "channel": 4951
+    },
+    {
+      "id": 338352,
+      "home": "Mark Magsayo",
+      "away": "Michael Magnesi",
+      "startTime": 1765051200000,
+      "channel": 4951
+    },
+    {
+      "id": 339032,
+      "home": "Diego Pacheco",
+      "away": "Sadjo Kevin Lele",
+      "startTime": 1765684800000,
+      "channel": 4951
+    },
+    {
+      "id": 339067,
+      "home": "Alexandre Pantoja",
+      "away": "Joshua Van",
+      "startTime": 1765081800000,
+      "channel": 4950
+    },
+    {
+      "id": 339068,
+      "home": "Merab Dvalishvili",
+      "away": "Petr Yan",
+      "startTime": 1765083600000,
+      "channel": 4950
+    },
+    {
+      "id": 339111,
+      "home": "Shabaz Masoud",
+      "away": "Peter McGrail",
+      "startTime": 1765054800000,
+      "channel": 4951
+    },
+    {
+      "id": 339112,
+      "home": "Benjamin Whittaker",
+      "away": "Benjamin Gavazi",
+      "startTime": 1764453600000,
+      "channel": 4951
+    },
+    {
+      "id": 339113,
+      "home": "Cameron Vuong",
+      "away": "Gavin Gwynne",
+      "startTime": 1764450000000,
+      "channel": 4951
+    },
+    {
+      "id": 339121,
+      "home": "Conah Walker",
+      "away": "Pat McCormack",
+      "startTime": 1765047600000,
+      "channel": 4951
+    },
+    {
+      "id": 339156,
+      "home": "Beatriz Ferreira",
+      "away": "Elif Nur Turhan",
+      "startTime": 1765051200000,
+      "channel": 4951
+    },
+    {
+      "id": 339218,
+      "home": "Hugo Micallef",
+      "away": "Sean McComb",
+      "startTime": 1765044000000,
+      "channel": 4951
+    },
+    {
+      "id": 339220,
+      "home": "Johnny Fisher",
+      "away": "Herbert Matovu",
+      "startTime": 1765047600000,
+      "channel": 4951
+    },
+    {
+      "id": 339283,
+      "home": "Kubrat Pulev",
+      "away": "Murat Gassiev",
+      "startTime": 1765566000000,
+      "channel": 4951
+    },
+    {
+      "id": 339306,
+      "home": "Frazer Clarke",
+      "away": "Jeamie Tshikeva",
+      "startTime": 1764450000000,
+      "channel": 4951
+    },
+    {
+      "id": 339371,
+      "home": "Napoli",
+      "away": "Cagliari",
+      "startTime": 1764781200000,
+      "channel": 43015
+    },
+    {
+      "id": 339372,
+      "home": "Lazio",
+      "away": "AC Milan",
+      "startTime": 1764878400000,
+      "channel": 43015
+    },
+    {
+      "id": 339373,
+      "home": "Atalanta",
+      "away": "Genoa",
+      "startTime": 1764770400000,
+      "channel": 43015
+    },
+    {
+      "id": 339374,
+      "home": "Juventus",
+      "away": "Udinese Calcio",
+      "startTime": 1764705600000,
+      "channel": 43015
+    },
+    {
+      "id": 339375,
+      "home": "Bologna",
+      "away": "Parma",
+      "startTime": 1764867600000,
+      "channel": 43015
+    },
+    {
+      "id": 339376,
+      "home": "Inter Milan",
+      "away": "Venezia",
+      "startTime": 1764792000000,
+      "channel": 43015
+    },
+    {
+      "id": 339668,
+      "home": "Ernesto Mercado",
+      "away": "Antonio Moran",
+      "startTime": 1765674000000,
+      "channel": 4951
+    },
+    {
+      "id": 339669,
+      "home": "Flores Gabriel Jr",
+      "away": "Joe Cordina",
+      "startTime": 1765690200000,
+      "channel": 4951
+    },
+    {
+      "id": 339670,
+      "home": "Janibek Alimkhanuly",
+      "away": "Erislandy Lara",
+      "startTime": 1765076400000,
+      "channel": 4951
+    },
+    {
+      "id": 339998,
+      "home": "Skye Nicolson",
+      "away": "Yuliahn Luna Avila",
+      "startTime": 1765677600000,
+      "channel": 4951
+    },
+    {
+      "id": 340003,
+      "home": "Arturo Popoca",
+      "away": "Cesar Vaca",
+      "startTime": 1765671000000,
+      "channel": 4951
+    },
+    {
+      "id": 340022,
+      "home": "Badou Jack",
+      "away": "Noel Gevor",
+      "startTime": 1765681200000,
+      "channel": 4951
+    },
+    {
+      "id": 341291,
+      "home": "Dereck Chisora",
+      "away": "Dillian Whyte",
+      "startTime": 1765665000000,
+      "channel": 4951
+    },
+    {
+      "id": 341486,
+      "home": "O'Shaquie Foster",
+      "away": "Stephen Fulton",
+      "startTime": 1765072800000,
+      "channel": 4951
+    },
+    {
+      "id": 341494,
+      "home": "Isaac Lucero",
+      "away": "Roberto Valenzuela Jr",
+      "startTime": 1765062000000,
+      "channel": 4951
+    },
+    {
+      "id": 341495,
+      "home": "Jesus Alejandro Ramos",
+      "away": "Shane Mosley",
+      "startTime": 1765069200000,
+      "channel": 4951
+    },
+    {
+      "id": 341496,
+      "home": "Frank Martin",
+      "away": "Rances Barthelemy",
+      "startTime": 1765065000000,
+      "channel": 4951
+    },
+    {
+      "id": 341528,
+      "home": "Teremoana Junior",
+      "away": "German Garcia Montes",
+      "startTime": 1765008000000,
+      "channel": 4951
+    },
+    {
+      "id": 341963,
+      "home": "Palmeiras",
+      "away": "Flamengo",
+      "startTime": 1764450000000,
+      "channel": 4387
+    },
+    {
+      "id": 341972,
+      "home": "Jason Moloney",
+      "away": "Herlan Gomez",
+      "startTime": 1765013400000,
+      "channel": 4951
+    },
+    {
+      "id": 342778,
+      "home": "Luis Reynaldo Nunez",
+      "away": "Hector Andres Sosa",
+      "startTime": 1765060200000,
+      "channel": 4951
+    },
+    {
+      "id": 343185,
+      "home": "Samsunspor",
+      "away": "AEK Athens",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 343389,
+      "home": "Sunderland",
+      "away": "Bournemouth",
+      "startTime": 1764428400000,
+      "channel": 4385
+    },
+    {
+      "id": 343391,
+      "home": "Aston Villa",
+      "away": "Wolves",
+      "startTime": 1764511500000,
+      "channel": 4385
+    },
+    {
+      "id": 343393,
+      "home": "Nottingham Forest",
+      "away": "Brighton",
+      "startTime": 1764511500000,
+      "channel": 4385
+    },
+    {
+      "id": 343395,
+      "home": "Brentford",
+      "away": "Burnley",
+      "startTime": 1764428400000,
+      "channel": 4385
+    },
+    {
+      "id": 343402,
+      "home": "Crystal Palace",
+      "away": "Manchester United",
+      "startTime": 1764504000000,
+      "channel": 4385
+    },
+    {
+      "id": 343403,
+      "home": "Tottenham",
+      "away": "Fulham",
+      "startTime": 1764446400000,
+      "channel": 4385
+    },
+    {
+      "id": 343404,
+      "home": "Everton",
+      "away": "Newcastle",
+      "startTime": 1764437400000,
+      "channel": 4385
+    },
+    {
+      "id": 343405,
+      "home": "Manchester City",
+      "away": "Leeds United",
+      "startTime": 1764428400000,
+      "channel": 4385
+    },
+    {
+      "id": 343406,
+      "home": "West Ham",
+      "away": "Liverpool",
+      "startTime": 1764511500000,
+      "channel": 4385
+    },
+    {
+      "id": 343407,
+      "home": "Chelsea",
+      "away": "Arsenal",
+      "startTime": 1764520200000,
+      "channel": 4385
+    },
+    {
+      "id": 343514,
+      "home": "Leverkusen",
+      "away": "Borussia Dortmund",
+      "startTime": 1764437400000,
+      "channel": 4382
+    },
+    {
+      "id": 343518,
+      "home": "Marseille",
+      "away": "Toulouse",
+      "startTime": 1764446700000,
+      "channel": 4384
+    },
+    {
+      "id": 343519,
+      "home": "Lyon",
+      "away": "Nantes",
+      "startTime": 1764531900000,
+      "channel": 4384
+    },
+    {
+      "id": 343520,
+      "home": "Strasbourg",
+      "away": "Brest",
+      "startTime": 1764511200000,
+      "channel": 4384
+    },
+    {
+      "id": 343521,
+      "home": "Le Havre",
+      "away": "Lille",
+      "startTime": 1764519300000,
+      "channel": 4384
+    },
+    {
+      "id": 343522,
+      "home": "Monaco",
+      "away": "PSG",
+      "startTime": 1764432000000,
+      "channel": 4384
+    },
+    {
+      "id": 343523,
+      "home": "Lorient",
+      "away": "Nice",
+      "startTime": 1764519300000,
+      "channel": 4384
+    },
+    {
+      "id": 343524,
+      "home": "Paris FC",
+      "away": "Auxerre",
+      "startTime": 1764439200000,
+      "channel": 4384
+    },
+    {
+      "id": 343526,
+      "home": "Angers",
+      "away": "Lens",
+      "startTime": 1764519300000,
+      "channel": 4384
+    },
+    {
+      "id": 343529,
+      "home": "Auckland FC",
+      "away": "Newcastle Jets FC",
+      "startTime": 1764468000000,
+      "channel": 43023
+    },
+    {
+      "id": 343530,
+      "home": "Western Sydney Wanderers",
+      "away": "Sydney FC",
+      "startTime": 1764405300000,
+      "channel": 43023
+    },
+    {
+      "id": 343532,
+      "home": "Macarthur Sydney",
+      "away": "Perth Glory",
+      "startTime": 1764486000000,
+      "channel": 43023
+    },
+    {
+      "id": 343535,
+      "home": "Atalanta",
+      "away": "Fiorentina",
+      "startTime": 1764522000000,
+      "channel": 4388
+    },
+    {
+      "id": 343537,
+      "home": "Bologna",
+      "away": "Cremonese",
+      "startTime": 1764618300000,
+      "channel": 4388
+    },
+    {
+      "id": 343538,
+      "home": "Parma",
+      "away": "Udinese Calcio",
+      "startTime": 1764424800000,
+      "channel": 4388
+    },
+    {
+      "id": 343539,
+      "home": "AS Roma",
+      "away": "Napoli",
+      "startTime": 1764531900000,
+      "channel": 4388
+    },
+    {
+      "id": 343540,
+      "home": "Lecce",
+      "away": "Torino",
+      "startTime": 1764502200000,
+      "channel": 4388
+    },
+    {
+      "id": 343541,
+      "home": "Juventus",
+      "away": "Cagliari",
+      "startTime": 1764435600000,
+      "channel": 4388
+    },
+    {
+      "id": 343542,
+      "home": "Genoa",
+      "away": "Verona",
+      "startTime": 1764424800000,
+      "channel": 4388
+    },
+    {
+      "id": 343543,
+      "home": "AC Milan",
+      "away": "Lazio",
+      "startTime": 1764445500000,
+      "channel": 4388
+    },
+    {
+      "id": 343544,
+      "home": "Pisa",
+      "away": "Inter Milan",
+      "startTime": 1764511200000,
+      "channel": 4388
+    },
+    {
+      "id": 343584,
+      "home": "Nacional Madeira",
+      "away": "Benfica",
+      "startTime": 1764439200000,
+      "channel": 43031
+    },
+    {
+      "id": 343645,
+      "home": "Borussia Dortmund",
+      "away": "Leverkusen",
+      "startTime": 1764705600000,
+      "channel": 43021
+    },
+    {
+      "id": 343650,
+      "home": "Mönchengladbach",
+      "away": "St. Pauli",
+      "startTime": 1764694800000,
+      "channel": 43021
+    },
+    {
+      "id": 343651,
+      "home": "Hertha BSC",
+      "away": "1. FC Kaiserslautern",
+      "startTime": 1764694800000,
+      "channel": 43021
+    },
+    {
+      "id": 343652,
+      "home": "RB Leipzig",
+      "away": "1. FC Magdeburg",
+      "startTime": 1764705600000,
+      "channel": 43021
+    },
+    {
+      "id": 343653,
+      "home": "VfL Bochum",
+      "away": "VfB Stuttgart",
+      "startTime": 1764781200000,
+      "channel": 43021
+    },
+    {
+      "id": 343654,
+      "home": "Hamburger SV",
+      "away": "Holstein Kiel",
+      "startTime": 1764791100000,
+      "channel": 43021
+    },
+    {
+      "id": 343655,
+      "home": "Union Berlin",
+      "away": "Bayern Munich",
+      "startTime": 1764791100000,
+      "channel": 43021
+    },
+    {
+      "id": 343675,
+      "home": "SC Freiburg",
+      "away": "Darmstadt",
+      "startTime": 1764781200000,
+      "channel": 43021
+    },
+    {
+      "id": 344368,
+      "home": "FC Noah",
+      "away": "Legia Warszawa",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 344369,
+      "home": "Jagiellonia Bialystok",
+      "away": "Rayo Vallecano",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 344370,
+      "home": "Häcken",
+      "away": "AEK Larnaka",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 344371,
+      "home": "Lech Poznan",
+      "away": "Mainz",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 344372,
+      "home": "Fiorentina",
+      "away": "FC Dynamo Kyiv",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 344373,
+      "home": "Shkendija",
+      "away": "SK Slovan Bratislava",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 344374,
+      "home": "Hamrun Spartans",
+      "away": "FC Shakhtar Donetsk",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 344375,
+      "home": "Breidablik",
+      "away": "Shamrock Rovers",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 345272,
+      "home": "Cruz Azul",
+      "away": "Guadalajara Chivas",
+      "startTime": 1764550800000,
+      "channel": 4389
+    },
+    {
+      "id": 345337,
+      "home": "Navy",
+      "away": "Southeastern Louisiana",
+      "startTime": 1764435600000,
+      "channel": 462
+    },
+    {
+      "id": 345446,
+      "home": "Stoke City",
+      "away": "Hull City",
+      "startTime": 1764419400000,
+      "channel": 4383
+    },
+    {
+      "id": 345447,
+      "home": "Millwall",
+      "away": "Southampton",
+      "startTime": 1764428400000,
+      "channel": 4383
+    },
+    {
+      "id": 345448,
+      "home": "Portsmouth",
+      "away": "Bristol City",
+      "startTime": 1764419400000,
+      "channel": 4383
+    },
+    {
+      "id": 345449,
+      "home": "Leicester City",
+      "away": "Sheffield United",
+      "startTime": 1764419400000,
+      "channel": 4383
+    },
+    {
+      "id": 345537,
+      "home": "Club América",
+      "away": "Monterrey",
+      "startTime": 1764457200000,
+      "channel": 4389
+    },
+    {
+      "id": 345643,
+      "home": "Shelbourne",
+      "away": "Crystal Palace",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 345856,
+      "home": "Aberdeen",
+      "away": "Strasbourg",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 345883,
+      "home": "Jan Blachowicz",
+      "away": "Bogdan Guskov",
+      "startTime": 1765076400000,
+      "channel": 4950
+    },
+    {
+      "id": 345885,
+      "home": "Henry Cejudo",
+      "away": "Payton Talbott",
+      "startTime": 1765078200000,
+      "channel": 4950
+    },
+    {
+      "id": 345886,
+      "home": "Grant Dawson",
+      "away": "Manuel Torres",
+      "startTime": 1765074600000,
+      "channel": 4950
+    },
+    {
+      "id": 345888,
+      "home": "Chris Duncan",
+      "away": "Terrance Mckinney",
+      "startTime": 1765072800000,
+      "channel": 4950
+    },
+    {
+      "id": 345889,
+      "home": "Brandon Moreno",
+      "away": "Tatsuro Taira",
+      "startTime": 1765080900000,
+      "channel": 4950
+    },
+    {
+      "id": 345895,
+      "home": "Maycee Barber",
+      "away": "Karine Silva",
+      "startTime": 1765071000000,
+      "channel": 4950
+    },
+    {
+      "id": 345896,
+      "home": "Jalin Turner",
+      "away": "Edson Barboza",
+      "startTime": 1765067400000,
+      "channel": 4950
+    },
+    {
+      "id": 345899,
+      "home": "Iwo Baraniewski",
+      "away": "Ibo Aslan",
+      "startTime": 1765065600000,
+      "channel": 4950
+    },
+    {
+      "id": 345901,
+      "home": "Mairon Santos",
+      "away": "Muhammad Naimov",
+      "startTime": 1765062000000,
+      "channel": 4950
+    },
+    {
+      "id": 345936,
+      "home": "Nazim Sadykhov",
+      "away": "Fares Ziam",
+      "startTime": 1765069200000,
+      "channel": 4950
+    },
+    {
+      "id": 346073,
+      "home": "Constantin Ursu",
+      "away": "Ryan Amos",
+      "startTime": 1764536400000,
+      "channel": 4951
+    },
+    {
+      "id": 346074,
+      "home": "Elijah Pierce",
+      "away": "Lorenzo Parra",
+      "startTime": 1764462600000,
+      "channel": 4951
+    },
+    {
+      "id": 346075,
+      "home": "Erick Badillo",
+      "away": "Soto Elwin",
+      "startTime": 1764466200000,
+      "channel": 4951
+    },
+    {
+      "id": 346086,
+      "home": "Norrköping",
+      "away": "Orgryte IS",
+      "startTime": 1764424800000,
+      "channel": 4386
+    },
+    {
+      "id": 346130,
+      "home": "Muhammadkhuja Yaqubov",
+      "away": "Cristian Cruz Chacon",
+      "startTime": 1764468000000,
+      "channel": 4951
+    },
+    {
+      "id": 346133,
+      "home": "Justin Pauldo",
+      "away": "Nike Theran",
+      "startTime": 1764462600000,
+      "channel": 4951
+    },
+    {
+      "id": 346209,
+      "home": "Brunno Ferreira",
+      "away": "Marvin Vettori",
+      "startTime": 1765068300000,
+      "channel": 4950
+    },
+    {
+      "id": 346240,
+      "home": "CS U Craiova",
+      "away": "AC Sparta Praha",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 346331,
+      "home": "Niagara",
+      "away": "Detroit Mercy",
+      "startTime": 1764439200000,
+      "channel": 462
+    },
+    {
+      "id": 346332,
+      "home": "Canisius",
+      "away": "Buffalo Bulls",
+      "startTime": 1764457200000,
+      "channel": 462
+    },
+    {
+      "id": 346391,
+      "home": "Atletico Mineiro",
+      "away": "Palmeiras",
+      "startTime": 1764808200000,
+      "channel": 4303
+    },
+    {
+      "id": 346489,
+      "home": "Greece W",
+      "away": "Belarus W",
+      "startTime": 1764424800000,
+      "channel": 4203
+    },
+    {
+      "id": 346490,
+      "home": "Indonesia W",
+      "away": "Chinese Taipei W",
+      "startTime": 1764419400000,
+      "channel": 4203
+    },
+    {
+      "id": 346492,
+      "home": "Estonia W",
+      "away": "Lithuania W",
+      "startTime": 1764417600000,
+      "channel": 4203
+    },
+    {
+      "id": 346598,
+      "home": "Tigres UANL",
+      "away": "Tijuana",
+      "startTime": 1764472200000,
+      "channel": 4389
+    },
+    {
+      "id": 346697,
+      "home": "Bournemouth",
+      "away": "Everton",
+      "startTime": 1764703800000,
+      "channel": 4385
+    },
+    {
+      "id": 346698,
+      "home": "Wolves",
+      "away": "Nottingham Forest",
+      "startTime": 1764790200000,
+      "channel": 4385
+    },
+    {
+      "id": 346699,
+      "home": "Manchester United",
+      "away": "West Ham",
+      "startTime": 1764878400000,
+      "channel": 4385
+    },
+    {
+      "id": 346700,
+      "home": "Newcastle",
+      "away": "Tottenham",
+      "startTime": 1764706500000,
+      "channel": 4385
+    },
+    {
+      "id": 346701,
+      "home": "Brighton",
+      "away": "Aston Villa",
+      "startTime": 1764790200000,
+      "channel": 4385
+    },
+    {
+      "id": 346703,
+      "home": "Burnley",
+      "away": "Crystal Palace",
+      "startTime": 1764790200000,
+      "channel": 4385
+    },
+    {
+      "id": 346704,
+      "home": "Arsenal",
+      "away": "Brentford",
+      "startTime": 1764790200000,
+      "channel": 4385
+    },
+    {
+      "id": 346705,
+      "home": "Liverpool",
+      "away": "Sunderland",
+      "startTime": 1764792900000,
+      "channel": 4385
+    },
+    {
+      "id": 346706,
+      "home": "Leeds United",
+      "away": "Chelsea",
+      "startTime": 1764792900000,
+      "channel": 4385
+    },
+    {
+      "id": 346759,
+      "home": "Middlesbrough",
+      "away": "Derby County",
+      "startTime": 1764428400000,
+      "channel": 4383
+    },
+    {
+      "id": 346760,
+      "home": "Birmingham",
+      "away": "Watford",
+      "startTime": 1764619200000,
+      "channel": 4383
+    },
+    {
+      "id": 346761,
+      "home": "Coventry City",
+      "away": "Charlton",
+      "startTime": 1764428400000,
+      "channel": 4383
+    },
+    {
+      "id": 346762,
+      "home": "Norwich City",
+      "away": "QPR",
+      "startTime": 1764428400000,
+      "channel": 4383
+    },
+    {
+      "id": 346763,
+      "home": "Sheffield Wednesday",
+      "away": "Preston",
+      "startTime": 1764428400000,
+      "channel": 4383
+    },
+    {
+      "id": 346777,
+      "home": "Tecnico Universitario",
+      "away": "Manta FC",
+      "startTime": 1764442800000,
+      "channel": 43036
+    },
+    {
+      "id": 346778,
+      "home": "Vinotinto",
+      "away": "Mushuc Runa",
+      "startTime": 1764442800000,
+      "channel": 43036
+    },
+    {
+      "id": 346826,
+      "home": "West Brom",
+      "away": "Swansea",
+      "startTime": 1764428400000,
+      "channel": 4383
+    },
+    {
+      "id": 346867,
+      "home": "UMBC",
+      "away": "Delaware State",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 346869,
+      "home": "George Mason",
+      "away": "James Madison",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 346870,
+      "home": "Harvard",
+      "away": "Bryant",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 346871,
+      "home": "Indiana",
+      "away": "Bethune-Cookman",
+      "startTime": 1764435600000,
+      "channel": 462
+    },
+    {
+      "id": 346872,
+      "home": "Cal State Fullerton",
+      "away": "Pepperdine",
+      "startTime": 1764453600000,
+      "channel": 462
+    },
+    {
+      "id": 346873,
+      "home": "Army",
+      "away": "Manhattan",
+      "startTime": 1764439200000,
+      "channel": 462
+    },
+    {
+      "id": 346876,
+      "home": "Arizona",
+      "away": "Norfolk State",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 346877,
+      "home": "Northern Kentucky",
+      "away": "Boston University",
+      "startTime": 1764439200000,
+      "channel": 462
+    },
+    {
+      "id": 346879,
+      "home": "Nebraska",
+      "away": "South Carolina Upstate",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 346880,
+      "home": "Georgia",
+      "away": "Tennessee Tech",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 346887,
+      "home": "Akron",
+      "away": "Wisconsin Milwaukee",
+      "startTime": 1764460800000,
+      "channel": 462
+    },
+    {
+      "id": 346894,
+      "home": "Central Coast Mariners",
+      "away": "Sydney FC",
+      "startTime": 1765010100000,
+      "channel": 43023
+    },
+    {
+      "id": 346895,
+      "home": "Adelaide United FC",
+      "away": "Brisbane Roar FC",
+      "startTime": 1765096500000,
+      "channel": 43023
+    },
+    {
+      "id": 346896,
+      "home": "Perth Glory",
+      "away": "Western Sydney Wanderers",
+      "startTime": 1764931500000,
+      "channel": 43023
+    },
+    {
+      "id": 346897,
+      "home": "Macarthur Sydney",
+      "away": "Melbourne Victory FC",
+      "startTime": 1764923700000,
+      "channel": 43023
+    },
+    {
+      "id": 346898,
+      "home": "Auckland FC",
+      "away": "Wellington Phoenix FC",
+      "startTime": 1764993600000,
+      "channel": 43023
+    },
+    {
+      "id": 346899,
+      "home": "Newcastle Jets FC",
+      "away": "Melbourne City FC",
+      "startTime": 1765000800000,
+      "channel": 43023
+    },
+    {
+      "id": 346900,
+      "home": "SK Sturm Graz",
+      "away": "WSG Tirol",
+      "startTime": 1764790200000,
+      "channel": 43032
+    },
+    {
+      "id": 346902,
+      "home": "Cremonese",
+      "away": "Lecce",
+      "startTime": 1765107000000,
+      "channel": 4388
+    },
+    {
+      "id": 346903,
+      "home": "Lazio",
+      "away": "Bologna",
+      "startTime": 1765126800000,
+      "channel": 4388
+    },
+    {
+      "id": 346904,
+      "home": "Udinese Calcio",
+      "away": "Genoa",
+      "startTime": 1765213200000,
+      "channel": 4388
+    },
+    {
+      "id": 346905,
+      "home": "Sassuolo",
+      "away": "Fiorentina",
+      "startTime": 1765029600000,
+      "channel": 4388
+    },
+    {
+      "id": 346906,
+      "home": "Napoli",
+      "away": "Juventus",
+      "startTime": 1765136700000,
+      "channel": 4388
+    },
+    {
+      "id": 346907,
+      "home": "Verona",
+      "away": "Atalanta",
+      "startTime": 1765050300000,
+      "channel": 4388
+    },
+    {
+      "id": 346908,
+      "home": "Cagliari",
+      "away": "AS Roma",
+      "startTime": 1765116000000,
+      "channel": 4388
+    },
+    {
+      "id": 346909,
+      "home": "Inter Milan",
+      "away": "Como",
+      "startTime": 1765040400000,
+      "channel": 4388
+    },
+    {
+      "id": 346910,
+      "home": "Pisa",
+      "away": "Parma",
+      "startTime": 1765202400000,
+      "channel": 4388
+    },
+    {
+      "id": 346911,
+      "home": "Torino",
+      "away": "AC Milan",
+      "startTime": 1765223100000,
+      "channel": 4388
+    },
+    {
+      "id": 346915,
+      "home": "Brest",
+      "away": "Monaco",
+      "startTime": 1764957600000,
+      "channel": 4384
+    },
+    {
+      "id": 346916,
+      "home": "Lille",
+      "away": "Marseille",
+      "startTime": 1764964800000,
+      "channel": 4384
+    },
+    {
+      "id": 346917,
+      "home": "Nantes",
+      "away": "Lens",
+      "startTime": 1765036800000,
+      "channel": 4384
+    },
+    {
+      "id": 346918,
+      "home": "Auxerre",
+      "away": "Metz",
+      "startTime": 1765124100000,
+      "channel": 4384
+    },
+    {
+      "id": 346919,
+      "home": "Le Havre",
+      "away": "Paris FC",
+      "startTime": 1765124100000,
+      "channel": 4384
+    },
+    {
+      "id": 346920,
+      "home": "PSG",
+      "away": "Rennes",
+      "startTime": 1765051500000,
+      "channel": 4384
+    },
+    {
+      "id": 346921,
+      "home": "Nice",
+      "away": "Angers",
+      "startTime": 1765116000000,
+      "channel": 4384
+    },
+    {
+      "id": 346922,
+      "home": "Toulouse",
+      "away": "Strasbourg",
+      "startTime": 1765044000000,
+      "channel": 4384
+    },
+    {
+      "id": 346923,
+      "home": "Lorient",
+      "away": "Lyon",
+      "startTime": 1765136700000,
+      "channel": 4384
+    },
+    {
+      "id": 346924,
+      "home": "Miami (OH)",
+      "away": "Ball State",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 346925,
+      "home": "Central Michigan",
+      "away": "Toledo",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 346983,
+      "home": "Libertad",
+      "away": "Barcelona SC",
+      "startTime": 1764460800000,
+      "channel": 43036
+    },
+    {
+      "id": 346984,
+      "home": "Aucas",
+      "away": "CD Cuenca",
+      "startTime": 1764525600000,
+      "channel": 43036
+    },
+    {
+      "id": 347015,
+      "home": "Macara",
+      "away": "El Nacional",
+      "startTime": 1764534600000,
+      "channel": 43036
+    },
+    {
+      "id": 347017,
+      "home": "Universidad Catolica",
+      "away": "Orense",
+      "startTime": 1764451800000,
+      "channel": 43036
+    },
+    {
+      "id": 347028,
+      "home": "Delfín",
+      "away": "Emelec",
+      "startTime": 1764543600000,
+      "channel": 43036
+    },
+    {
+      "id": 347029,
+      "home": "Central Cordoba",
+      "away": "Estudiantes",
+      "startTime": 1764462600000,
+      "channel": 43007
+    },
+    {
+      "id": 347033,
+      "home": "Boca Juniors",
+      "away": "Argentinos Juniors",
+      "startTime": 1764538200000,
+      "channel": 43007
+    },
+    {
+      "id": 347038,
+      "home": "Mansur Abdul-malik",
+      "away": "Antonio Trocoli",
+      "startTime": 1765063800000,
+      "channel": 4950
+    },
+    {
+      "id": 347039,
+      "home": "Inter Miami",
+      "away": "New York City FC",
+      "startTime": 1764457200000,
+      "channel": 4200
+    },
+    {
+      "id": 347070,
+      "home": "Deportivo FAS",
+      "away": "CD Cacahuatique",
+      "startTime": 1764464400000,
+      "channel": 43029
+    },
+    {
+      "id": 347071,
+      "home": "Isidro Metapán",
+      "away": "CD Aguila",
+      "startTime": 1764465300000,
+      "channel": 43029
+    },
+    {
+      "id": 347072,
+      "home": "Alianza San Salvador",
+      "away": "Municipal Limeno",
+      "startTime": 1764464400000,
+      "channel": 43029
+    },
+    {
+      "id": 347073,
+      "home": "Luis Ángel Firpo",
+      "away": "CD Platense Zacatecoluca",
+      "startTime": 1764464400000,
+      "channel": 43029
+    },
+    {
+      "id": 347081,
+      "home": "Aaron Bowen",
+      "away": "Tom Cowling",
+      "startTime": 1764446400000,
+      "channel": 4951
+    },
+    {
+      "id": 347082,
+      "home": "Torcy",
+      "away": "Reims",
+      "startTime": 1764419400000,
+      "channel": 43011
+    },
+    {
+      "id": 347084,
+      "home": "Molly McCann",
+      "away": "Ebonie Cotton",
+      "startTime": 1764439200000,
+      "channel": 4951
+    },
+    {
+      "id": 347085,
+      "home": "Ibraheem Sulaimaan",
+      "away": "Nico Ogbeide",
+      "startTime": 1764437400000,
+      "channel": 4951
+    },
+    {
+      "id": 347086,
+      "home": "Francesca Hennessy",
+      "away": "Fabiana Bytyqi",
+      "startTime": 1764446400000,
+      "channel": 4951
+    },
+    {
+      "id": 347087,
+      "home": "Barrett Zelfa",
+      "away": "Liam Dillon",
+      "startTime": 1764435600000,
+      "channel": 4951
+    },
+    {
+      "id": 347088,
+      "home": "Biesheim",
+      "away": "Red Star Football Club",
+      "startTime": 1764424800000,
+      "channel": 43011
+    },
+    {
+      "id": 347090,
+      "home": "Saint-Malo",
+      "away": "SC Bastia",
+      "startTime": 1764428400000,
+      "channel": 43011
+    },
+    {
+      "id": 347091,
+      "home": "Deportivo Madryn",
+      "away": "Estudiantes de Rio Cuarto",
+      "startTime": 1764532800000,
+      "channel": 4230
+    },
+    {
+      "id": 347093,
+      "home": "Sporting Cristal",
+      "away": "Alianza Lima",
+      "startTime": 1764723600000,
+      "channel": 43038
+    },
+    {
+      "id": 347098,
+      "home": "Montreuil Fc",
+      "away": "Granville",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 347099,
+      "home": "Seyssinet AC",
+      "away": "Istres",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 347100,
+      "home": "SA Merignac",
+      "away": "Pau FC",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 347205,
+      "home": "Utah Tech",
+      "away": "UC Riverside",
+      "startTime": 1764453600000,
+      "channel": 462
+    },
+    {
+      "id": 347206,
+      "home": "St. Peter's",
+      "away": "Dartmouth",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 347207,
+      "home": "IU Indy",
+      "away": "Morehead State",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 347208,
+      "home": "East Tennessee State",
+      "away": "Central Arkansas",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 347209,
+      "home": "Winthrop",
+      "away": "South Carolina State",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 347211,
+      "home": "High Point",
+      "away": "Western Carolina",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 347213,
+      "home": "Georgia Southern",
+      "away": "Houston Christian",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 347214,
+      "home": "Utah State",
+      "away": "Montana State",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 347215,
+      "home": "Northwestern State",
+      "away": "Southern",
+      "startTime": 1764442800000,
+      "channel": 462
+    },
+    {
+      "id": 347216,
+      "home": "Mount St. Mary's",
+      "away": "Howard Bison",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 347217,
+      "home": "Southeast Missouri State",
+      "away": "Lipscomb",
+      "startTime": 1764446400000,
+      "channel": 462
+    },
+    {
+      "id": 347218,
+      "home": "Southern Illinois Salukis",
+      "away": "Arkansas-Little Rock",
+      "startTime": 1764460800000,
+      "channel": 462
+    },
+    {
+      "id": 347219,
+      "home": "Oregon State",
+      "away": "California Baptist",
+      "startTime": 1764471600000,
+      "channel": 462
+    },
+    {
+      "id": 347223,
+      "home": "Penn State",
+      "away": "Sacred Heart",
+      "startTime": 1764457200000,
+      "channel": 462
+    },
+    {
+      "id": 347224,
+      "home": "Pacific",
+      "away": "Sacramento State",
+      "startTime": 1764471600000,
+      "channel": 462
+    },
+    {
+      "id": 347283,
+      "home": "Southeastern Louisiana",
+      "away": "Illinois State",
+      "startTime": 1764439200000,
+      "channel": 452
+    },
+    {
+      "id": 347286,
+      "home": "Rhode Island",
+      "away": "Central Connecticut Blue Devils",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 347288,
+      "home": "South Dakota State",
+      "away": "New Hampshire",
+      "startTime": 1764439200000,
+      "channel": 452
+    },
+    {
+      "id": 347294,
+      "home": "Youngstown State",
+      "away": "Yale Bulldogs",
+      "startTime": 1764435600000,
+      "channel": 452
+    },
+    {
+      "id": 347305,
+      "home": "Mississippi Valley State",
+      "away": "Florida A&M Rattlers",
+      "startTime": 1764446400000,
+      "channel": 452
+    },
+    {
+      "id": 347322,
+      "home": "San Diego FC",
+      "away": "Vancouver Whitecaps",
+      "startTime": 1764468000000,
+      "channel": 4200
+    },
+    {
+      "id": 347348,
+      "home": "Wrexham",
+      "away": "Blackburn",
+      "startTime": 1764428400000,
+      "channel": 4383
+    },
+    {
+      "id": 347364,
+      "home": "Panathinaikos",
+      "away": "FC Viktoria Plzen",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347368,
+      "home": "Bradley Goldsmith",
+      "away": "Jordan Dujon",
+      "startTime": 1764439200000,
+      "channel": 4951
+    },
+    {
+      "id": 347369,
+      "home": "Hughie Fury",
+      "away": "Michael Webster",
+      "startTime": 1764435600000,
+      "channel": 4951
+    },
+    {
+      "id": 347370,
+      "home": "Tiago Muxanga",
+      "away": "Harley Collison",
+      "startTime": 1764518400000,
+      "channel": 4951
+    },
+    {
+      "id": 347371,
+      "home": "Sharp Archie",
+      "away": "Stefan Vincent",
+      "startTime": 1764518400000,
+      "channel": 4951
+    },
+    {
+      "id": 347372,
+      "home": "Robert Lloyd Taylor",
+      "away": "Harley Hodgetts",
+      "startTime": 1764518400000,
+      "channel": 4951
+    },
+    {
+      "id": 347374,
+      "home": "Malik Zinad",
+      "away": "Ante Bilic",
+      "startTime": 1764518400000,
+      "channel": 4951
+    },
+    {
+      "id": 347375,
+      "home": "Toluca",
+      "away": "FC Juarez",
+      "startTime": 1764464700000,
+      "channel": 4389
+    },
+    {
+      "id": 347376,
+      "home": "Barracas Central",
+      "away": "Gimnasia",
+      "startTime": 1764619200000,
+      "channel": 43007
+    },
+    {
+      "id": 347432,
+      "home": "Jack Massey",
+      "away": "Ivan Gabriel Garcia",
+      "startTime": 1764439200000,
+      "channel": 4951
+    },
+    {
+      "id": 347439,
+      "home": "Gradus Kraus",
+      "away": "Rostam Ibrahim",
+      "startTime": 1764439200000,
+      "channel": 4951
+    },
+    {
+      "id": 347446,
+      "home": "Yaser Al-Ghena",
+      "away": "Mykey Lee Broughton",
+      "startTime": 1764532800000,
+      "channel": 4951
+    },
+    {
+      "id": 347447,
+      "home": "Deniel Krotter",
+      "away": "Matthew King",
+      "startTime": 1764518400000,
+      "channel": 4951
+    },
+    {
+      "id": 347450,
+      "home": "Laura Pain",
+      "away": "Megan Redstall",
+      "startTime": 1764525600000,
+      "channel": 4951
+    },
+    {
+      "id": 347459,
+      "home": "Aamir Yakubu",
+      "away": "Oktavian Gratii",
+      "startTime": 1764518400000,
+      "channel": 4951
+    },
+    {
+      "id": 347466,
+      "home": "Erislandy Alvarez Borges",
+      "away": "Rogelio Jimenez",
+      "startTime": 1764460800000,
+      "channel": 4951
+    },
+    {
+      "id": 347469,
+      "home": "Lazaro Alvarez Estrada",
+      "away": "Raul Antonio Galaviz Hernandez",
+      "startTime": 1764448200000,
+      "channel": 4951
+    },
+    {
+      "id": 347484,
+      "home": "Carlos Balderas",
+      "away": "Ricardo Quiroz",
+      "startTime": 1764450000000,
+      "channel": 4951
+    },
+    {
+      "id": 347485,
+      "home": "Charlie Sheehy",
+      "away": "D'Angelo Keyes",
+      "startTime": 1764457200000,
+      "channel": 4951
+    },
+    {
+      "id": 347494,
+      "home": "Azerbaijan W",
+      "away": "Malaysia W",
+      "startTime": 1764421200000,
+      "channel": 4203
+    },
+    {
+      "id": 347499,
+      "home": "Adelaida Ruiz",
+      "away": "Alexas Kubicki",
+      "startTime": 1764460800000,
+      "channel": 4951
+    },
+    {
+      "id": 347517,
+      "home": "Kahraba Ismailia",
+      "away": "Pyramids FC",
+      "startTime": 1764784800000,
+      "channel": 43022
+    },
+    {
+      "id": 347610,
+      "home": "Iris Club de Croix",
+      "away": "Asc Le Geldar",
+      "startTime": 1764421200000,
+      "channel": 43011
+    },
+    {
+      "id": 347624,
+      "home": "Hauts Lyonnais",
+      "away": "Feurs",
+      "startTime": 1764432000000,
+      "channel": 43011
+    },
+    {
+      "id": 347634,
+      "home": "NSH Predators",
+      "away": "WPG Jets",
+      "startTime": 1764460800000,
+      "channel": 481
+    },
+    {
+      "id": 347635,
+      "home": "NY Rangers",
+      "away": "TB Lightning",
+      "startTime": 1764442800000,
+      "channel": 481
+    },
+    {
+      "id": 347636,
+      "home": "COL Avalanche",
+      "away": "MTL Canadiens",
+      "startTime": 1764446400000,
+      "channel": 481
+    },
+    {
+      "id": 347637,
+      "home": "MIN Wild",
+      "away": "BUF Sabres",
+      "startTime": 1764464400000,
+      "channel": 481
+    },
+    {
+      "id": 347638,
+      "home": "SEA Kraken",
+      "away": "EDM Oilers",
+      "startTime": 1764450000000,
+      "channel": 481
+    },
+    {
+      "id": 347639,
+      "home": "VGS Golden Knights",
+      "away": "SJ Sharks",
+      "startTime": 1764471600000,
+      "channel": 481
+    },
+    {
+      "id": 347640,
+      "home": "STL Blues",
+      "away": "UTA Mammoth",
+      "startTime": 1764464400000,
+      "channel": 481
+    },
+    {
+      "id": 347641,
+      "home": "NJ Devils",
+      "away": "PHI Flyers",
+      "startTime": 1764460800000,
+      "channel": 481
+    },
+    {
+      "id": 347642,
+      "home": "BOS Bruins",
+      "away": "DET Red Wings",
+      "startTime": 1764460800000,
+      "channel": 481
+    },
+    {
+      "id": 347643,
+      "home": "LA Kings",
+      "away": "VAN Canucks",
+      "startTime": 1764471600000,
+      "channel": 481
+    },
+    {
+      "id": 347648,
+      "home": "PIT Penguins",
+      "away": "TOR Maple Leafs",
+      "startTime": 1764460800000,
+      "channel": 481
+    },
+    {
+      "id": 347674,
+      "home": "Dilmaghani Alex",
+      "away": "Eduardo Baez",
+      "startTime": 1764426600000,
+      "channel": 4951
+    },
+    {
+      "id": 347675,
+      "home": "Tarik Zaina",
+      "away": "Mimoun Mohamed",
+      "startTime": 1764435600000,
+      "channel": 4951
+    },
+    {
+      "id": 347676,
+      "home": "Jesus Eduardo Saracho Zuniga",
+      "away": "Peter Dobson",
+      "startTime": 1764428400000,
+      "channel": 4951
+    },
+    {
+      "id": 347678,
+      "home": "Bobby Dalton",
+      "away": "Joel Kodua",
+      "startTime": 1764450000000,
+      "channel": 4951
+    },
+    {
+      "id": 347692,
+      "home": "Muhammad Waseem",
+      "away": "Jakrawut Majungoen",
+      "startTime": 1764432000000,
+      "channel": 4951
+    },
+    {
+      "id": 347695,
+      "home": "Stevi Levy",
+      "away": "Antonella Shirley Molina",
+      "startTime": 1764518400000,
+      "channel": 4951
+    },
+    {
+      "id": 347708,
+      "home": "England W",
+      "away": "China W",
+      "startTime": 1764437400000,
+      "channel": 4203
+    },
+    {
+      "id": 347720,
+      "home": "Villeneuve-la-garenne",
+      "away": "Le Mans",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 347809,
+      "home": "Tottenham",
+      "away": "Slavia Praha",
+      "startTime": 1765310400000,
+      "channel": 43002
+    },
+    {
+      "id": 347810,
+      "home": "Inter Milan",
+      "away": "Liverpool",
+      "startTime": 1765310400000,
+      "channel": 43002
+    },
+    {
+      "id": 347811,
+      "home": "Monaco",
+      "away": "Galatasaray",
+      "startTime": 1765310400000,
+      "channel": 43002
+    },
+    {
+      "id": 347812,
+      "home": "Royale Union SG",
+      "away": "Marseille",
+      "startTime": 1765310400000,
+      "channel": 43002
+    },
+    {
+      "id": 347813,
+      "home": "FC Kairat",
+      "away": "Olympiacos",
+      "startTime": 1765294200000,
+      "channel": 43002
+    },
+    {
+      "id": 347814,
+      "home": "Bayern Munich",
+      "away": "Sporting CP",
+      "startTime": 1765302300000,
+      "channel": 43002
+    },
+    {
+      "id": 347815,
+      "home": "Atalanta",
+      "away": "Chelsea",
+      "startTime": 1765310400000,
+      "channel": 43002
+    },
+    {
+      "id": 347816,
+      "home": "Barcelona",
+      "away": "Eintracht Frankfurt",
+      "startTime": 1765310400000,
+      "channel": 43002
+    },
+    {
+      "id": 347817,
+      "home": "PSV",
+      "away": "Atlético Madrid",
+      "startTime": 1765310400000,
+      "channel": 43002
+    },
+    {
+      "id": 347818,
+      "home": "Athletic Bilbao",
+      "away": "PSG",
+      "startTime": 1765396800000,
+      "channel": 43002
+    },
+    {
+      "id": 347819,
+      "home": "Leverkusen",
+      "away": "Newcastle",
+      "startTime": 1765396800000,
+      "channel": 43002
+    },
+    {
+      "id": 347820,
+      "home": "Club Brugge",
+      "away": "Arsenal",
+      "startTime": 1765396800000,
+      "channel": 43002
+    },
+    {
+      "id": 347821,
+      "home": "Real Madrid",
+      "away": "Manchester City",
+      "startTime": 1765396800000,
+      "channel": 43002
+    },
+    {
+      "id": 347822,
+      "home": "Villarreal",
+      "away": "Copenhagen",
+      "startTime": 1765388700000,
+      "channel": 43002
+    },
+    {
+      "id": 347844,
+      "home": "Qarabag",
+      "away": "Ajax",
+      "startTime": 1765388700000,
+      "channel": 43002
+    },
+    {
+      "id": 347847,
+      "home": "Borussia Dortmund",
+      "away": "Bodø/Glimt",
+      "startTime": 1765396800000,
+      "channel": 43002
+    },
+    {
+      "id": 347848,
+      "home": "Benfica",
+      "away": "Napoli",
+      "startTime": 1765396800000,
+      "channel": 43002
+    },
+    {
+      "id": 347850,
+      "home": "Juventus",
+      "away": "Pafos",
+      "startTime": 1765396800000,
+      "channel": 43002
+    },
+    {
+      "id": 347865,
+      "home": "Racing Club",
+      "away": "Tigre",
+      "startTime": 1764635400000,
+      "channel": 43007
+    },
+    {
+      "id": 347872,
+      "home": "New Zealand",
+      "away": "Australia",
+      "startTime": 1764568800000,
+      "channel": 4749
+    },
+    {
+      "id": 347881,
+      "home": "Ricardo Malajika",
+      "away": "Vince Paras",
+      "startTime": 1764439200000,
+      "channel": 4951
+    },
+    {
+      "id": 347938,
+      "home": "UCF",
+      "away": "VMI Keydets",
+      "startTime": 1764439200000,
+      "channel": 462
+    },
+    {
+      "id": 347954,
+      "home": "Rakow Czestochowa",
+      "away": "HSK Zrinjski",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 347955,
+      "home": "FC Basel",
+      "away": "Aston Villa",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347956,
+      "home": "SC Freiburg",
+      "away": "Salzburg",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347957,
+      "home": "FC Porto",
+      "away": "Malmö",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347958,
+      "home": "Celtic",
+      "away": "AS Roma",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347959,
+      "home": "Lyon",
+      "away": "Go Ahead Eagles",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347960,
+      "home": "Celta Vigo",
+      "away": "Bologna",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347961,
+      "home": "VfB Stuttgart",
+      "away": "Maccabi Tel Aviv",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347962,
+      "home": "Ludogorets",
+      "away": "PAOK",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347963,
+      "home": "Nice",
+      "away": "Sporting Braga",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347964,
+      "home": "Brann",
+      "away": "Fenerbahçe",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347965,
+      "home": "BSC Young Boys",
+      "away": "Lille",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347966,
+      "home": "FC Midtjylland",
+      "away": "KRC Genk",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347967,
+      "home": "FCSB",
+      "away": "Feyenoord",
+      "startTime": 1765483200000,
+      "channel": 4397
+    },
+    {
+      "id": 347968,
+      "home": "SK Sturm Graz",
+      "away": "Crvena Zvezda",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347969,
+      "home": "GNK Dinamo Zagreb",
+      "away": "Real Betis",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347970,
+      "home": "Ferencvaros",
+      "away": "Rangers",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347971,
+      "home": "FC Utrecht",
+      "away": "Nottingham Forest",
+      "startTime": 1765475100000,
+      "channel": 4397
+    },
+    {
+      "id": 347972,
+      "home": "KF Drita",
+      "away": "AZ Alkmaar",
+      "startTime": 1765475100000,
+      "channel": 43008
+    },
+    {
+      "id": 347973,
+      "home": "KuPS",
+      "away": "FC Lausanne-Sport",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 347974,
+      "home": "SK Rapid Wien",
+      "away": "Omonia Nicosia",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 347976,
+      "home": "HNK Rijeka",
+      "away": "NK CM Celje",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 347977,
+      "home": "Lincoln Red Imps FC",
+      "away": "SK Sigma Olomouc",
+      "startTime": 1765483200000,
+      "channel": 43008
+    },
+    {
+      "id": 347995,
+      "home": "Montceau Bourgogne",
+      "away": "Montpellier",
+      "startTime": 1764419400000,
+      "channel": 43011
+    },
+    {
+      "id": 347996,
+      "home": "US Sarre-Union",
+      "away": "Sochaux",
+      "startTime": 1764419400000,
+      "channel": 43011
+    },
+    {
+      "id": 347999,
+      "home": "EF Reims Sainte-Anne",
+      "away": "Amiens",
+      "startTime": 1764421200000,
+      "channel": 43011
+    },
+    {
+      "id": 348003,
+      "home": "L'Union St Jean",
+      "away": "Orléans",
+      "startTime": 1764421200000,
+      "channel": 43011
+    },
+    {
+      "id": 348010,
+      "home": "Beauvais",
+      "away": "Dieppe",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348011,
+      "home": "Lyon Duchère",
+      "away": "Cassis Carnoux",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348014,
+      "home": "Romorantin",
+      "away": "Blois F.41",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348015,
+      "home": "Plabennec",
+      "away": "Vendee Les Herbiers",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348021,
+      "home": "Vendée Fontenay",
+      "away": "Chateauroux",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348022,
+      "home": "APM Metz",
+      "away": "Feignies",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348023,
+      "home": "Marmande",
+      "away": "Bassin d'Arcachon Sud",
+      "startTime": 1764442800000,
+      "channel": 43011
+    },
+    {
+      "id": 348026,
+      "home": "Chalonnais",
+      "away": "Le Puy Foot",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348027,
+      "home": "Canet Roussillon",
+      "away": "Rodez Aveyron",
+      "startTime": 1764424800000,
+      "channel": 43011
+    },
+    {
+      "id": 348028,
+      "home": "Mazeres",
+      "away": "Bordeaux",
+      "startTime": 1764439200000,
+      "channel": 43011
+    },
+    {
+      "id": 348045,
+      "home": "Guinea",
+      "away": "Nigeria",
+      "startTime": 1764421200000,
+      "channel": 4749
+    },
+    {
+      "id": 348046,
+      "home": "Tunisia",
+      "away": "Rwanda",
+      "startTime": 1764432000000,
+      "channel": 4749
+    },
+    {
+      "id": 348047,
+      "home": "CHA Hornets",
+      "away": "TOR Raptors",
+      "startTime": 1764457200000,
+      "channel": 461
+    },
+    {
+      "id": 348050,
+      "home": "PHX Suns",
+      "away": "DEN Nuggets",
+      "startTime": 1764468000000,
+      "channel": 461
+    },
+    {
+      "id": 348094,
+      "home": "Andrej Martin",
+      "away": "Lilian Marmousez",
+      "startTime": 1764414000000,
+      "channel": 10479
+    },
+    {
+      "id": 348106,
+      "home": "Saint-Etienne",
+      "away": "Ecotay Moingt",
+      "startTime": 1764444600000,
+      "channel": 43011
+    },
+    {
+      "id": 348109,
+      "home": "Daniel Merida Aguilar",
+      "away": "Elmer Moller",
+      "startTime": 1764419400000,
+      "channel": 10479
+    },
+    {
+      "id": 348121,
+      "home": "[boosted][ignored] no home_team_name for boosted: Jeremiah Smith 100+ Receiving Yards, 1+ TDs & OSU to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Ohio State vs. Michigan",
+      "startTime": 1764435600000,
+      "channel": 753
+    },
+    {
+      "id": 348122,
+      "home": "[boosted][ignored] no home_team_name for boosted: Bryce Underwood 2+ Pass TDs & Michigan to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Ohio State vs. Michigan",
+      "startTime": 1764435600000,
+      "channel": 753
+    },
+    {
+      "id": 348123,
+      "home": "[boosted][ignored] no home_team_name for boosted: Carson Beck 300+ Pass Yards, 2+ Pass TDs & Miami to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Miami (FL) vs. Pitt",
+      "startTime": 1764435600000,
+      "channel": 753
+    },
+    {
+      "id": 348124,
+      "home": "[boosted][ignored] no home_team_name for boosted: Mason Heintschel 2+ Pass TDs & Pitt to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Miami (FL) vs. Pitt",
+      "startTime": 1764435600000,
+      "channel": 753
+    },
+    {
+      "id": 348126,
+      "home": "[boosted][ignored] no home_team_name for boosted: LaNorris Sellers 250+ Pass Yards, 2+ Pass TDs & SC to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Clemson vs. South Carolina",
+      "startTime": 1764435600000,
+      "channel": 753
+    },
+    {
+      "id": 348127,
+      "home": "[boosted][ignored] no home_team_name for boosted: Cade Klubnik 250+ Pass Yards, 2+ Pass TDs & Clemson to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Clemson vs. South Carolina",
+      "startTime": 1764435600000,
+      "channel": 753
+    },
+    {
+      "id": 348128,
+      "home": "[boosted][ignored] no home_team_name for boosted: Taylen Green 2+ Pass TDs & Arkansas to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Missouri vs. Arkansas",
+      "startTime": 1764448200000,
+      "channel": 753
+    },
+    {
+      "id": 348129,
+      "home": "[boosted][ignored] no home_team_name for boosted: Beau Pribula 200+ Pass Yards, 2+ Pass TDs & Mizzou to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Missouri vs. Arkansas",
+      "startTime": 1764448200000,
+      "channel": 753
+    },
+    {
+      "id": 348130,
+      "home": "[boosted][ignored] no home_team_name for boosted: Joey Aguilar 350+ Pass Yards, 3+ Pass TDs & Vols to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Vanderbilt vs. Tennessee",
+      "startTime": 1764448200000,
+      "channel": 753
+    },
+    {
+      "id": 348131,
+      "home": "[boosted][ignored] no home_team_name for boosted: Diego Pavia 3+ Pass TDs & Vandy to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Vanderbilt vs. Tennessee",
+      "startTime": 1764448200000,
+      "channel": 753
+    },
+    {
+      "id": 348132,
+      "home": "[boosted][ignored] no home_team_name for boosted: Demond Williams Jr. 250+ Pass Yards, 2+ Pass TDs & Washington to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Oregon vs. Washington",
+      "startTime": 1764448200000,
+      "channel": 753
+    },
+    {
+      "id": 348133,
+      "home": "[boosted][ignored] no home_team_name for boosted: Dante Moore 250+ Pass Yards, 2+ Pass TDs & Oregon to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Oregon vs. Washington",
+      "startTime": 1764448200000,
+      "channel": 753
+    },
+    {
+      "id": 348134,
+      "home": "[boosted][ignored] no home_team_name for boosted: Tommy Castellanos 250+ Pass Yards, 2+ Pass TDs & FSU to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Florida State vs. Florida",
+      "startTime": 1764451800000,
+      "channel": 753
+    },
+    {
+      "id": 348135,
+      "home": "[boosted][ignored] no home_team_name for boosted: DJ Lagway 3+ Pass TDs & Florida to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Florida State vs. Florida",
+      "startTime": 1764451800000,
+      "channel": 753
+    },
+    {
+      "id": 348137,
+      "home": "[boosted][ignored] no home_team_name for boosted: Jeremiah Cobb 100+ Rush Yards, 1+ TDs & Auburn to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Alabama vs. Auburn",
+      "startTime": 1764462600000,
+      "channel": 753
+    },
+    {
+      "id": 348138,
+      "home": "[boosted][ignored] no home_team_name for boosted: Ryan Williams 70+ Receiving Yards, 1+ TDs & Bama to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - Alabama vs. Auburn",
+      "startTime": 1764462600000,
+      "channel": 753
+    },
+    {
+      "id": 348139,
+      "home": "[boosted][ignored] no home_team_name for boosted: Jalen Berger 1+ TDs & UCLA to Win",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - UCLA vs. USC",
+      "startTime": 1764462600000,
+      "channel": 752
+    },
+    {
+      "id": 348140,
+      "home": "[boosted][ignored] no home_team_name for boosted: Makai Lemon 100+ Receiving Yards, 1+ TDs & USC to Win by 21+ Points",
+      "away": "[boosted][ignored] no away_team_name for boosted: NCAAF - UCLA vs. USC",
+      "startTime": 1764462600000,
+      "channel": 753
+    },
+    {
+      "id": 348145,
+      "home": "Alafia Ayeni",
+      "away": "Federico Agustin Gomez",
+      "startTime": 1764424800000,
+      "channel": 10477
+    },
+    {
+      "id": 348152,
+      "home": "Weber State",
+      "away": "UMKC",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 348153,
+      "home": "Valparaiso",
+      "away": "Western Michigan",
+      "startTime": 1764446400000,
+      "channel": 462
+    },
+    {
+      "id": 348154,
+      "home": "Elon",
+      "away": "Mercer",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 348156,
+      "home": "South Dakota",
+      "away": "Air Force",
+      "startTime": 1764450000000,
+      "channel": 462
+    },
+    {
+      "id": 348164,
+      "home": "MIN Timberwolves",
+      "away": "BOS Celtics",
+      "startTime": 1764453600000,
+      "channel": 461
+    },
+    {
+      "id": 348167,
+      "home": "Ancienne Château-Gontier",
+      "away": "Guingamp",
+      "startTime": 1764435600000,
+      "channel": 43011
+    },
+    {
+      "id": 348168,
+      "home": "GS Warriors",
+      "away": "NO Pelicans",
+      "startTime": 1764466200000,
+      "channel": 461
+    },
+    {
+      "id": 348170,
+      "home": "Juan Carlos Prado Angelo",
+      "away": "Lautaro Midon",
+      "startTime": 1764430200000,
+      "channel": 10477
+    },
+    {
+      "id": 348174,
+      "home": "MIA Heat",
+      "away": "DET Pistons",
+      "startTime": 1764464400000,
+      "channel": 461
+    },
+    {
+      "id": 348176,
+      "home": "Eastern Kentucky",
+      "away": "Wofford",
+      "startTime": 1764453600000,
+      "channel": 462
+    },
+    {
+      "id": 348179,
+      "home": "IND Pacers",
+      "away": "CHI Bulls",
+      "startTime": 1764462600000,
+      "channel": 461
+    },
+    {
+      "id": 348183,
+      "home": "MIL Bucks",
+      "away": "BKN Nets",
+      "startTime": 1764464400000,
+      "channel": 461
+    },
+    {
+      "id": 348186,
+      "home": "LA Clippers",
+      "away": "DAL Mavericks",
+      "startTime": 1764471600000,
+      "channel": 461
+    }
+  ],
+  "odds": [
+    {
+      "id": "7960790_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "MONEYLINE",
+      "selection": "Samsung Life Blue Minx W",
+      "odds": -350,
+      "decimal": 1.25,
+      "prevOdds": -420,
+      "updated": 1764404006374
+    },
+    {
+      "id": "7960871_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "POINT SPREAD",
+      "selection": "Samsung Life Blue Minx W -7.5",
+      "odds": -120,
+      "decimal": 1.8,
+      "prevOdds": -130,
+      "updated": 1764403999659
+    },
+    {
+      "id": "7960813_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "TOTAL SCORE",
+      "selection": "Over 124.5",
+      "odds": -120,
+      "decimal": 1.8,
+      "prevOdds": -125,
+      "updated": 1764404006374
+    },
+    {
+      "id": "7960791_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "MONEYLINE",
+      "selection": "Shinhan Bank S-Birds W",
+      "odds": 240,
+      "decimal": 3.4,
+      "prevOdds": 275,
+      "updated": 1764404006374
+    },
+    {
+      "id": "7960870_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "POINT SPREAD",
+      "selection": "Shinhan Bank S-Birds W +7.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403999659
+    },
+    {
+      "id": "7960812_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "TOTAL SCORE",
+      "selection": "Under 124.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764404006374
+    },
+    {
+      "id": "13991921_p_499_prematch",
+      "event": "Pisa vs Inter Milan",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Pisa",
+      "odds": 800,
+      "decimal": 9,
+      "prevOdds": 790,
+      "updated": 1764403939861
+    },
+    {
+      "id": "13995162_p_499_prematch",
+      "event": "Pisa vs Inter Milan",
+      "market": "POINT SPREAD",
+      "selection": "Pisa +1.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -130,
+      "updated": 1764403939861
+    },
+    {
+      "id": "13991930_p_499_prematch",
+      "event": "Pisa vs Inter Milan",
+      "market": "TOTAL SCORE",
+      "selection": "Over 2.5",
+      "odds": -145,
+      "decimal": 1.65,
+      "prevOdds": -150,
+      "updated": 1764403939861
+    },
+    {
+      "id": "13991922_p_499_prematch",
+      "event": "Pisa vs Inter Milan",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Inter Milan",
+      "odds": -365,
+      "decimal": 1.25,
+      "prevOdds": -370,
+      "updated": 1764403939861
+    },
+    {
+      "id": "13995163_p_499_prematch",
+      "event": "Pisa vs Inter Milan",
+      "market": "POINT SPREAD",
+      "selection": "Inter Milan -1.5",
+      "odds": -120,
+      "decimal": 1.85,
+      "prevOdds": -115,
+      "updated": 1764403939861
+    },
+    {
+      "id": "13991929_p_499_prematch",
+      "event": "Pisa vs Inter Milan",
+      "market": "TOTAL SCORE",
+      "selection": "Under 2.5",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": -105,
+      "updated": 1764403939861
+    },
+    {
+      "id": "13991923_p_499_prematch",
+      "event": "Pisa vs Inter Milan",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Draw",
+      "odds": 410,
+      "decimal": 5.1,
+      "prevOdds": 415,
+      "updated": 1764403939861
+    },
+    {
+      "id": "13988574_p_499_prematch",
+      "event": "Bayern Munich vs St. Pauli",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Bayern Munich",
+      "odds": -1790,
+      "decimal": 1.05,
+      "prevOdds": -1780,
+      "updated": 1764404008421
+    },
+    {
+      "id": "13991955_p_499_prematch",
+      "event": "Bayern Munich vs St. Pauli",
+      "market": "POINT SPREAD",
+      "selection": "Bayern Munich -2.5",
+      "odds": -130,
+      "decimal": 1.75,
+      "prevOdds": -125,
+      "updated": 1764404008421
+    },
+    {
+      "id": "13988979_p_499_prematch",
+      "event": "Bayern Munich vs St. Pauli",
+      "market": "TOTAL SCORE",
+      "selection": "Over 3.5",
+      "odds": -140,
+      "decimal": 1.7,
+      "prevOdds": -145,
+      "updated": 1764404008421
+    },
+    {
+      "id": "13988572_p_499_prematch",
+      "event": "Bayern Munich vs St. Pauli",
+      "market": "3-WAY MONEYLINE",
+      "selection": "St. Pauli",
+      "odds": 2125,
+      "decimal": 22.25,
+      "prevOdds": 2115,
+      "updated": 1764404008421
+    },
+    {
+      "id": "13991956_p_499_prematch",
+      "event": "Bayern Munich vs St. Pauli",
+      "market": "POINT SPREAD",
+      "selection": "St. Pauli +2.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764404008421
+    },
+    {
+      "id": "13988978_p_499_prematch",
+      "event": "Bayern Munich vs St. Pauli",
+      "market": "TOTAL SCORE",
+      "selection": "Under 3.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": 100,
+      "updated": 1764404008421
+    },
+    {
+      "id": "13988573_p_499_prematch",
+      "event": "Bayern Munich vs St. Pauli",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Draw",
+      "odds": 905,
+      "decimal": 10.05,
+      "prevOdds": 895,
+      "updated": 1764404008421
+    },
+    {
+      "id": "14147059_p_499_prematch",
+      "event": "Tigres UANL vs Tijuana",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Tigres UANL",
+      "odds": -335,
+      "decimal": 1.25,
+      "prevOdds": -340,
+      "updated": 1764403994796
+    },
+    {
+      "id": "14147273_p_499_prematch",
+      "event": "Tigres UANL vs Tijuana",
+      "market": "POINT SPREAD",
+      "selection": "Tigres UANL -1.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403994796
+    },
+    {
+      "id": "14147064_p_499_prematch",
+      "event": "Tigres UANL vs Tijuana",
+      "market": "TOTAL SCORE",
+      "selection": "Over 3.5",
+      "odds": 105,
+      "decimal": 2.05,
+      "prevOdds": 110,
+      "updated": 1764403994796
+    },
+    {
+      "id": "14147060_p_499_prematch",
+      "event": "Tigres UANL vs Tijuana",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Tijuana",
+      "odds": 660,
+      "decimal": 7.6,
+      "prevOdds": 655,
+      "updated": 1764403994796
+    },
+    {
+      "id": "14147274_p_499_prematch",
+      "event": "Tigres UANL vs Tijuana",
+      "market": "POINT SPREAD",
+      "selection": "Tijuana +1.5",
+      "odds": -120,
+      "decimal": 1.8,
+      "prevOdds": -125,
+      "updated": 1764403994796
+    },
+    {
+      "id": "14147065_p_499_prematch",
+      "event": "Tigres UANL vs Tijuana",
+      "market": "TOTAL SCORE",
+      "selection": "Under 3.5",
+      "odds": -160,
+      "decimal": 1.6,
+      "prevOdds": -155,
+      "updated": 1764403994796
+    },
+    {
+      "id": "14147058_p_499_prematch",
+      "event": "Tigres UANL vs Tijuana",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Draw",
+      "odds": 425,
+      "decimal": 5.25,
+      "prevOdds": 420,
+      "updated": 1764403994796
+    },
+    {
+      "id": "388035_p_609_universal",
+      "event": "Florida State vs Florida",
+      "market": "MONEYLINE",
+      "selection": "Florida State",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": -105,
+      "updated": 1764403943427
+    },
+    {
+      "id": "363875_p_609_universal",
+      "event": "Florida State vs Florida",
+      "market": "POINT SPREAD",
+      "selection": "Florida State +1.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403943427
+    },
+    {
+      "id": "388115_p_609_universal",
+      "event": "Florida State vs Florida",
+      "market": "TOTAL SCORE",
+      "selection": "Over 50.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403943427
+    },
+    {
+      "id": "388034_p_609_universal",
+      "event": "Florida State vs Florida",
+      "market": "MONEYLINE",
+      "selection": "Florida",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403943427
+    },
+    {
+      "id": "363874_p_609_universal",
+      "event": "Florida State vs Florida",
+      "market": "POINT SPREAD",
+      "selection": "Florida -1.5",
+      "odds": -115,
+      "decimal": 1.9,
+      "prevOdds": -110,
+      "updated": 1764403943427
+    },
+    {
+      "id": "388121_p_609_universal",
+      "event": "Florida State vs Florida",
+      "market": "TOTAL SCORE",
+      "selection": "Under 50.5",
+      "odds": -115,
+      "decimal": 1.9,
+      "prevOdds": -120,
+      "updated": 1764403943427
+    },
+    {
+      "id": "7960831_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "TOTAL SCORE",
+      "selection": "Over 125.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403958161
+    },
+    {
+      "id": "7960830_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "TOTAL SCORE",
+      "selection": "Under 125.5",
+      "odds": -120,
+      "decimal": 1.85,
+      "prevOdds": -125,
+      "updated": 1764403958161
+    },
+    {
+      "id": "14152793_p_499_prematch",
+      "event": "Cruz Azul vs Guadalajara Chivas",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Cruz Azul",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": -105,
+      "updated": 1764403945933
+    },
+    {
+      "id": "14160488_p_499_prematch",
+      "event": "Cruz Azul vs Guadalajara Chivas",
+      "market": "POINT SPREAD",
+      "selection": "Cruz Azul -0.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403945933
+    },
+    {
+      "id": "14152823_p_499_prematch",
+      "event": "Cruz Azul vs Guadalajara Chivas",
+      "market": "TOTAL SCORE",
+      "selection": "Over 2.5",
+      "odds": -120,
+      "decimal": 1.8,
+      "prevOdds": -125,
+      "updated": 1764403945933
+    },
+    {
+      "id": "14152794_p_499_prematch",
+      "event": "Cruz Azul vs Guadalajara Chivas",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Guadalajara Chivas",
+      "odds": 240,
+      "decimal": 3.4,
+      "prevOdds": 245,
+      "updated": 1764403945933
+    },
+    {
+      "id": "14160489_p_499_prematch",
+      "event": "Cruz Azul vs Guadalajara Chivas",
+      "market": "POINT SPREAD",
+      "selection": "Guadalajara Chivas +0.5",
+      "odds": -140,
+      "decimal": 1.7,
+      "prevOdds": -130,
+      "updated": 1764403945933
+    },
+    {
+      "id": "14152824_p_499_prematch",
+      "event": "Cruz Azul vs Guadalajara Chivas",
+      "market": "TOTAL SCORE",
+      "selection": "Under 2.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403945933
+    },
+    {
+      "id": "14152795_p_499_prematch",
+      "event": "Cruz Azul vs Guadalajara Chivas",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Draw",
+      "odds": 230,
+      "decimal": 3.3,
+      "prevOdds": 235,
+      "updated": 1764403945933
+    },
+    {
+      "id": "2562285_p_603_universal",
+      "event": "DEN Nuggets vs PHX Suns",
+      "market": "MONEYLINE",
+      "selection": "DEN Nuggets",
+      "odds": -195,
+      "decimal": 1.5,
+      "prevOdds": -200,
+      "updated": 1764404000469
+    },
+    {
+      "id": "2568407_p_603_universal",
+      "event": "DEN Nuggets vs PHX Suns",
+      "market": "POINT SPREAD",
+      "selection": "DEN Nuggets -5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": 0,
+      "updated": 1764404000469
+    },
+    {
+      "id": "2562619_p_603_universal",
+      "event": "DEN Nuggets vs PHX Suns",
+      "market": "TOTAL SCORE",
+      "selection": "Over 233.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764404000469
+    },
+    {
+      "id": "2562284_p_603_universal",
+      "event": "DEN Nuggets vs PHX Suns",
+      "market": "MONEYLINE",
+      "selection": "PHX Suns",
+      "odds": 155,
+      "decimal": 2.55,
+      "prevOdds": 160,
+      "updated": 1764404000469
+    },
+    {
+      "id": "2568406_p_603_universal",
+      "event": "DEN Nuggets vs PHX Suns",
+      "market": "POINT SPREAD",
+      "selection": "PHX Suns +5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -110,
+      "updated": 1764404000469
+    },
+    {
+      "id": "2562628_p_603_universal",
+      "event": "DEN Nuggets vs PHX Suns",
+      "market": "TOTAL SCORE",
+      "selection": "Under 233.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -110,
+      "updated": 1764404000469
+    },
+    {
+      "id": "387561_p_609_universal",
+      "event": "Northwestern vs Illinois",
+      "market": "MONEYLINE",
+      "selection": "Northwestern",
+      "odds": 245,
+      "decimal": 3.45,
+      "prevOdds": 240,
+      "updated": 1764403947946
+    },
+    {
+      "id": "387365_p_609_universal",
+      "event": "Northwestern vs Illinois",
+      "market": "POINT SPREAD",
+      "selection": "Northwestern +7.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403947946
+    },
+    {
+      "id": "387529_p_609_universal",
+      "event": "Northwestern vs Illinois",
+      "market": "TOTAL SCORE",
+      "selection": "Over 45.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403947946
+    },
+    {
+      "id": "387560_p_609_universal",
+      "event": "Northwestern vs Illinois",
+      "market": "MONEYLINE",
+      "selection": "Illinois",
+      "odds": -340,
+      "decimal": 1.25,
+      "prevOdds": -335,
+      "updated": 1764403947946
+    },
+    {
+      "id": "387361_p_609_universal",
+      "event": "Northwestern vs Illinois",
+      "market": "POINT SPREAD",
+      "selection": "Illinois -7.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -105,
+      "updated": 1764403947946
+    },
+    {
+      "id": "387535_p_609_universal",
+      "event": "Northwestern vs Illinois",
+      "market": "TOTAL SCORE",
+      "selection": "Under 45.5",
+      "odds": -120,
+      "decimal": 1.85,
+      "prevOdds": -130,
+      "updated": 1764403947946
+    },
+    {
+      "id": "429832_p_602_universal",
+      "event": "ATL Falcons vs NY Jets",
+      "market": "MONEYLINE",
+      "selection": "ATL Falcons",
+      "odds": -160,
+      "decimal": 1.6,
+      "prevOdds": -165,
+      "updated": 1764403955562
+    },
+    {
+      "id": "429763_p_602_universal",
+      "event": "ATL Falcons vs NY Jets",
+      "market": "POINT SPREAD",
+      "selection": "ATL Falcons -2.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403955562
+    },
+    {
+      "id": "429913_p_602_universal",
+      "event": "ATL Falcons vs NY Jets",
+      "market": "TOTAL SCORE",
+      "selection": "Over 39.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403955562
+    },
+    {
+      "id": "429831_p_602_universal",
+      "event": "ATL Falcons vs NY Jets",
+      "market": "MONEYLINE",
+      "selection": "NY Jets",
+      "odds": 125,
+      "decimal": 2.25,
+      "prevOdds": 130,
+      "updated": 1764403955562
+    },
+    {
+      "id": "429735_p_602_universal",
+      "event": "ATL Falcons vs NY Jets",
+      "market": "POINT SPREAD",
+      "selection": "NY Jets +2.5",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": -105,
+      "updated": 1764403955562
+    },
+    {
+      "id": "429941_p_602_universal",
+      "event": "ATL Falcons vs NY Jets",
+      "market": "TOTAL SCORE",
+      "selection": "Under 39.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403955562
+    },
+    {
+      "id": "13991155_p_499_prematch",
+      "event": "Western Sydney Wanderers vs Sydney FC",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Western Sydney Wanderers",
+      "odds": 215,
+      "decimal": 3.15,
+      "prevOdds": 210,
+      "updated": 1764403986989
+    },
+    {
+      "id": "14096869_p_499_prematch",
+      "event": "Western Sydney Wanderers vs Sydney FC",
+      "market": "POINT SPREAD",
+      "selection": "Western Sydney Wanderers +0.5",
+      "odds": -160,
+      "decimal": 1.6,
+      "prevOdds": -165,
+      "updated": 1764403986989
+    },
+    {
+      "id": "13991395_p_499_prematch",
+      "event": "Western Sydney Wanderers vs Sydney FC",
+      "market": "TOTAL SCORE",
+      "selection": "Over 3.5",
+      "odds": 120,
+      "decimal": 2.2,
+      "prevOdds": 125,
+      "updated": 1764403986989
+    },
+    {
+      "id": "13991153_p_499_prematch",
+      "event": "Western Sydney Wanderers vs Sydney FC",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Sydney FC",
+      "odds": 130,
+      "decimal": 2.3,
+      "prevOdds": 135,
+      "updated": 1764403986989
+    },
+    {
+      "id": "14096870_p_499_prematch",
+      "event": "Western Sydney Wanderers vs Sydney FC",
+      "market": "POINT SPREAD",
+      "selection": "Sydney FC -0.5",
+      "odds": 105,
+      "decimal": 2.05,
+      "prevOdds": 110,
+      "updated": 1764403986989
+    },
+    {
+      "id": "13991396_p_499_prematch",
+      "event": "Western Sydney Wanderers vs Sydney FC",
+      "market": "TOTAL SCORE",
+      "selection": "Under 3.5",
+      "odds": -180,
+      "decimal": 1.55,
+      "prevOdds": -185,
+      "updated": 1764403986989
+    },
+    {
+      "id": "13991154_p_499_prematch",
+      "event": "Western Sydney Wanderers vs Sydney FC",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Draw",
+      "odds": 290,
+      "decimal": 3.9,
+      "prevOdds": 285,
+      "updated": 1764403986989
+    },
+    {
+      "id": "7960837_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "TOTAL SCORE",
+      "selection": "Over 123.5",
+      "odds": -130,
+      "decimal": 1.75,
+      "prevOdds": -130,
+      "updated": 1764403999659
+    },
+    {
+      "id": "7960836_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "TOTAL SCORE",
+      "selection": "Under 123.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -115,
+      "updated": 1764403999659
+    },
+    {
+      "id": "387155_p_609_universal",
+      "event": "Vanderbilt vs Tennessee",
+      "market": "MONEYLINE",
+      "selection": "Vanderbilt",
+      "odds": 120,
+      "decimal": 2.2,
+      "prevOdds": 115,
+      "updated": 1764403961126
+    },
+    {
+      "id": "387324_p_609_universal",
+      "event": "Vanderbilt vs Tennessee",
+      "market": "POINT SPREAD",
+      "selection": "Vanderbilt +2.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403961126
+    },
+    {
+      "id": "387312_p_609_universal",
+      "event": "Vanderbilt vs Tennessee",
+      "market": "TOTAL SCORE",
+      "selection": "Over 66.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403961126
+    },
+    {
+      "id": "387154_p_609_universal",
+      "event": "Vanderbilt vs Tennessee",
+      "market": "MONEYLINE",
+      "selection": "Tennessee",
+      "odds": -145,
+      "decimal": 1.65,
+      "prevOdds": -150,
+      "updated": 1764403961126
+    },
+    {
+      "id": "387321_p_609_universal",
+      "event": "Vanderbilt vs Tennessee",
+      "market": "POINT SPREAD",
+      "selection": "Tennessee -2.5",
+      "odds": -120,
+      "decimal": 1.85,
+      "prevOdds": -115,
+      "updated": 1764403961126
+    },
+    {
+      "id": "387318_p_609_universal",
+      "event": "Vanderbilt vs Tennessee",
+      "market": "TOTAL SCORE",
+      "selection": "Under 66.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403961126
+    },
+    {
+      "id": "428736_p_602_universal",
+      "event": "MIN Vikings vs SEA Seahawks",
+      "market": "MONEYLINE",
+      "selection": "MIN Vikings",
+      "odds": 590,
+      "decimal": 6.9,
+      "prevOdds": 595,
+      "updated": 1764403961394
+    },
+    {
+      "id": "428897_p_602_universal",
+      "event": "MIN Vikings vs SEA Seahawks",
+      "market": "POINT SPREAD",
+      "selection": "MIN Vikings +11.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -105,
+      "updated": 1764403961394
+    },
+    {
+      "id": "428925_p_602_universal",
+      "event": "MIN Vikings vs SEA Seahawks",
+      "market": "TOTAL SCORE",
+      "selection": "Over 41.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -135,
+      "updated": 1764403961394
+    },
+    {
+      "id": "428735_p_602_universal",
+      "event": "MIN Vikings vs SEA Seahawks",
+      "market": "MONEYLINE",
+      "selection": "SEA Seahawks",
+      "odds": -1045,
+      "decimal": 1.05,
+      "prevOdds": -1055,
+      "updated": 1764403961394
+    },
+    {
+      "id": "428865_p_602_universal",
+      "event": "MIN Vikings vs SEA Seahawks",
+      "market": "POINT SPREAD",
+      "selection": "SEA Seahawks -11.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -130,
+      "updated": 1764403961394
+    },
+    {
+      "id": "428953_p_602_universal",
+      "event": "MIN Vikings vs SEA Seahawks",
+      "market": "TOTAL SCORE",
+      "selection": "Under 41.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403961394
+    },
+    {
+      "id": "207384_p_607_universal",
+      "event": "VAN Canucks vs LA Kings",
+      "market": "MONEYLINE",
+      "selection": "VAN Canucks",
+      "odds": 150,
+      "decimal": 2.5,
+      "prevOdds": 145,
+      "updated": 1764403964030
+    },
+    {
+      "id": "207348_p_607_universal",
+      "event": "VAN Canucks vs LA Kings",
+      "market": "PUCK LINE",
+      "selection": "VAN Canucks +1.5",
+      "odds": -180,
+      "decimal": 1.55,
+      "prevOdds": -185,
+      "updated": 1764403964030
+    },
+    {
+      "id": "207373_p_607_universal",
+      "event": "VAN Canucks vs LA Kings",
+      "market": "TOTAL SCORE",
+      "selection": "Over 6.5",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": 0,
+      "updated": 1764403964030
+    },
+    {
+      "id": "207383_p_607_universal",
+      "event": "VAN Canucks vs LA Kings",
+      "market": "MONEYLINE",
+      "selection": "LA Kings",
+      "odds": -190,
+      "decimal": 1.5,
+      "prevOdds": -185,
+      "updated": 1764403964030
+    },
+    {
+      "id": "207345_p_607_universal",
+      "event": "VAN Canucks vs LA Kings",
+      "market": "PUCK LINE",
+      "selection": "LA Kings -1.5",
+      "odds": 130,
+      "decimal": 2.3,
+      "prevOdds": 135,
+      "updated": 1764403964030
+    },
+    {
+      "id": "207378_p_607_universal",
+      "event": "VAN Canucks vs LA Kings",
+      "market": "TOTAL SCORE",
+      "selection": "Under 6.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403964030
+    },
+    {
+      "id": "651618_p_201_prematch",
+      "event": "Wrexham vs Blackburn",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Wrexham",
+      "odds": 125,
+      "decimal": 2.25,
+      "prevOdds": 120,
+      "updated": 1764403969467
+    },
+    {
+      "id": "651749_p_201_prematch",
+      "event": "Wrexham vs Blackburn",
+      "market": "POINT SPREAD",
+      "selection": "Wrexham +0",
+      "odds": -160,
+      "decimal": 1.6,
+      "prevOdds": -155,
+      "updated": 1764403969467
+    },
+    {
+      "id": "651613_p_201_prematch",
+      "event": "Wrexham vs Blackburn",
+      "market": "TOTAL SCORE",
+      "selection": "Over 2.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403969467
+    },
+    {
+      "id": "651616_p_201_prematch",
+      "event": "Wrexham vs Blackburn",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Blackburn",
+      "odds": 185,
+      "decimal": 2.85,
+      "prevOdds": 190,
+      "updated": 1764403969467
+    },
+    {
+      "id": "651748_p_201_prematch",
+      "event": "Wrexham vs Blackburn",
+      "market": "POINT SPREAD",
+      "selection": "Blackburn +0",
+      "odds": 105,
+      "decimal": 2.05,
+      "prevOdds": 100,
+      "updated": 1764403969467
+    },
+    {
+      "id": "651612_p_201_prematch",
+      "event": "Wrexham vs Blackburn",
+      "market": "TOTAL SCORE",
+      "selection": "Under 2.5",
+      "odds": -145,
+      "decimal": 1.7,
+      "prevOdds": -140,
+      "updated": 1764403969467
+    },
+    {
+      "id": "651617_p_201_prematch",
+      "event": "Wrexham vs Blackburn",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Draw",
+      "odds": 210,
+      "decimal": 3.1,
+      "prevOdds": 215,
+      "updated": 1764403969467
+    },
+    {
+      "id": "363907_p_609_universal",
+      "event": "Alabama vs Auburn",
+      "market": "MONEYLINE",
+      "selection": "Alabama",
+      "odds": -275,
+      "decimal": 1.35,
+      "prevOdds": -280,
+      "updated": 1764403969822
+    },
+    {
+      "id": "363867_p_609_universal",
+      "event": "Alabama vs Auburn",
+      "market": "POINT SPREAD",
+      "selection": "Alabama -5.5",
+      "odds": -120,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403969822
+    },
+    {
+      "id": "365012_p_609_universal",
+      "event": "Alabama vs Auburn",
+      "market": "TOTAL SCORE",
+      "selection": "Over 46.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -125,
+      "updated": 1764403969822
+    },
+    {
+      "id": "363906_p_609_universal",
+      "event": "Alabama vs Auburn",
+      "market": "MONEYLINE",
+      "selection": "Auburn",
+      "odds": 200,
+      "decimal": 3,
+      "prevOdds": 205,
+      "updated": 1764403969822
+    },
+    {
+      "id": "363866_p_609_universal",
+      "event": "Alabama vs Auburn",
+      "market": "POINT SPREAD",
+      "selection": "Auburn +5.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -105,
+      "updated": 1764403969822
+    },
+    {
+      "id": "365018_p_609_universal",
+      "event": "Alabama vs Auburn",
+      "market": "TOTAL SCORE",
+      "selection": "Under 46.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403969822
+    },
+    {
+      "id": "365305_p_609_universal",
+      "event": "Ohio State vs Michigan",
+      "market": "MONEYLINE",
+      "selection": "Ohio State",
+      "odds": -520,
+      "decimal": 1.15,
+      "prevOdds": -565,
+      "updated": 1764403972137
+    },
+    {
+      "id": "365282_p_609_universal",
+      "event": "Ohio State vs Michigan",
+      "market": "POINT SPREAD",
+      "selection": "Ohio State -10.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -105,
+      "updated": 1764403972137
+    },
+    {
+      "id": "365294_p_609_universal",
+      "event": "Ohio State vs Michigan",
+      "market": "TOTAL SCORE",
+      "selection": "Over 43.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403972137
+    },
+    {
+      "id": "365304_p_609_universal",
+      "event": "Ohio State vs Michigan",
+      "market": "MONEYLINE",
+      "selection": "Michigan",
+      "odds": 350,
+      "decimal": 4.5,
+      "prevOdds": 370,
+      "updated": 1764403972137
+    },
+    {
+      "id": "365275_p_609_universal",
+      "event": "Ohio State vs Michigan",
+      "market": "POINT SPREAD",
+      "selection": "Michigan +10.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403972137
+    },
+    {
+      "id": "365300_p_609_universal",
+      "event": "Ohio State vs Michigan",
+      "market": "TOTAL SCORE",
+      "selection": "Under 43.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403972137
+    },
+    {
+      "id": "2560073_p_603_universal",
+      "event": "BOS Celtics vs MIN Timberwolves",
+      "market": "MONEYLINE",
+      "selection": "BOS Celtics",
+      "odds": 215,
+      "decimal": 3.15,
+      "prevOdds": 220,
+      "updated": 1764403997339
+    },
+    {
+      "id": "2560051_p_603_universal",
+      "event": "BOS Celtics vs MIN Timberwolves",
+      "market": "POINT SPREAD",
+      "selection": "BOS Celtics +7.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403997339
+    },
+    {
+      "id": "2560110_p_603_universal",
+      "event": "BOS Celtics vs MIN Timberwolves",
+      "market": "TOTAL SCORE",
+      "selection": "Over 226.5",
+      "odds": -120,
+      "decimal": 1.85,
+      "prevOdds": -115,
+      "updated": 1764403997339
+    },
+    {
+      "id": "2560072_p_603_universal",
+      "event": "BOS Celtics vs MIN Timberwolves",
+      "market": "MONEYLINE",
+      "selection": "MIN Timberwolves",
+      "odds": -275,
+      "decimal": 1.35,
+      "prevOdds": -280,
+      "updated": 1764403997339
+    },
+    {
+      "id": "2560036_p_603_universal",
+      "event": "BOS Celtics vs MIN Timberwolves",
+      "market": "POINT SPREAD",
+      "selection": "MIN Timberwolves -7.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -105,
+      "updated": 1764403997339
+    },
+    {
+      "id": "2560119_p_603_universal",
+      "event": "BOS Celtics vs MIN Timberwolves",
+      "market": "TOTAL SCORE",
+      "selection": "Under 226.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403997339
+    },
+    {
+      "id": "429026_p_602_universal",
+      "event": "JAX Jaguars vs TEN Titans",
+      "market": "MONEYLINE",
+      "selection": "JAX Jaguars",
+      "odds": -370,
+      "decimal": 1.25,
+      "prevOdds": -385,
+      "updated": 1764403980848
+    },
+    {
+      "id": "428660_p_602_universal",
+      "event": "JAX Jaguars vs TEN Titans",
+      "market": "POINT SPREAD",
+      "selection": "JAX Jaguars -6.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403980848
+    },
+    {
+      "id": "429354_p_602_universal",
+      "event": "JAX Jaguars vs TEN Titans",
+      "market": "TOTAL SCORE",
+      "selection": "Over 41.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -130,
+      "updated": 1764403980848
+    },
+    {
+      "id": "429025_p_602_universal",
+      "event": "JAX Jaguars vs TEN Titans",
+      "market": "MONEYLINE",
+      "selection": "TEN Titans",
+      "odds": 265,
+      "decimal": 3.65,
+      "prevOdds": 260,
+      "updated": 1764403980848
+    },
+    {
+      "id": "428629_p_602_universal",
+      "event": "JAX Jaguars vs TEN Titans",
+      "market": "POINT SPREAD",
+      "selection": "TEN Titans +6.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -110,
+      "updated": 1764403980848
+    },
+    {
+      "id": "429382_p_602_universal",
+      "event": "JAX Jaguars vs TEN Titans",
+      "market": "TOTAL SCORE",
+      "selection": "Under 41.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -125,
+      "updated": 1764403980848
+    },
+    {
+      "id": "387565_p_609_universal",
+      "event": "Clemson vs South Carolina",
+      "market": "MONEYLINE",
+      "selection": "Clemson",
+      "odds": 120,
+      "decimal": 2.2,
+      "prevOdds": 115,
+      "updated": 1764404009681
+    },
+    {
+      "id": "387643_p_609_universal",
+      "event": "Clemson vs South Carolina",
+      "market": "POINT SPREAD",
+      "selection": "Clemson +2.5",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": -105,
+      "updated": 1764404009681
+    },
+    {
+      "id": "387568_p_609_universal",
+      "event": "Clemson vs South Carolina",
+      "market": "TOTAL SCORE",
+      "selection": "Over 47.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -115,
+      "updated": 1764404009681
+    },
+    {
+      "id": "387564_p_609_universal",
+      "event": "Clemson vs South Carolina",
+      "market": "MONEYLINE",
+      "selection": "South Carolina",
+      "odds": -150,
+      "decimal": 1.65,
+      "prevOdds": -145,
+      "updated": 1764404009681
+    },
+    {
+      "id": "387642_p_609_universal",
+      "event": "Clemson vs South Carolina",
+      "market": "POINT SPREAD",
+      "selection": "South Carolina -2.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764404009681
+    },
+    {
+      "id": "387574_p_609_universal",
+      "event": "Clemson vs South Carolina",
+      "market": "TOTAL SCORE",
+      "selection": "Under 47.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -125,
+      "updated": 1764404009681
+    },
+    {
+      "id": "388151_p_609_universal",
+      "event": "Notre Dame vs Stanford",
+      "market": "MONEYLINE",
+      "selection": "Notre Dame",
+      "odds": -999905,
+      "decimal": 1,
+      "prevOdds": -999905,
+      "updated": 1764403987218
+    },
+    {
+      "id": "387829_p_609_universal",
+      "event": "Notre Dame vs Stanford",
+      "market": "POINT SPREAD",
+      "selection": "Notre Dame -31.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -110,
+      "updated": 1764403987218
+    },
+    {
+      "id": "388092_p_609_universal",
+      "event": "Notre Dame vs Stanford",
+      "market": "TOTAL SCORE",
+      "selection": "Over 50.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403987218
+    },
+    {
+      "id": "388150_p_609_universal",
+      "event": "Notre Dame vs Stanford",
+      "market": "MONEYLINE",
+      "selection": "Stanford",
+      "odds": 1900,
+      "decimal": 20,
+      "prevOdds": 2035,
+      "updated": 1764403987218
+    },
+    {
+      "id": "387828_p_609_universal",
+      "event": "Notre Dame vs Stanford",
+      "market": "POINT SPREAD",
+      "selection": "Stanford +31.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -115,
+      "updated": 1764403987218
+    },
+    {
+      "id": "388098_p_609_universal",
+      "event": "Notre Dame vs Stanford",
+      "market": "TOTAL SCORE",
+      "selection": "Under 50.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403987218
+    },
+    {
+      "id": "388497_p_609_universal",
+      "event": "Colorado vs Kansas State",
+      "market": "MONEYLINE",
+      "selection": "Colorado",
+      "odds": 730,
+      "decimal": 8.3,
+      "prevOdds": 715,
+      "updated": 1764403989862
+    },
+    {
+      "id": "388430_p_609_universal",
+      "event": "Colorado vs Kansas State",
+      "market": "POINT SPREAD",
+      "selection": "Colorado +17.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403989862
+    },
+    {
+      "id": "388412_p_609_universal",
+      "event": "Colorado vs Kansas State",
+      "market": "TOTAL SCORE",
+      "selection": "Over 50.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403989862
+    },
+    {
+      "id": "388496_p_609_universal",
+      "event": "Colorado vs Kansas State",
+      "market": "MONEYLINE",
+      "selection": "Kansas State",
+      "odds": -1430,
+      "decimal": 1.05,
+      "prevOdds": -1375,
+      "updated": 1764403989862
+    },
+    {
+      "id": "388424_p_609_universal",
+      "event": "Colorado vs Kansas State",
+      "market": "POINT SPREAD",
+      "selection": "Kansas State -17.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403989862
+    },
+    {
+      "id": "388418_p_609_universal",
+      "event": "Colorado vs Kansas State",
+      "market": "TOTAL SCORE",
+      "selection": "Under 50.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -120,
+      "updated": 1764403989862
+    },
+    {
+      "id": "387615_p_609_universal",
+      "event": "Kentucky vs Louisville",
+      "market": "MONEYLINE",
+      "selection": "Kentucky",
+      "odds": 120,
+      "decimal": 2.2,
+      "prevOdds": 130,
+      "updated": 1764403992430
+    },
+    {
+      "id": "387523_p_609_universal",
+      "event": "Kentucky vs Louisville",
+      "market": "POINT SPREAD",
+      "selection": "Kentucky +2.5",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": -105,
+      "updated": 1764403992430
+    },
+    {
+      "id": "387272_p_609_universal",
+      "event": "Kentucky vs Louisville",
+      "market": "TOTAL SCORE",
+      "selection": "Over 46.5",
+      "odds": -115,
+      "decimal": 1.9,
+      "prevOdds": -110,
+      "updated": 1764403992430
+    },
+    {
+      "id": "387614_p_609_universal",
+      "event": "Kentucky vs Louisville",
+      "market": "MONEYLINE",
+      "selection": "Louisville",
+      "odds": -155,
+      "decimal": 1.65,
+      "prevOdds": -150,
+      "updated": 1764403992430
+    },
+    {
+      "id": "387521_p_609_universal",
+      "event": "Kentucky vs Louisville",
+      "market": "POINT SPREAD",
+      "selection": "Louisville -2.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764403992430
+    },
+    {
+      "id": "387278_p_609_universal",
+      "event": "Kentucky vs Louisville",
+      "market": "TOTAL SCORE",
+      "selection": "Under 46.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403992430
+    },
+    {
+      "id": "387613_p_609_universal",
+      "event": "UCF vs BYU",
+      "market": "MONEYLINE",
+      "selection": "UCF",
+      "odds": 855,
+      "decimal": 9.55,
+      "prevOdds": 870,
+      "updated": 1764403993424
+    },
+    {
+      "id": "388258_p_609_universal",
+      "event": "UCF vs BYU",
+      "market": "POINT SPREAD",
+      "selection": "UCF +18.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -125,
+      "updated": 1764403993424
+    },
+    {
+      "id": "388266_p_609_universal",
+      "event": "UCF vs BYU",
+      "market": "TOTAL SCORE",
+      "selection": "Over 47.5",
+      "odds": -110,
+      "decimal": 1.95,
+      "prevOdds": -105,
+      "updated": 1764403993424
+    },
+    {
+      "id": "387612_p_609_universal",
+      "event": "UCF vs BYU",
+      "market": "MONEYLINE",
+      "selection": "BYU",
+      "odds": -1845,
+      "decimal": 1.05,
+      "prevOdds": -1895,
+      "updated": 1764403993424
+    },
+    {
+      "id": "388251_p_609_universal",
+      "event": "UCF vs BYU",
+      "market": "POINT SPREAD",
+      "selection": "BYU -18.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -115,
+      "updated": 1764403993424
+    },
+    {
+      "id": "388271_p_609_universal",
+      "event": "UCF vs BYU",
+      "market": "TOTAL SCORE",
+      "selection": "Under 47.5",
+      "odds": -115,
+      "decimal": 1.9,
+      "prevOdds": -110,
+      "updated": 1764403993424
+    },
+    {
+      "id": "14129658_p_499_prematch",
+      "event": "San Diego FC vs Vancouver Whitecaps",
+      "market": "3-WAY MONEYLINE",
+      "selection": "San Diego FC",
+      "odds": 125,
+      "decimal": 2.25,
+      "prevOdds": 120,
+      "updated": 1764403996648
+    },
+    {
+      "id": "14130012_p_499_prematch",
+      "event": "San Diego FC vs Vancouver Whitecaps",
+      "market": "POINT SPREAD",
+      "selection": "San Diego FC +0",
+      "odds": -150,
+      "decimal": 1.65,
+      "prevOdds": -155,
+      "updated": 1764403996648
+    },
+    {
+      "id": "14129668_p_499_prematch",
+      "event": "San Diego FC vs Vancouver Whitecaps",
+      "market": "TOTAL SCORE",
+      "selection": "Over 2.5",
+      "odds": -190,
+      "decimal": 1.5,
+      "prevOdds": -185,
+      "updated": 1764403996648
+    },
+    {
+      "id": "14129657_p_499_prematch",
+      "event": "San Diego FC vs Vancouver Whitecaps",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Vancouver Whitecaps",
+      "odds": 165,
+      "decimal": 2.65,
+      "prevOdds": 170,
+      "updated": 1764403996648
+    },
+    {
+      "id": "14130011_p_499_prematch",
+      "event": "San Diego FC vs Vancouver Whitecaps",
+      "market": "POINT SPREAD",
+      "selection": "Vancouver Whitecaps +0",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": 105,
+      "updated": 1764403996648
+    },
+    {
+      "id": "14129669_p_499_prematch",
+      "event": "San Diego FC vs Vancouver Whitecaps",
+      "market": "TOTAL SCORE",
+      "selection": "Under 2.5",
+      "odds": 125,
+      "decimal": 2.25,
+      "prevOdds": 120,
+      "updated": 1764403996648
+    },
+    {
+      "id": "14129659_p_499_prematch",
+      "event": "San Diego FC vs Vancouver Whitecaps",
+      "market": "3-WAY MONEYLINE",
+      "selection": "Draw",
+      "odds": 250,
+      "decimal": 3.5,
+      "prevOdds": 245,
+      "updated": 1764403996648
+    },
+    {
+      "id": "388813_p_609_universal",
+      "event": "UCLA vs USC",
+      "market": "MONEYLINE",
+      "selection": "UCLA",
+      "odds": 990,
+      "decimal": 10.9,
+      "prevOdds": 980,
+      "updated": 1764403999811
+    },
+    {
+      "id": "388833_p_609_universal",
+      "event": "UCLA vs USC",
+      "market": "POINT SPREAD",
+      "selection": "UCLA +21.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764403999811
+    },
+    {
+      "id": "388816_p_609_universal",
+      "event": "UCLA vs USC",
+      "market": "TOTAL SCORE",
+      "selection": "Over 58.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -125,
+      "updated": 1764403999811
+    },
+    {
+      "id": "388812_p_609_universal",
+      "event": "UCLA vs USC",
+      "market": "MONEYLINE",
+      "selection": "USC",
+      "odds": -2415,
+      "decimal": 1,
+      "prevOdds": -2355,
+      "updated": 1764403999811
+    },
+    {
+      "id": "388827_p_609_universal",
+      "event": "UCLA vs USC",
+      "market": "POINT SPREAD",
+      "selection": "USC -21.5",
+      "odds": -115,
+      "decimal": 1.85,
+      "prevOdds": -110,
+      "updated": 1764403999811
+    },
+    {
+      "id": "388822_p_609_universal",
+      "event": "UCLA vs USC",
+      "market": "TOTAL SCORE",
+      "selection": "Under 58.5",
+      "odds": -105,
+      "decimal": 1.95,
+      "prevOdds": -110,
+      "updated": 1764403999811
+    },
+    {
+      "id": "207372_p_607_universal",
+      "event": "SJ Sharks vs VGS Golden Knights",
+      "market": "MONEYLINE",
+      "selection": "SJ Sharks",
+      "odds": 260,
+      "decimal": 3.6,
+      "prevOdds": 265,
+      "updated": 1764404000519
+    },
+    {
+      "id": "207342_p_607_universal",
+      "event": "SJ Sharks vs VGS Golden Knights",
+      "market": "PUCK LINE",
+      "selection": "SJ Sharks +1.5",
+      "odds": 105,
+      "decimal": 2.05,
+      "prevOdds": 100,
+      "updated": 1764404000519
+    },
+    {
+      "id": "207351_p_607_universal",
+      "event": "SJ Sharks vs VGS Golden Knights",
+      "market": "TOTAL SCORE",
+      "selection": "Over 6.5",
+      "odds": 100,
+      "decimal": 2,
+      "prevOdds": 105,
+      "updated": 1764404000519
+    },
+    {
+      "id": "207371_p_607_universal",
+      "event": "SJ Sharks vs VGS Golden Knights",
+      "market": "MONEYLINE",
+      "selection": "VGS Golden Knights",
+      "odds": -335,
+      "decimal": 1.25,
+      "prevOdds": -340,
+      "updated": 1764404000519
+    },
+    {
+      "id": "207339_p_607_universal",
+      "event": "SJ Sharks vs VGS Golden Knights",
+      "market": "PUCK LINE",
+      "selection": "VGS Golden Knights -1.5",
+      "odds": -135,
+      "decimal": 1.75,
+      "prevOdds": -130,
+      "updated": 1764404000519
+    },
+    {
+      "id": "207357_p_607_universal",
+      "event": "SJ Sharks vs VGS Golden Knights",
+      "market": "TOTAL SCORE",
+      "selection": "Under 6.5",
+      "odds": -130,
+      "decimal": 1.75,
+      "prevOdds": -135,
+      "updated": 1764404000519
+    },
+    {
+      "id": "7960869_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "POINT SPREAD",
+      "selection": "Samsung Life Blue Minx W -6.5",
+      "odds": -125,
+      "decimal": 1.8,
+      "prevOdds": -120,
+      "updated": 1764404006374
+    },
+    {
+      "id": "7960868_p_399_inplay",
+      "event": "Samsung Life Blue Minx W vs Shinhan Bank S-Birds W",
+      "market": "POINT SPREAD",
+      "selection": "Shinhan Bank S-Birds W +6.5",
+      "odds": -120,
+      "decimal": 1.85,
+      "prevOdds": -125,
+      "updated": 1764404006374
+    },
+    {
+      "id": "2560465_p_603_universal",
+      "event": "DET Pistons vs MIA Heat",
+      "market": "MONEYLINE",
+      "selection": "DET Pistons",
+      "odds": 120,
+      "decimal": 2.2,
+      "prevOdds": 125,
+      "updated": 1764404009000
+    },
+    {
+      "id": "2560433_p_603_universal",
+      "event": "DET Pistons vs MIA Heat",
+      "market": "POINT SPREAD",
+      "selection": "DET Pistons +3",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764404009000
+    },
+    {
+      "id": "2560835_p_603_universal",
+      "event": "DET Pistons vs MIA Heat",
+      "market": "TOTAL SCORE",
+      "selection": "Over 238.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764404009000
+    },
+    {
+      "id": "2560464_p_603_universal",
+      "event": "DET Pistons vs MIA Heat",
+      "market": "MONEYLINE",
+      "selection": "MIA Heat",
+      "odds": -150,
+      "decimal": 1.65,
+      "prevOdds": -155,
+      "updated": 1764404009000
+    },
+    {
+      "id": "2560418_p_603_universal",
+      "event": "DET Pistons vs MIA Heat",
+      "market": "POINT SPREAD",
+      "selection": "MIA Heat -3",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764404009000
+    },
+    {
+      "id": "2560844_p_603_universal",
+      "event": "DET Pistons vs MIA Heat",
+      "market": "TOTAL SCORE",
+      "selection": "Under 238.5",
+      "odds": -110,
+      "decimal": 1.9,
+      "prevOdds": -115,
+      "updated": 1764404009000
+    }
+  ]
+}

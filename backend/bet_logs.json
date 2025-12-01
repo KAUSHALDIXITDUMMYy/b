@@ -725,14 +725,47 @@
       "result": "failed",
       "timestamp": 1764621283388,
       "id": "minly8fwrsft1"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Under 2.5",
+      "odds": -745,
+      "wager": 0.2,
+      "coinType": "cash",
+      "profile": "IPRoyal 60757816",
+      "result": "failed",
+      "timestamp": 1764625810778,
+      "id": "minon9sqpfy9u"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Under 2.5",
+      "odds": -1305,
+      "wager": 0.2,
+      "coinType": "cash",
+      "profile": "IPRoyal 60757816",
+      "result": "locked",
+      "timestamp": 1764625845826,
+      "id": "minoo0uaccicm"
+    },
+    {
+      "type": "bet",
+      "selection": "Under 2.5",
+      "odds": -1120,
+      "wager": 0.2,
+      "coinType": "cash",
+      "profile": "IPRoyal 60757816",
+      "result": "accepted",
+      "timestamp": 1764625862554,
+      "id": "minoodqyzw7k2"
     }
   ],
   "stats": {
-    "totalBets": 38,
+    "totalBets": 40,
     "wins": 0,
     "losses": 0,
-    "pending": 9,
-    "totalWagered": 8.200000000000003,
+    "pending": 10,
+    "totalWagered": 8.600000000000001,
     "totalWon": 0,
     "prefireAttempts": 0,
     "prefireSuccess": 0

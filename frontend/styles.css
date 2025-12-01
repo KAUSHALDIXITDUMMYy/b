@@ -1041,6 +1041,43 @@
     }
   }
   
+  /* Unavailable Market Card - Red border and warning */
+  .odd-card-unavailable {
+    border: 3px solid var(--accent-red) !important;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3) !important;
+    opacity: 0.7;
+    position: relative;
+  }
+  
+  /* Unavailable Market Badge */
+  .unavailable-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: linear-gradient(135deg, var(--accent-red), #dc2626);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    animation: unavailablePulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes unavailablePulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.9;
+    }
+  }
+  
   /* Over/Under paired cards */
   .d-flex.gap-2 {
     display: flex !important;

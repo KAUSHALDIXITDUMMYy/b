@@ -929,7 +929,8 @@ app.post('/api/lock-and-load', async (req, res) => {
               oddsChanged: false,
               lockedOdds: null,
               currentOdds: null,
-              error: betResult.error || 'API bet failed'
+              error: betResult.error || 'API bet failed',
+              marketNotAvailable: betResult.marketNotAvailable || false
             };
           }
           
@@ -1312,7 +1313,8 @@ app.post('/api/place-bet', async (req, res) => {
               success: false,
               retry: false,
               message: 'Bet failed',
-              error: betResult.error || 'Bet failed'
+              error: betResult.error || 'Bet failed',
+              marketNotAvailable: betResult.marketNotAvailable || false
             };
           }
           

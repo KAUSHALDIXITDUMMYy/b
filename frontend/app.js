@@ -11,6 +11,7 @@ let games = {};
 let selectedGame = null;
 let gameOdds = {};
 let lockedLines = new Set(); // Track locked lines (format: "gameId_oddId")
+let unavailableMarkets = new Set(); // Track unavailable markets (format: "gameId_oddId")
 
 // Betting Settings
 let wagerAmount = 100; // Default $100 for betting
@@ -232,7 +233,18 @@ async function loadGameOdds(gameId) {
 // =============================================
 
 // Helper function to generate bet buttons HTML
-function getBetButtonsHTML(oddId, isLocked = false) {
+function getBetButtonsHTML(oddId, isLocked = false, isUnavailable = false) {
+  if (isUnavailable) {
+    // Show disabled buttons when market is unavailable
+    return `
+      <div class="d-flex gap-1 mt-2" style="gap: 4px;">
+        <button class="btn btn-sm btn-secondary flex-fill" disabled style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600; opacity: 0.5; cursor: not-allowed;">
+          ⚠️ Market Unavailable
+        </button>
+      </div>
+    `;
+  }
+  
   if (isLocked) {
     // Show "Ready to Bet" when locked
     return `
@@ -325,10 +337,22 @@ async function lockAndLoad(oddId) {
       showToast(`⚠️ Bet placed but odds may have changed`, 'warning', 2000);
       setTimeout(hidePrefireStatus, 2000);
     } else {
-      // Bet failed
+      // Bet failed - check if market is not available
       const errorMsg = result.error || 'Lock & Load failed';
-      showPrefireStatus(`❌ ${errorMsg}`);
-      showToast(`❌ ${errorMsg}`, 'error', 2000);
+      const marketKey = `${selectedGame.id}_${oddId}`;
+      
+      // Check if error indicates market not available
+      if (result.marketNotAvailable || 
+          (errorMsg && errorMsg.toLowerCase().includes('market not available'))) {
+        unavailableMarkets.add(marketKey);
+        showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
+        showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
+        // Re-render to show the warning label
+        renderOdds();
+      } else {
+        showPrefireStatus(`❌ ${errorMsg}`);
+        showToast(`❌ ${errorMsg}`, 'error', 2000);
+      }
       setTimeout(hidePrefireStatus, 2000);
     }
   } catch (error) {
@@ -405,8 +429,21 @@ async function placeBet(oddId) {
       showToast(`⚠️ Odds Changed! ${result.newOdds ? `New odds: ${result.newOdds}` : 'Please try again.'}`, 'warning', 4000);
       setTimeout(hidePrefireStatus, 3000);
     } else {
-      showPrefireStatus(`❌ ${result.error || 'Bet failed'}`);
-      showToast(`❌ Bet Failed: ${result.error || 'Unknown error'}`, 'error', 4000);
+      const errorMsg = result.error || 'Bet failed';
+      const marketKey = `${selectedGame.id}_${oddId}`;
+      
+      // Check if error indicates market is not available
+      if (result.marketNotAvailable || 
+          (errorMsg && errorMsg.toLowerCase().includes('market not available'))) {
+        unavailableMarkets.add(marketKey);
+        showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
+        showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
+        // Re-render to show the warning label
+        renderOdds();
+      } else {
+        showPrefireStatus(`❌ ${errorMsg}`);
+        showToast(`❌ Bet Failed: ${errorMsg}`, 'error', 4000);
+      }
       setTimeout(hidePrefireStatus, 3000);
     }
   } catch (error) {
@@ -1160,13 +1197,17 @@ function renderOdds() {
               const isLocked = over._isLocked || false;
               const lockKey = `${gameId}_${over.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
+              const isUnavailableCheck = unavailableMarkets.has(lockKey);
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
               
               html += `
                 <div class="flex-fill">
-                  <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}" style="border-color: var(--border);">
                     ${lockedBadge}
+                    ${unavailableBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">OVER</small>
@@ -1177,7 +1218,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${over.odds > 0 ? '+' : ''}${over.odds}
                       </div>
-                      ${getBetButtonsHTML(over.id, isLockedCheck)}
+                      ${getBetButtonsHTML(over.id, isLockedCheck, isUnavailableCheck)}
                     </div>
                   </div>
                 </div>
@@ -1196,13 +1237,17 @@ function renderOdds() {
               const isLocked = under._isLocked || false;
               const lockKey = `${gameId}_${under.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
+              const isUnavailableCheck = unavailableMarkets.has(lockKey);
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
               
               html += `
                 <div class="flex-fill">
-                  <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}" style="border-color: var(--border);">
                     ${lockedBadge}
+                    ${unavailableBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">UNDER</small>
@@ -1213,7 +1258,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${under.odds > 0 ? '+' : ''}${under.odds}
                       </div>
-                      ${getBetButtonsHTML(under.id, isLockedCheck)}
+                      ${getBetButtonsHTML(under.id, isLockedCheck, isUnavailableCheck)}
                     </div>
                   </div>
                 </div>
@@ -1262,13 +1307,17 @@ function renderOdds() {
               const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
               const lockKey = `${gameId}_${odd.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
+              const isUnavailableCheck = unavailableMarkets.has(lockKey);
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
               
               html += `
                 <div class="col-6">
-                  <div class="card h-100 odd-card ${lockedClass}">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
                     ${lockedBadge}
+                    ${unavailableBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
@@ -1279,7 +1328,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${odd.odds > 0 ? '+' : ''}${odd.odds}
                       </div>
-                      ${getBetButtonsHTML(odd.id, isLockedCheck)}
+                      ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
                     </div>
                   </div>
                 </div>
@@ -1437,74 +1486,82 @@ function renderOdds() {
                 const changeText = change !== 0 
                   ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
                   : '';
-                const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
-                const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
-                const lockKey = `${gameId}_${odd.id}`;
-                const isLockedCheck = lockedLines.has(lockKey);
-                const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
-                const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
-                
-                html += `
-                  <div class="col-6">
-                    <div class="card h-100 odd-card ${lockedClass}">
-                      ${lockedBadge}
-                      <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                          <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
-                          ${changeText ? `<small class="${changeClass}" style="font-weight: 600; color: white;">${changeText}</small>` : ''}
-                        </div>
-                        <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || '-'}</div>
-                        ${odd.param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${odd.param}</small>` : ''}
-                        <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
-                          ${odd.odds > 0 ? '+' : ''}${odd.odds}
-                        </div>
-                        ${getBetButtonsHTML(odd.id, isLockedCheck)}
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }
-            });
-            
-            html += `</div>`;
-          } else {
-            // Regular rendering for non-totals, non-spread types
-            html += `<div class="row g-2">`;
-            
-            typeOdds.forEach(odd => {
-              const change = odd.prevOdds ? odd.odds - odd.prevOdds : 0;
-              const changeClass = change > 0 ? 'text-success' : change < 0 ? 'text-danger' : '';
-              const changeText = change !== 0 
-                ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
-                : '';
-              
               const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
               const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
               const lockKey = `${gameId}_${odd.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
+              const isUnavailableCheck = unavailableMarkets.has(lockKey);
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
               
               html += `
                 <div class="col-6">
-                  <div class="card h-100 odd-card ${lockedClass}">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
                     ${lockedBadge}
+                    ${unavailableBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
-                        <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
-                        ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
+                        <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
+                        ${changeText ? `<small class="${changeClass}" style="font-weight: 600; color: white;">${changeText}</small>` : ''}
                       </div>
-                      <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4;">${odd.selection || '-'}</div>
-                      ${odd.param ? `<small class="text-muted d-block mb-2" style="font-size: 0.75rem; font-weight: 500;">${odd.param}</small>` : ''}
-                      <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
+                      <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || '-'}</div>
+                      ${odd.param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${odd.param}</small>` : ''}
+                      <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${odd.odds > 0 ? '+' : ''}${odd.odds}
                       </div>
-                      ${getBetButtonsHTML(odd.id, isLockedCheck)}
+                      ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
                     </div>
                   </div>
                 </div>
               `;
-            });
+            }
+          });
+          
+          html += `</div>`;
+        } else {
+          // Regular rendering for non-totals, non-spread types
+          html += `<div class="row g-2">`;
+          
+          typeOdds.forEach(odd => {
+            const change = odd.prevOdds ? odd.odds - odd.prevOdds : 0;
+            const changeClass = change > 0 ? 'text-success' : change < 0 ? 'text-danger' : '';
+            const changeText = change !== 0 
+              ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
+              : '';
+            
+            const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
+            const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+            const lockKey = `${gameId}_${odd.id}`;
+            const isLockedCheck = lockedLines.has(lockKey);
+            const isUnavailableCheck = unavailableMarkets.has(lockKey);
+            const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+            const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+            const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+            const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+            
+            html += `
+              <div class="col-6">
+                <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
+                  ${lockedBadge}
+                  ${unavailableBadge}
+                  <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
+                      ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
+                    </div>
+                    <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4;">${odd.selection || '-'}</div>
+                    ${odd.param ? `<small class="text-muted d-block mb-2" style="font-size: 0.75rem; font-weight: 500;">${odd.param}</small>` : ''}
+                    <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
+                      ${odd.odds > 0 ? '+' : ''}${odd.odds}
+                    </div>
+                    ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                  </div>
+                </div>
+              </div>
+            `;
+          });
             
             html += `</div>`;
           }

@@ -1,0 +1,143 @@
+# =============================================
+# Dependencies
+# =============================================
+node_modules/
+**/node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =============================================
+# Browser Data & Profiles
+# =============================================
+# Browser data directories (Puppeteer/Chrome profiles)
+profiles/*/browser_data/
+**/browser_data/
+
+# =============================================
+# Credentials & Sensitive Data
+# =============================================
+# API credentials (contains tokens, auth keys)
+profiles/*/api_credentials.json
+**/api_credentials.json
+
+# Settings files (may contain sensitive config)
+profiles/*/settings.json
+**/settings.json
+
+# Bet logs (may contain sensitive betting data)
+backend/bet_logs.json
+**/bet_logs.json
+
+# =============================================
+# Logs
+# =============================================
+*.log
+logs/
+*.log.*
+
+# =============================================
+# Temporary Files
+# =============================================
+# Temporary JSON files
+fliff_*.json
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# =============================================
+# OS Files
+# =============================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# =============================================
+# IDE & Editor Files
+# =============================================
+# VS Code
+.vscode/
+*.code-workspace
+
+# Cursor
+.cursor/
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*.un~
+
+# =============================================
+# Build & Cache
+# =============================================
+dist/
+build/
+.cache/
+*.cache
+
+# =============================================
+# Environment Variables
+# =============================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# =============================================
+# Assets (if you want to ignore generated assets)
+# =============================================
+# Uncomment if you don't want to track assets
+# assets/
+
+# =============================================
+# Test Coverage
+# =============================================
+coverage/
+.nyc_output/
+*.lcov
+
+# =============================================
+# Misc
+# =============================================
+# Lock files (keep package-lock.json but ignore others)
+yarn.lock
+pnpm-lock.yaml
+
+# Debug files
+*.pdb
+*.idb
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+

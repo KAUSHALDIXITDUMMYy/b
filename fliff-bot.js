@@ -293,7 +293,7 @@ class FliffBot {
 // Load config or use defaults
 let config;
 try {
-  const settings = JSON.parse(fs.readFileSync('./ray/settings.json', 'utf8'));
+  const settings = JSON.parse(fs.readFileSync('./profiles/ray/settings.json', 'utf8'));
   config = {
     device_x_id: 'web.41a30556cd67f9f3d88362474f034921',
     app_x_version: '5.0.23.241',

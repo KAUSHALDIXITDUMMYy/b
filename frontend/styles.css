@@ -974,6 +974,73 @@
     background: rgba(255, 68, 68, 0.1);
   }
   
+  /* Locked Odds Card - Pulsing Animation */
+  .odd-card-locked {
+    border: 3px solid var(--accent-gold) !important;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4) !important;
+    animation: lockedPulse 2s ease-in-out infinite;
+    position: relative;
+  }
+  
+  @keyframes lockedPulse {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.4), 0 0 30px rgba(245, 158, 11, 0.2);
+      border-color: var(--accent-gold);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.6), 0 0 50px rgba(245, 158, 11, 0.3);
+      border-color: #fbbf24;
+    }
+  }
+  
+  /* Locked Badge */
+  .locked-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: linear-gradient(135deg, var(--accent-gold), #fbbf24);
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+    animation: badgePulse 1.5s ease-in-out infinite;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  @keyframes badgePulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.9;
+    }
+  }
+  
+  /* Locked Ready Button - Pulsing Glow */
+  .locked-ready-btn {
+    background: linear-gradient(135deg, var(--accent-green), var(--accent-green-hover)) !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4) !important;
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 6px 25px rgba(16, 185, 129, 0.6);
+      transform: scale(1.02);
+    }
+  }
+  
   /* Over/Under paired cards */
   .d-flex.gap-2 {
     display: flex !important;

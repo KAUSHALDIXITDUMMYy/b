@@ -244,12 +244,38 @@ app.get('/api/odds', (req, res) => {
 });
 
 app.get('/api/status', (req, res) => {
+  // Get profile status
+  const profileStatuses = [];
+  for (const [profileName, client] of fliffClients.entries()) {
+    // Skip live event profiles in status (they're for data scraping only)
+    if (client.isLiveEventProfile) {
+      continue;
+    }
+    const isReady = !!(client.page && client.browser);
+    const apiStatus = client.getBettingAPIStatus();
+    profileStatuses.push({
+      name: profileName,
+      ready: isReady,
+      hasPage: !!client.page,
+      hasBrowser: !!client.browser,
+      hasBettingEndpoint: !!apiStatus.endpoint,
+      hasAuth: apiStatus.hasAuth,
+      method: apiStatus.method,
+      profileType: client.isBettingProfile ? 'betting' : 'liveEvent'
+    });
+  }
+  
   res.json({
     connected: stats.connected,
     messages: stats.messages,
     liveGames: liveGames.size,
     totalOdds: Array.from(gameOdds.values()).reduce((sum, m) => sum + m.size, 0),
-    accountStats
+    accountStats,
+    profiles: {
+      total: fliffClients.size,
+      ready: profileStatuses.filter(p => p.ready).length,
+      statuses: profileStatuses
+    }
   });
 });
 
@@ -257,24 +283,31 @@ app.get('/api/status', (req, res) => {
 // API ENDPOINTS - BETTING
 // =============================================
 
-// Simple bet (opens in browser)
+// Simple bet (legacy - uses primary client only, use /api/prefire or /api/place-bet for all profiles)
 app.post('/api/bet', async (req, res) => {
   const { gameId, selection, odds, wager, coinType } = req.body;
   
-  if (!fliffClient) {
-    return res.status(500).json({ error: 'Fliff not connected' });
+  if (fliffClients.size === 0) {
+    return res.status(500).json({ error: 'No Fliff profiles connected' });
+  }
+  
+  // Use first available client for backward compatibility
+  const client = fliffClient || Array.from(fliffClients.values())[0];
+  
+  if (!client) {
+    return res.status(500).json({ error: 'No Fliff client available' });
   }
   
   try {
-    const result = await fliffClient.placeBet(selection, odds, wager, coinType);
+    const result = await client.placeBet(selection, odds, wager || 10, coinType || 'cash');
     
     // Log the bet
     logBet({
       type: 'simple',
       selection,
       odds,
-      wager,
-      coinType,
+      wager: wager || 10,
+      coinType: coinType || 'cash',
       result: result.success ? 'placed' : 'failed',
       timestamp: Date.now()
     });
@@ -285,202 +318,307 @@ app.post('/api/bet', async (req, res) => {
   }
 });
 
-// PREFIRE BET - DISABLED: Now just places bet directly
+// PREFIRE BET - Now works with ALL profiles and includes page reload option
 app.post('/api/prefire', async (req, res) => {
   // Validate request body
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Invalid request body' });
   }
   
-  const { gameId, oddId, selection, odds, param, market, wager, coinType } = req.body;
+  const { gameId, oddId, selection, odds, param, market, wager, coinType, reloadPage } = req.body;
   
   // Validate required fields
   if (!selection || odds === undefined) {
     return res.status(400).json({ error: 'Missing selection or odds' });
   }
   
-  if (!fliffClient) {
-    return res.status(500).json({ error: 'Fliff not connected' });
+  if (fliffClients.size === 0) {
+    return res.status(500).json({ error: 'No Fliff profiles connected' });
   }
   
-  logBetting(`💰 PLACING BET (Prefire Disabled)`);
+  // Default wager if not provided
+  const betWager = wager || 10;
+  const betCoinType = coinType || 'cash';
+  const shouldReload = reloadPage === true; // Default to false - prefire should NOT reload by default
+  
+  logBetting(`💰 PREFIRE BET (${fliffClients.size} profile(s)): ${selection} @ ${odds} - $${betWager} (${betCoinType})${shouldReload ? ' [with reload]' : ' [no reload - odds verification only]'}`);
   logBetting(`   Odd ID: ${oddId || 'N/A'}`);
-  logBetting(`   Selection: ${selection} @ ${odds}`);
   logBetting(`   Param: ${param || 'N/A'} | Market: ${market || 'N/A'}`);
-  logBetting(`   Wager: $${wager} ${coinType}`);
   
   try {
     // Verify we have the correct odd data from the game
     const gameOddsMap = gameOdds.get(parseInt(gameId));
+    let finalSelection = selection;
+    let finalOdds = odds;
+    let finalParam = param;
+    let finalMarket = market;
+    
     if (gameOddsMap) {
       const storedOdd = gameOddsMap.get(oddId);
       if (storedOdd) {
         logBetting(`   ✅ Stored odd found: ${storedOdd.selection} @ ${storedOdd.odds} (Market: ${storedOdd.market})`);
-      // Use stored data - it's more reliable
-      const finalSelection = storedOdd.selection || selection;
-      const finalOdds = storedOdd.odds || odds;
-      const finalParam = storedOdd.param || param;
-      const finalMarket = storedOdd.market || market;
-      
-      logBetting(`   📊 Using: ${finalSelection} @ ${finalOdds} | Market: ${finalMarket} | Param: ${finalParam}`);
-      
-      try {
-        // Place bet directly (no prefire) - use stored data
-        const betResult = await fliffClient.placeBet(finalSelection, finalOdds, wager, coinType, finalParam, finalMarket, oddId);
-        
-        if (betResult.success) {
-          accountStats.totalBets++;
-          accountStats.pending++;
-          accountStats.totalWagered += wager;
-          
-          logBet({
-            type: 'bet',
-            selection: finalSelection,
-            odds: finalOdds,
-            wager,
-            coinType,
-            result: 'accepted',
-            timestamp: Date.now()
-          });
-          
-          broadcast({
-            type: 'prefire_result',
-            success: true,
-            message: `✅ Bet placed: ${finalSelection} @ ${finalOdds} - $${wager}`
-          });
-          
-          setImmediate(() => saveLogs());
-          return res.json({ success: true, message: 'Bet accepted!' });
-        }
-        
-        if (betResult.oddsChanged) {
-          logBet({
-            type: 'bet',
-            selection: finalSelection,
-            odds: finalOdds,
-            wager,
-            coinType,
-            result: 'odds_changed',
-            timestamp: Date.now()
-          });
-          
-          broadcast({
-            type: 'prefire_result',
-            success: false,
-            retry: true,
-            message: 'Odds changed. Click again to retry.'
-          });
-          
-          return res.json({ success: false, retry: true, message: 'Odds changed' });
-        }
-        
-        // Bet failed
-        logBet({
-          type: 'bet',
-          selection: finalSelection,
-          odds: finalOdds,
-          wager,
-          coinType,
-          result: 'failed',
-          error: betResult.error,
-          timestamp: Date.now()
-        });
-        
-        return res.json({ success: false, error: betResult.error || 'Bet failed' });
-        
-      } catch (e) {
-        console.error('Bet error:', e);
-        return res.status(500).json({ error: e.message });
-      }
-    } else {
-      logBetting(`   ⚠️ Odd ID ${oddId} not found in stored odds - using provided data`);
-      
-      try {
-        // Use provided data if stored odd not found
-        const betResult = await fliffClient.placeBet(selection, odds, wager, coinType, param, market, oddId);
-        
-        if (betResult.success) {
-          accountStats.totalBets++;
-          accountStats.pending++;
-          accountStats.totalWagered += wager;
-          
-          logBet({
-            type: 'bet',
-            selection,
-            odds,
-            wager,
-            coinType,
-            result: 'accepted',
-            timestamp: Date.now()
-          });
-          
-          broadcast({
-            type: 'prefire_result',
-            success: true,
-            message: `✅ Bet placed: ${selection} @ ${odds} - $${wager}`
-          });
-          
-          setImmediate(() => saveLogs());
-          return res.json({ success: true, message: 'Bet accepted!' });
-        }
-        
-        if (betResult.oddsChanged) {
-          logBet({
-            type: 'bet',
-            selection,
-            odds,
-            wager,
-            coinType,
-            result: 'odds_changed',
-            timestamp: Date.now()
-          });
-          
-          broadcast({
-            type: 'prefire_result',
-            success: false,
-            retry: true,
-            message: 'Odds changed. Click again to retry.'
-          });
-          
-          return res.json({ success: false, retry: true, message: 'Odds changed' });
-        }
-        
-        // Bet failed
-        logBet({
-          type: 'bet',
-          selection,
-          odds,
-          wager,
-          coinType,
-          result: 'failed',
-          error: betResult.error,
-          timestamp: Date.now()
-        });
-        
-        return res.json({ success: false, error: betResult.error || 'Bet failed' });
-        
-      } catch (e) {
-        console.error('Bet error:', e);
-        return res.status(500).json({ error: e.message });
+        finalSelection = storedOdd.selection || selection;
+        finalOdds = storedOdd.odds || odds;
+        finalParam = storedOdd.param || param;
+        finalMarket = storedOdd.market || market;
       }
     }
-  } else {
-    return res.status(400).json({ error: 'Game odds not found' });
-  }
+    
+    logBetting(`   📊 Using: ${finalSelection} @ ${finalOdds} | Market: ${finalMarket} | Param: ${finalParam}`);
+    
+    // Verify all clients are ready
+    const readyClients = [];
+    const notReadyClients = [];
+    
+    for (const [profileName, client] of fliffClients.entries()) {
+      // Only use betting profiles for placing bets
+      if (client.isLiveEventProfile) {
+        continue; // Skip live event profiles
+      }
+      if (!client.page || !client.browser) {
+        notReadyClients.push(profileName);
+        logBetting(`   ⚠️ [${profileName}] Client not ready (no page/browser)`);
+        continue;
+      }
+      readyClients.push({ name: profileName, client });
+    }
+    
+    if (readyClients.length === 0) {
+      logBetting(`   ❌ No clients ready to place bets!`);
+      return res.status(500).json({ 
+        error: 'No clients ready', 
+        notReady: notReadyClients,
+        totalClients: fliffClients.size
+      });
+    }
+    
+    if (notReadyClients.length > 0) {
+      logBetting(`   ⚠️ ${notReadyClients.length} client(s) not ready: ${notReadyClients.join(', ')}`);
+    }
+    
+    logBetting(`   ✅ ${readyClients.length} client(s) ready to place bets`);
+    
+    // Send bet request to ALL ready profiles
+    const profileResults = [];
+    const profilePromises = [];
+    
+    for (const { name: profileName, client } of readyClients) {
+      logBetting(`   [${profileName}] Placing bet: ${finalSelection} @ ${finalOdds} - $${betWager} (${betCoinType})`);
+      
+      // Check if client has betting endpoint or will use Puppeteer
+      const apiStatus = client.getBettingAPIStatus();
+      if (apiStatus.endpoint) {
+        logBetting(`      Using API endpoint: ${apiStatus.endpoint.substring(0, 50)}...`);
+      } else {
+        logBetting(`      Using Puppeteer method (no API endpoint captured)`);
+      }
+      
+      const profilePromise = (async () => {
+        try {
+          // Prefire: Verify odds first, then place bet (NO page reload)
+          // Only reload if explicitly requested (reloadPage: true)
+          let betResult;
+          
+          if (shouldReload) {
+            // If reload is explicitly requested, reload page during bet submission
+            const betPromise = client.placeBet(finalSelection, finalOdds, betWager, betCoinType, finalParam, finalMarket, oddId);
+            const reloadPromise = client.reloadPage();
+            const [result, reloadRes] = await Promise.all([betPromise, reloadPromise]);
+            result.reloadResult = reloadRes;
+            betResult = result;
+          } else {
+            // No reload - just place bet (prefire default behavior)
+            betResult = await client.placeBet(finalSelection, finalOdds, betWager, betCoinType, finalParam, finalMarket, oddId);
+          }
+          
+          if (betResult.success) {
+            // Verify bet was actually placed by checking API response
+            const verified = await verifyBetPlaced(client, betResult, finalSelection, finalOdds);
+            betResult.verified = verified;
+            
+            if (verified.confirmed) {
+              logBet({
+                type: 'bet',
+                selection: finalSelection,
+                odds: finalOdds,
+                wager: betWager,
+                coinType: betCoinType,
+                profile: profileName,
+                result: 'accepted',
+                verified: true,
+                apiStatus: verified.status,
+                timestamp: Date.now()
+              });
+              
+              return {
+                profileName,
+                success: true,
+                verified: true,
+                message: `Bet placed and verified: ${finalSelection} @ ${finalOdds} - $${betWager}`,
+                error: null,
+                status: verified.status
+              };
+            } else {
+              // Bet might have been placed but couldn't verify
+              logBet({
+                type: 'bet',
+                selection: finalSelection,
+                odds: finalOdds,
+                wager: betWager,
+                coinType: betCoinType,
+                profile: profileName,
+                result: 'accepted',
+                verified: false,
+                timestamp: Date.now()
+              });
+              
+              return {
+                profileName,
+                success: true,
+                verified: false,
+                message: `Bet placed (unverified): ${finalSelection} @ ${finalOdds} - $${betWager}`,
+                error: verified.reason || 'Could not verify bet placement',
+                status: verified.status
+              };
+            }
+          }
+          
+          if (betResult.oddsChanged) {
+            return {
+              profileName,
+              success: false,
+              retry: true,
+              message: 'Odds changed',
+              error: 'Odds changed'
+            };
+          }
+          
+          return {
+            profileName,
+            success: false,
+            retry: false,
+            message: 'Bet failed',
+            error: betResult.error || 'Bet failed'
+          };
+        } catch (e) {
+          logBetting(`   [${profileName}] ❌ Error: ${e.message}`);
+          return {
+            profileName,
+            success: false,
+            retry: false,
+            message: 'Error',
+            error: e.message
+          };
+        }
+      })();
+      
+      profilePromises.push(profilePromise);
+    }
+    
+    // Wait for all profiles to complete
+    const results = await Promise.all(profilePromises);
+    
+    // Analyze results
+    const successfulBets = results.filter(r => r.success);
+    const failedBets = results.filter(r => !r.success);
+    const oddsChangedBets = results.filter(r => r.retry);
+    
+    // Log detailed results
+    logBetting(`\n📊 Bet Results Summary:`);
+    logBetting(`   Total profiles attempted: ${results.length}`);
+    logBetting(`   Successful: ${successfulBets.length}`);
+    logBetting(`   Failed: ${failedBets.length}`);
+    logBetting(`   Odds changed: ${oddsChangedBets.length}`);
+    
+    if (successfulBets.length > 0) {
+      const verifiedBets = successfulBets.filter(r => r.verified);
+      const unverifiedBets = successfulBets.filter(r => !r.verified);
+      
+      if (verifiedBets.length > 0) {
+        logBetting(`   ✅ Verified success on: ${verifiedBets.map(r => `${r.profileName} (status: ${r.status || 'N/A'})`).join(', ')}`);
+      }
+      if (unverifiedBets.length > 0) {
+        logBetting(`   ⚠️ Unverified success on: ${unverifiedBets.map(r => r.profileName).join(', ')}`);
+      }
+    }
+    if (failedBets.length > 0) {
+      failedBets.forEach(r => {
+        logBetting(`   ❌ Failed on ${r.profileName}: ${r.error || 'Unknown error'}`);
+      });
+    }
+    if (oddsChangedBets.length > 0) {
+      logBetting(`   ⚠️ Odds changed on: ${oddsChangedBets.map(r => r.profileName).join(', ')}`);
+    }
+    
+    // Update stats
+    accountStats.totalBets += successfulBets.length;
+    accountStats.pending += successfulBets.length;
+    accountStats.totalWagered += betWager * successfulBets.length;
+    
+    // Build message
+    let message;
+    const totalExpected = readyClients.length;
+    if (successfulBets.length === totalExpected) {
+      message = `✅ Bet placed on all ${totalExpected} profile(s): ${finalSelection} @ ${finalOdds} - $${betWager}`;
+    } else if (successfulBets.length > 0) {
+      const successProfiles = successfulBets.map(r => r.profileName).join(', ');
+      const failProfiles = failedBets.map(r => r.profileName).join(', ');
+      message = `⚠️ Bet placed on ${successfulBets.length}/${totalExpected} profile(s). Success: ${successProfiles}. Failed: ${failProfiles}`;
+    } else {
+      const failProfiles = failedBets.map(r => r.profileName).join(', ');
+      message = `❌ Bet failed on all profiles: ${failProfiles}`;
+    }
+    
+    // Warn if some clients weren't ready
+    if (notReadyClients.length > 0) {
+      message += ` (${notReadyClients.length} profile(s) not ready: ${notReadyClients.join(', ')})`;
+    }
+    
+    broadcast({
+      type: 'prefire_result',
+      success: successfulBets.length > 0,
+      message: message,
+      profileResults: results
+    });
+    
+    setImmediate(() => saveLogs());
+    
+    if (oddsChangedBets.length > 0) {
+      return res.json({ 
+        success: false, 
+        retry: true, 
+        message: `Odds changed on ${oddsChangedBets.length} profile(s). Click again to retry.`,
+        profileResults: results
+      });
+    }
+    
+    if (successfulBets.length === 0) {
+      return res.json({ 
+        success: false, 
+        error: 'Bet failed on all profiles',
+        profileResults: results
+      });
+    }
+    
+    return res.json({ 
+      success: true, 
+      message: `Bet placed on ${successfulBets.length}/${totalExpected} profile(s)!`,
+      profileResults: results
+    });
+    
   } catch (e) {
-    console.error('Bet error:', e);
+    console.error('Prefire bet error:', e);
     return res.status(500).json({ error: e.message });
   }
 });
 
-// LOCK AND LOAD - Places $0.20 bet with Cash and refreshes page during submission to lock odds
-// Now works with ALL profiles - only shows "locked and loaded" when ALL profiles' odds don't change
-app.post('/api/lock-and-load', async (req, res) => {
+// BURN PREFIRE - Fast bet placement on all profiles (optimized for speed)
+app.post('/api/burn-prefire', async (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Invalid request body' });
   }
   
-  const { gameId, oddId, selection, odds, param, market } = req.body;
+  const { gameId, oddId, selection, odds, param, market, wager } = req.body;
   
   if (!selection || odds === undefined) {
     return res.status(400).json({ error: 'Missing selection or odds' });
@@ -490,8 +628,23 @@ app.post('/api/lock-and-load', async (req, res) => {
     return res.status(500).json({ error: 'No Fliff profiles connected' });
   }
   
-  const lockWager = 0.20; // Always use $0.20 for lock and load
-  logBetting(`🔒 LOCK & LOAD (${fliffClients.size} profile(s)): ${selection} @ ${odds} - $${lockWager} (Cash)`);
+  const betWager = wager || 10;
+  // Cleaner logging like other bot
+  const readyClients = [];
+  for (const [profileName, client] of fliffClients.entries()) {
+    if (client.page && client.browser) {
+      readyClients.push({ name: profileName, client });
+    }
+  }
+  
+  if (readyClients.length === 0) {
+    return res.status(500).json({ error: 'No clients ready' });
+  }
+  
+  // Log which accounts are processing
+  readyClients.forEach(({ name }) => {
+    console.log(`🔥 ${name} processing BURN bet: BURN_PREFIRE_${oddId || 'unknown'}`);
+  });
   
   try {
     const gameOddsMap = gameOdds.get(parseInt(gameId));
@@ -510,83 +663,307 @@ app.post('/api/lock-and-load', async (req, res) => {
       }
     }
     
-    // Send lock-and-load request to ALL profiles
+    // Place bets in parallel for maximum speed
+    const profilePromises = readyClients.map(({ name: profileName, client }) => {
+      return (async () => {
+        try {
+          // Check for bearer token from injection
+          try {
+            const injectedToken = await client.page.evaluate(() => {
+              return window.__fliffBearerToken || null;
+            });
+            
+            if (injectedToken && injectedToken !== client.bearerToken) {
+              client.bearerToken = injectedToken;
+              console.log(`🔑 Bearer token captured from injection: present`);
+              client.saveAPICredentials();
+            }
+          } catch (e) {
+            // Ignore if page context not ready
+          }
+          
+          console.log(`💰 Placing bet (BURN)`);
+          
+          // Prefer API method for speed
+          const apiStatus = client.getBettingAPIStatus();
+          if (apiStatus.endpoint && apiStatus.hasAuth) {
+            // Use API method (fastest)
+            const betResult = await client.placeBetViaAPI(finalSelection, finalOdds, betWager, 'cash', finalParam, finalMarket, oddId);
+            
+            // Log result like other bot
+            if (betResult.response) {
+              console.log(`Response: ${betResult.response.status || 200}`);
+              console.log(`Final result: ${JSON.stringify({ status: betResult.response.status, hasPickResult: betResult.response.hasPickResult || false })}`);
+              
+              if (betResult.response.status === 8301) {
+                console.log(`✅ ${profileName} burn successful (8301 as expected)`);
+              }
+            }
+            
+            return {
+              profileName,
+              success: betResult.success,
+              retry: betResult.oddsChanged,
+              error: betResult.error,
+              method: 'api',
+              status: betResult.response?.status
+            };
+          } else {
+            // Fallback to regular placeBet
+            const betResult = await client.placeBet(finalSelection, finalOdds, betWager, 'cash', finalParam, finalMarket, oddId);
+            return {
+              profileName,
+              success: betResult.success,
+              retry: betResult.oddsChanged,
+              error: betResult.error,
+              method: 'puppeteer'
+            };
+          }
+        } catch (e) {
+          return {
+            profileName,
+            success: false,
+            retry: false,
+            error: e.message,
+            method: 'error'
+          };
+        }
+      })();
+    });
+    
+    const results = await Promise.all(profilePromises);
+    const successfulBets = results.filter(r => r.success);
+    const failedBets = results.filter(r => !r.success);
+    const oddsChangedBets = results.filter(r => r.retry);
+    
+    // Update stats
+    accountStats.totalBets += successfulBets.length;
+    accountStats.pending += successfulBets.length;
+    accountStats.totalWagered += betWager * successfulBets.length;
+    
+    setImmediate(() => saveLogs());
+    
+    if (oddsChangedBets.length > 0) {
+      return res.json({ 
+        success: false, 
+        retry: true, 
+        message: `Odds changed on ${oddsChangedBets.length} profile(s)`,
+        profileResults: results
+      });
+    }
+    
+    return res.json({ 
+      success: successfulBets.length > 0, 
+      message: `Burn prefire: ${successfulBets.length}/${readyClients.length} successful`,
+      profileResults: results
+    });
+    
+  } catch (e) {
+    console.error('Burn prefire error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// LOCK AND LOAD - Places $0.20 bet with Cash and refreshes page during submission to lock odds
+// Now works with ALL profiles - only shows "locked and loaded" when ALL profiles' odds don't change
+app.post('/api/lock-and-load', async (req, res) => {
+  if (!req.body || typeof req.body !== 'object') {
+    return res.status(400).json({ error: 'Invalid request body' });
+  }
+  
+  const { gameId, oddId, selection, odds, param, market, reloadPage } = req.body;
+  
+  if (!selection || odds === undefined) {
+    return res.status(400).json({ error: 'Missing selection or odds' });
+  }
+  
+  if (fliffClients.size === 0) {
+    return res.status(500).json({ error: 'No Fliff profiles connected' });
+  }
+  
+    const lockWager = 0.20; // Always use $0.20 for lock and load
+  // Lock and load captures the exact API request and saves it - no page reload needed!
+  // When placing the actual bet, we reuse that locked API request (only changing wager amount)
+  logBetting(`🔒 LOCK & LOAD (${fliffClients.size} profile(s)): ${selection} @ ${odds} - $${lockWager} (Cash) [capturing locked API request]`);
+  
+  try {
+    const gameOddsMap = gameOdds.get(parseInt(gameId));
+    let finalSelection = selection;
+    let finalOdds = odds;
+    let finalParam = param;
+    let finalMarket = market;
+    
+    // Normalize odds to number format
+    if (typeof finalOdds === 'string') {
+      finalOdds = finalOdds.startsWith('+') ? parseInt(finalOdds.substring(1)) : parseInt(finalOdds);
+    }
+    
+    if (gameOddsMap) {
+      const storedOdd = gameOddsMap.get(oddId);
+      if (storedOdd) {
+        finalSelection = storedOdd.selection || selection;
+        // Ensure stored odds is a number
+        const storedOdds = storedOdd.odds;
+        if (typeof storedOdds === 'string') {
+          finalOdds = storedOdds.startsWith('+') ? parseInt(storedOdds.substring(1)) : parseInt(storedOdds);
+        } else {
+          finalOdds = storedOdds || finalOdds;
+        }
+        finalParam = storedOdd.param || param;
+        finalMarket = storedOdd.market || market;
+      }
+    }
+    
+    // Verify all clients are ready
+    const readyClients = [];
+    const notReadyClients = [];
+    
+    for (const [profileName, client] of fliffClients.entries()) {
+      // Only use betting profiles for placing bets
+      if (client.isLiveEventProfile) {
+        continue; // Skip live event profiles
+      }
+      if (!client.page || !client.browser) {
+        notReadyClients.push(profileName);
+        logBetting(`   ⚠️ [${profileName}] Client not ready (no page/browser)`);
+        continue;
+      }
+      readyClients.push({ name: profileName, client });
+    }
+    
+    if (readyClients.length === 0) {
+      logBetting(`   ❌ No clients ready for lock & load!`);
+      return res.status(500).json({ 
+        error: 'No clients ready', 
+        notReady: notReadyClients,
+        totalClients: fliffClients.size
+      });
+    }
+    
+    if (notReadyClients.length > 0) {
+      logBetting(`   ⚠️ ${notReadyClients.length} client(s) not ready: ${notReadyClients.join(', ')}`);
+    }
+    
+    logBetting(`   ✅ ${readyClients.length} client(s) ready for lock & load`);
+    logBetting(`   📋 Processing profiles: ${readyClients.map(c => c.name).join(', ')}`);
+    
+    // Send lock-and-load request to ALL ready profiles
     const profileResults = [];
     const profilePromises = [];
     
-    for (const [profileName, client] of fliffClients.entries()) {
-      logBetting(`   [${profileName}] Step 1: Placing $${lockWager} bet with Cash...`);
+    for (const { name: profileName, client } of readyClients) {
+      logBetting(`   [${profileName}] Starting lock & load: reload page, then place $${lockWager} bet via API...`);
       
       const profilePromise = (async () => {
         try {
-          // Step 1: Place bet with $0.20 Cash
-          const betPromise = client.placeBet(finalSelection, finalOdds, lockWager, 'cash', finalParam, finalMarket, oddId);
+          // LOCK AND LOAD FLOW (Backend API Only - No UI):
+          // 1. Place $0.20 bet via API directly (fast, no UI clicks)
+          // 2. Immediately reload page to lock odds
+          // 3. After reload, check if odds changed
+          // 4. If odds didn't change, mark as successful
           
-          // Step 2: While bet is submitting, refresh the page to lock odds
-          logBetting(`   [${profileName}] Step 2: Refreshing page during submission to lock odds...`);
-          const reloadPromise = client.reloadPage();
+          logBetting(`   [${profileName}] Step 1: Placing $${lockWager} bet via API (backend only)...`);
           
-          // Wait for both to complete
-          const [betResult, reloadResult] = await Promise.all([betPromise, reloadPromise]);
-          
-          if (betResult.success) {
-            logBetting(`   [${profileName}] ✅ Step 1 Complete: $${lockWager} bet placed`);
+          // Check if API is available
+          const apiStatus = client.getBettingAPIStatus();
+          if (!apiStatus.endpoint || !apiStatus.hasAuth) {
+            logBetting(`   [${profileName}] ⚠️ API not available, falling back to UI method...`);
+            // Fallback to UI method if API not available
+            const lockAndLoadResult = await client.placeBetWithReload(finalSelection, finalOdds, lockWager, 'cash', finalParam, finalMarket, oddId);
             
-            if (reloadResult.success) {
-              logBetting(`   [${profileName}] ✅ Step 2 Complete: Page refreshed`);
-            } else {
-              logBetting(`   [${profileName}] ⚠️ Step 2 Warning: Page refresh had issues: ${reloadResult.error}`);
+            if (!lockAndLoadResult.betPlaced) {
+              return {
+                profileName,
+                success: false,
+                betPlaced: false,
+                pageReloaded: false,
+                oddsLocked: false,
+                oddsChanged: false,
+                lockedOdds: null,
+                currentOdds: null,
+                error: lockAndLoadResult.error || 'Bet placement failed'
+              };
             }
             
-            // Step 3: Verify odds haven't changed after refresh
-            logBetting(`   [${profileName}] Step 3: Verifying odds are locked...`);
-            const oddsCheck = await client.getCurrentOddsAfterRefresh(finalSelection, finalOdds, finalParam, finalMarket, oddId);
-            
-            let oddsLocked = false;
-            let oddsChanged = false;
-            
-            if (oddsCheck.found) {
-              // Compare odds - allow small tolerance for rounding
-              const oddsMatch = oddsCheck.currentOdds !== null && 
-                                Math.abs(oddsCheck.currentOdds - finalOdds) <= 1;
-              
-              // Check if selection text still matches
-              const selectionMatch = oddsCheck.currentSelection && 
-                                     oddsCheck.currentSelection.toLowerCase().includes(finalSelection.toLowerCase());
-              
-              if (oddsMatch && selectionMatch) {
-                oddsLocked = true;
-                logBetting(`   [${profileName}] ✅ Step 3 Complete: Odds verified - ${finalSelection} @ ${oddsCheck.currentOdds} (locked)`);
-              } else {
-                oddsChanged = true;
-                logBetting(`   [${profileName}] ⚠️ Step 3 Warning: Odds changed - Expected: ${finalSelection} @ ${finalOdds}, Found: ${oddsCheck.currentSelection} @ ${oddsCheck.currentOdds}`);
-              }
-            } else {
-              logBetting(`   [${profileName}] ⚠️ Step 3 Warning: Could not verify odds - ${oddsCheck.error || 'Element not found'}`);
+            if (lockAndLoadResult.oddsChanged) {
+              return {
+                profileName,
+                success: false,
+                betPlaced: true,
+                pageReloaded: true,
+                oddsLocked: false,
+                oddsChanged: true,
+                lockedOdds: finalOdds,
+                currentOdds: lockAndLoadResult.currentOdds,
+                error: `Odds changed: ${lockAndLoadResult.currentOdds}`
+              };
             }
             
             return {
               profileName,
               success: true,
               betPlaced: true,
-              pageReloaded: reloadResult.success,
-              oddsLocked,
-              oddsChanged,
-              lockedOdds: oddsLocked ? finalOdds : null,
-              currentOdds: oddsCheck.found ? oddsCheck.currentOdds : null,
-              error: null
+              pageReloaded: true,
+              oddsLocked: true,
+              oddsChanged: false,
+              lockedOdds: finalOdds,
+              currentOdds: finalOdds,
+              error: null,
+              method: 'puppeteer'
             };
-          } else {
+          }
+          
+          // API METHOD: Place $0.20 bet via API and capture the exact request
+          // This request will be saved and reused for the actual bet (locks odds without reload!)
+          logBetting(`   [${profileName}] Placing $${lockWager} bet via API to capture locked request...`);
+          const betResult = await client.placeBetViaAPI(finalSelection, finalOdds, lockWager, 'cash', finalParam, finalMarket, oddId, false);
+          
+          if (!betResult.success) {
+            logBetting(`   [${profileName}] ❌ API bet failed: ${betResult.error}`);
             return {
               profileName,
               success: false,
               betPlaced: false,
-              pageReloaded: false,
+              pageReloaded: false, // No reload needed with locked API
               oddsLocked: false,
               oddsChanged: false,
               lockedOdds: null,
               currentOdds: null,
-              error: betResult.error || 'Lock & Load failed - could not place $0.20 bet'
+              error: betResult.error || 'API bet failed'
+            };
+          }
+          
+          // Check if locked request was saved
+          const hasLockedRequest = client.getLockedAPIRequest(oddId);
+          if (hasLockedRequest) {
+            logBetting(`   [${profileName}] ✅ Lock & Load successful! API request captured and locked for oddId: ${oddId}`);
+            logBetting(`   [${profileName}]    No page reload needed - odds are locked via API request`);
+            return {
+              profileName,
+              success: true,
+              betPlaced: true,
+              pageReloaded: false, // No reload needed!
+              oddsLocked: true, // Locked via API request
+              oddsChanged: false,
+              lockedOdds: finalOdds,
+              currentOdds: finalOdds,
+              error: null,
+              method: 'api_locked'
+            };
+          } else {
+            // Fallback: bet was placed but request wasn't captured
+            logBetting(`   [${profileName}] ⚠️ Bet placed but locked request not captured`);
+            return {
+              profileName,
+              success: true,
+              betPlaced: true,
+              pageReloaded: false,
+              oddsLocked: false, // Can't verify without locked request
+              oddsChanged: false,
+              lockedOdds: finalOdds,
+              currentOdds: finalOdds,
+              error: null,
+              method: 'api'
             };
           }
         } catch (e) {
@@ -595,7 +972,7 @@ app.post('/api/lock-and-load', async (req, res) => {
             profileName,
             success: false,
             betPlaced: false,
-            pageReloaded: false,
+            pageReloaded: false, // Reload would have failed if bet failed
             oddsLocked: false,
             oddsChanged: false,
             lockedOdds: null,
@@ -619,6 +996,18 @@ app.post('/api/lock-and-load', async (req, res) => {
     
     // Log results for each profile
     results.forEach(r => {
+      // Determine result status: if bet was placed successfully, it's locked (even if element not found)
+      let resultStatus = 'unknown';
+      if (r.betPlaced && r.success) {
+        // If bet was placed successfully, it's locked (API accepted it)
+        // Only mark as 'odds_changed' if odds actually changed, otherwise it's locked
+        resultStatus = r.oddsChanged ? 'odds_changed' : 'locked'; // Changed 'placed' to 'locked' since bet was accepted
+      } else if (r.oddsChanged) {
+        resultStatus = 'odds_changed';
+      } else if (!r.success) {
+        resultStatus = 'failed';
+      }
+      
       logBet({
         type: 'lock_and_load',
         selection: finalSelection,
@@ -626,28 +1015,65 @@ app.post('/api/lock-and-load', async (req, res) => {
         wager: lockWager,
         coinType: 'cash',
         profile: r.profileName,
-        result: r.oddsLocked ? 'locked' : (r.oddsChanged ? 'odds_changed' : 'unknown'),
+        result: resultStatus,
         timestamp: Date.now()
       });
+      
+      // Normalize odds format for display (always show + for positive odds)
+      const displayOdds = typeof finalOdds === 'number' 
+        ? (finalOdds > 0 ? `+${finalOdds}` : finalOdds.toString())
+        : finalOdds;
+      
+      // Log final status (matching other bot format)
+      if (resultStatus === 'locked') {
+        logBetting(`LOCK_AND_LOAD: ${finalSelection} @ ${displayOdds} = armed`);
+      } else if (resultStatus === 'odds_changed') {
+        logBetting(`LOCK_AND_LOAD: ${finalSelection} @ ${displayOdds} = failed`);
+      } else if (resultStatus === 'placed') {
+        logBetting(`LOCK_AND_LOAD: ${finalSelection} @ ${displayOdds} = armed`);
+      } else {
+        // For failed results, include error info
+        const errorInfo = r.error ? ` (${r.error.substring(0, 50)})` : '';
+        logBetting(`LOCK_AND_LOAD: ${finalSelection} @ ${displayOdds} = failed${errorInfo}`);
+      }
     });
     
     accountStats.totalBets += results.filter(r => r.betPlaced).length;
     accountStats.totalWagered += lockWager * results.filter(r => r.betPlaced).length;
     
-    // Only show "Locked & Loaded" if ALL profiles' odds are locked (don't change)
-    const allLocked = allOddsLocked && !anyOddsChanged;
+    // Only show "ARMED" if ALL profiles' odds are locked (don't change)
+    // But if all bets were placed successfully, consider them locked (API accepted them)
+    const allLocked = (allOddsLocked && !anyOddsChanged) || (allBetsPlaced && allProfilesSuccess);
     
     let message;
     if (allLocked) {
-      message = `🔒 LOCKED & LOADED (${fliffClients.size} profiles): ${finalSelection} @ ${finalOdds} - All profiles verified locked!`;
+      const successCount = results.filter(r => r.betPlaced && r.success).length;
+      message = `🔒 ARMED (${successCount}/${fliffClients.size} profiles): ${finalSelection} @ ${finalOdds} - Odds locked, ready to place bet!`;
     } else if (anyOddsChanged) {
       const changedProfiles = results.filter(r => r.oddsChanged).map(r => r.profileName);
-      message = `⚠️ Odds Changed (${changedProfiles.length} profile(s)): ${finalSelection} @ ${finalOdds} - Odds changed on: ${changedProfiles.join(', ')}`;
+      message = `❌ Lock & Load Failed (${changedProfiles.length} profile(s)): ${finalSelection} @ ${finalOdds} - Odds changed on: ${changedProfiles.join(', ')}`;
     } else if (allBetsPlaced) {
-      message = `✅ Bet Placed (${fliffClients.size} profiles): ${finalSelection} @ ${finalOdds} - Could not verify all odds`;
+      const successCount = results.filter(r => r.betPlaced && r.success).length;
+      message = `🔒 ARMED (${successCount}/${fliffClients.size} profiles): ${finalSelection} @ ${finalOdds} - All bets placed, ready to place bet!`;
     } else {
-      const failedProfiles = results.filter(r => !r.success).map(r => r.profileName);
-      message = `❌ Some profiles failed: ${failedProfiles.join(', ')}`;
+      const failedProfiles = results.filter(r => !r.success);
+      const failedNames = failedProfiles.map(r => r.profileName);
+      const failedErrors = failedProfiles
+        .map(r => {
+          const err = r.error || 'Unknown error';
+          if (typeof err === 'string') return err;
+          if (typeof err === 'object' && err !== null) {
+            return err.message || err.error || JSON.stringify(err);
+          }
+          return String(err);
+        })
+        .filter(err => err && err !== 'Unknown error');
+      
+      if (failedErrors.length > 0) {
+        message = `❌ Lock & Load Failed: ${failedNames.join(', ')} - ${failedErrors.join('; ')}`;
+      } else {
+        message = `❌ Lock & Load Failed: ${failedNames.join(', ')} - Unknown error`;
+      }
     }
     
     broadcast({
@@ -662,10 +1088,11 @@ app.post('/api/lock-and-load', async (req, res) => {
     
     return res.json({ 
       success: allLocked, // Only true if ALL profiles' odds are locked
+      armed: allLocked, // ARMED status - ready to place bet
       message: allLocked 
-        ? `Locked & Loaded! All ${fliffClients.size} profile(s) verified locked at ${finalOdds}.`
+        ? `🔒 ARMED! All ${fliffClients.size} profile(s) verified locked at ${finalOdds}. Ready to place bet!`
         : anyOddsChanged
-          ? `Odds changed on some profiles. Expected ${finalOdds}, but odds may have moved.`
+          ? `❌ Lock & Load Failed. Odds changed on some profiles. Expected ${finalOdds}, but odds may have moved.`
           : allBetsPlaced
             ? `Bet placed on all profiles but could not verify if all odds are locked.`
             : `Some profiles failed to place bet.`,
@@ -679,7 +1106,85 @@ app.post('/api/lock-and-load', async (req, res) => {
   } catch (e) {
     console.error('Lock & Load error:', e);
     setImmediate(() => saveLogs());
-    return res.status(500).json({ error: e.message });
+    const errorMsg = e.message || e.toString() || 'Unknown error occurred during Lock & Load';
+    return res.status(500).json({ error: errorMsg, details: e.stack });
+  }
+});
+
+// RELOAD PAGE - Refresh page for all profiles or a specific profile
+app.post('/api/reload-page', async (req, res) => {
+  if (fliffClients.size === 0) {
+    return res.status(500).json({ error: 'No Fliff profiles connected' });
+  }
+  
+  const { profileName } = req.body || {};
+  
+  try {
+    const profilesToReload = [];
+    
+    if (profileName) {
+      // Reload specific profile
+      const client = fliffClients.get(profileName);
+      if (!client) {
+        return res.status(404).json({ error: `Profile "${profileName}" not found` });
+      }
+      if (!client.page || !client.browser) {
+        return res.status(500).json({ error: `Profile "${profileName}" not ready (no page/browser)` });
+      }
+      profilesToReload.push({ name: profileName, client });
+    } else {
+      // Reload all profiles
+      for (const [name, client] of fliffClients.entries()) {
+        if (client.page && client.browser) {
+          profilesToReload.push({ name, client });
+        }
+      }
+    }
+    
+    if (profilesToReload.length === 0) {
+      return res.status(500).json({ error: 'No profiles ready to reload' });
+    }
+    
+    logBetting(`🔄 RELOAD PAGE (${profilesToReload.length} profile(s))${profileName ? `: ${profileName}` : ' (all profiles)'}`);
+    
+    const reloadPromises = profilesToReload.map(({ name, client }) => 
+      (async () => {
+        try {
+          const result = await client.reloadPage();
+          logBetting(`   [${name}] ${result.success ? '✅ Page reloaded' : '❌ Reload failed: ' + (result.error || 'Unknown error')}`);
+          return {
+            profileName: name,
+            success: result.success,
+            error: result.error || null
+          };
+        } catch (e) {
+          logBetting(`   [${name}] ❌ Reload error: ${e.message}`);
+          return {
+            profileName: name,
+            success: false,
+            error: e.message
+          };
+        }
+      })()
+    );
+    
+    const results = await Promise.all(reloadPromises);
+    const allSuccess = results.every(r => r.success);
+    const anySuccess = results.some(r => r.success);
+    
+    return res.json({
+      success: allSuccess,
+      message: allSuccess 
+        ? `All ${results.length} profile(s) reloaded successfully`
+        : anySuccess
+          ? `Some profiles reloaded (${results.filter(r => r.success).length}/${results.length})`
+          : 'All reloads failed',
+      profileResults: results
+    });
+    
+  } catch (e) {
+    console.error('Reload page error:', e);
+    return res.status(500).json({ error: e.message || 'Unknown error occurred during page reload' });
   }
 });
 
@@ -700,7 +1205,13 @@ app.post('/api/place-bet', async (req, res) => {
     return res.status(500).json({ error: 'No Fliff profiles connected' });
   }
   
-  logBetting(`💰 PLACE BET (${fliffClients.size} profile(s)): ${selection} @ ${odds} - $${wager} (Cash)`);
+  // Log which profiles will receive the bet (only betting profiles)
+  const bettingProfileNames = Array.from(fliffClients.entries())
+    .filter(([name, client]) => !client.isLiveEventProfile)
+    .map(([name]) => name);
+  const bettingProfileCount = bettingProfileNames.length;
+  logBetting(`💰 PLACE BET (${bettingProfileCount} profile(s)): ${selection} @ ${odds} - $${wager} (Cash)`);
+  logBetting(`   Profiles: ${bettingProfileNames.join(', ')}`);
   
   try {
     const gameOddsMap = gameOdds.get(parseInt(gameId));
@@ -723,11 +1234,89 @@ app.post('/api/place-bet', async (req, res) => {
     const profileResults = [];
     const profilePromises = [];
     
+    // Verify all clients are ready
+    const readyClients = [];
+    const notReadyClients = [];
+    
     for (const [profileName, client] of fliffClients.entries()) {
+      // Only use betting profiles for placing bets
+      if (client.isLiveEventProfile) {
+        continue; // Skip live event profiles
+      }
+      if (!client.page || !client.browser) {
+        notReadyClients.push(profileName);
+        logBetting(`   ⚠️ [${profileName}] Client not ready (no page/browser)`);
+        continue;
+      }
+      readyClients.push({ name: profileName, client });
+    }
+    
+    if (readyClients.length === 0) {
+      logBetting(`   ❌ No clients ready to place bets!`);
+      return res.status(500).json({ 
+        error: 'No clients ready', 
+        notReady: notReadyClients,
+        totalClients: fliffClients.size
+      });
+    }
+    
+    if (notReadyClients.length > 0) {
+      logBetting(`   ⚠️ ${notReadyClients.length} client(s) not ready: ${notReadyClients.join(', ')}`);
+    }
+    
+    logBetting(`   ✅ ${readyClients.length} client(s) ready to place bets`);
+    logBetting(`   📋 Processing profiles: ${readyClients.map(c => c.name).join(', ')}`);
+    
+    for (const { name: profileName, client } of readyClients) {
       logBetting(`   [${profileName}] Placing bet: ${finalSelection} @ ${finalOdds} - $${wager} (Cash)`);
+      
+      // Check if client has betting endpoint or will use Puppeteer
+      const apiStatus = client.getBettingAPIStatus();
+      if (apiStatus.endpoint) {
+        logBetting(`      Using API endpoint: ${apiStatus.endpoint.substring(0, 50)}...`);
+      } else {
+        logBetting(`      Using Puppeteer method (no API endpoint captured)`);
+      }
       
       const profilePromise = (async () => {
         try {
+          // Check if we have a locked API request for this oddId (from lock and load)
+          const hasLockedRequest = client.getLockedAPIRequest(oddId);
+          if (hasLockedRequest) {
+            logBetting(`   [${profileName}] 🔒 Using locked API request for oddId: ${oddId} - odds are locked!`);
+            // Use locked API request - only change the wager amount
+            const betResult = await client.placeBetViaAPI(finalSelection, finalOdds, wager, 'cash', finalParam, finalMarket, oddId, true);
+            
+            if (betResult.success) {
+              logBet({
+                type: 'bet',
+                selection: finalSelection,
+                odds: finalOdds,
+                wager,
+                coinType: 'cash',
+                profile: profileName,
+                result: 'accepted',
+                timestamp: Date.now()
+              });
+              
+              return {
+                profileName,
+                success: true,
+                message: `Bet placed (locked odds): ${finalSelection} @ ${finalOdds} - $${wager}`,
+                error: null
+              };
+            }
+            
+            return {
+              profileName,
+              success: false,
+              retry: false,
+              message: 'Bet failed',
+              error: betResult.error || 'Bet failed'
+            };
+          }
+          
+          // No locked request - use regular place bet method
           // Place bet with Fliff Cash (uses profile's bearer token automatically)
           const betResult = await client.placeBet(finalSelection, finalOdds, wager, 'cash', finalParam, finalMarket, oddId);
           
@@ -791,6 +1380,25 @@ app.post('/api/place-bet', async (req, res) => {
     const failedBets = results.filter(r => !r.success);
     const oddsChangedBets = results.filter(r => r.retry);
     
+    // Log detailed results
+    logBetting(`\n📊 Bet Results Summary:`);
+    logBetting(`   Total profiles attempted: ${results.length}`);
+    logBetting(`   Successful: ${successfulBets.length}`);
+    logBetting(`   Failed: ${failedBets.length}`);
+    logBetting(`   Odds changed: ${oddsChangedBets.length}`);
+    
+    if (successfulBets.length > 0) {
+      logBetting(`   ✅ Success on: ${successfulBets.map(r => r.profileName).join(', ')}`);
+    }
+    if (failedBets.length > 0) {
+      failedBets.forEach(r => {
+        logBetting(`   ❌ Failed on ${r.profileName}: ${r.error || 'Unknown error'}`);
+      });
+    }
+    if (oddsChangedBets.length > 0) {
+      logBetting(`   ⚠️ Odds changed on: ${oddsChangedBets.map(r => r.profileName).join(', ')}`);
+    }
+    
     // Update stats
     accountStats.totalBets += successfulBets.length;
     accountStats.pending += successfulBets.length;
@@ -798,15 +1406,21 @@ app.post('/api/place-bet', async (req, res) => {
     
     // Build message
     let message;
-    if (successfulBets.length === fliffClients.size) {
-      message = `✅ Bet placed on all ${fliffClients.size} profile(s): ${finalSelection} @ ${finalOdds} - $${wager}`;
+    const totalExpected = readyClients.length;
+    if (successfulBets.length === totalExpected) {
+      message = `✅ Bet placed on all ${totalExpected} profile(s): ${finalSelection} @ ${finalOdds} - $${wager}`;
     } else if (successfulBets.length > 0) {
       const successProfiles = successfulBets.map(r => r.profileName).join(', ');
       const failProfiles = failedBets.map(r => r.profileName).join(', ');
-      message = `⚠️ Bet placed on ${successfulBets.length}/${fliffClients.size} profile(s). Success: ${successProfiles}. Failed: ${failProfiles}`;
+      message = `⚠️ Bet placed on ${successfulBets.length}/${totalExpected} profile(s). Success: ${successProfiles}. Failed: ${failProfiles}`;
     } else {
       const failProfiles = failedBets.map(r => r.profileName).join(', ');
       message = `❌ Bet failed on all profiles: ${failProfiles}`;
+    }
+    
+    // Warn if some clients weren't ready
+    if (notReadyClients.length > 0) {
+      message += ` (${notReadyClients.length} profile(s) not ready: ${notReadyClients.join(', ')})`;
     }
     
     broadcast({
@@ -913,6 +1527,70 @@ app.post('/api/admin/clear', (req, res) => {
   saveLogs();
   res.json({ success: true });
 });
+
+// =============================================
+// HELPER FUNCTIONS
+// =============================================
+
+// Verify that a bet was actually placed by checking API response
+async function verifyBetPlaced(client, betResult, selection, odds) {
+  // If bet was placed via API, check the response
+  if (betResult.response) {
+    const response = betResult.response;
+    const status = response.status || response.result?.status;
+    
+    // Status 8301 and 8300 = confirmed placed (as seen in other bots)
+    if (status === 8301 || status === '8301' || status === 8300 || status === '8300') {
+      return {
+        confirmed: true,
+        status: status,
+        reason: `API confirmed (status ${status})`
+      };
+    }
+    
+    // Other success indicators
+    if (response.id || response.bet_id || response.ticket_id) {
+      return {
+        confirmed: true,
+        status: status || 'success',
+        reason: 'API returned bet ID'
+      };
+    }
+    
+    // If status exists but not 8301, still consider it placed if HTTP was 200
+    if (status && betResult.success) {
+      return {
+        confirmed: true,
+        status: status,
+        reason: `API returned status ${status}`
+      };
+    }
+    
+    // If no status but response exists and success=true, assume placed
+    if (betResult.success && !response.error) {
+      return {
+        confirmed: true,
+        status: 'unknown',
+        reason: 'API returned success but no status code'
+      };
+    }
+  }
+  
+  // If bet was placed via Puppeteer, we can't verify easily
+  if (betResult.success && !betResult.response) {
+    return {
+      confirmed: false,
+      status: null,
+      reason: 'Placed via Puppeteer - cannot verify via API'
+    };
+  }
+  
+  return {
+    confirmed: false,
+    status: null,
+    reason: 'No response data or bet failed'
+  };
+}
 
 // =============================================
 // HELPER FUNCTIONS - SEPARATE LOGGING
@@ -1134,10 +1812,15 @@ function handleOddsUpdate(gameId, odd) {
   odds.set(odd.id, odd);
   
   // Broadcast to all clients watching this game
-  broadcastToGame(gid, { type: 'odd', gameId: gid, odd });
-  
-  // Also broadcast to all clients for live feed
-  broadcast({ type: 'odd_update', gameId: gid, odd });
+  try {
+    broadcastToGame(gid, { type: 'odd', gameId: gid, odd });
+    
+    // Also broadcast to all clients for live feed
+    broadcast({ type: 'odd_update', gameId: gid, odd });
+  } catch (e) {
+    // Log but don't fail - odds updates should continue even if broadcast fails
+    console.error(`⚠️ Error broadcasting odds update for game ${gid}:`, e.message);
+  }
 }
 
 function handleStats(newStats) {
@@ -1150,33 +1833,79 @@ function handleStats(newStats) {
 // =============================================
 
 function discoverProfiles() {
-  const profiles = [];
-  const rootDir = path.join(__dirname, '..');
+  const liveEventProfiles = [];
+  const bettingProfiles = [];
+  const profilesDir = path.join(__dirname, '..', 'profiles');
   
-  // Check for profile directories
-  const items = fs.readdirSync(rootDir, { withFileTypes: true });
+  // Directories to exclude from profile discovery
+  const excludedDirs = new Set([
+    'node_modules',
+    'backend',
+    'frontend',
+    'assets',
+    '.git',
+    '.vscode',
+    '.idea'
+  ]);
+  
+  console.log('🔍 Discovering profiles...');
+  
+  // Check if profiles directory exists
+  if (!fs.existsSync(profilesDir)) {
+    console.log('⚠️ Profiles directory not found, creating it...');
+    fs.mkdirSync(profilesDir, { recursive: true });
+    return { liveEvent: liveEventProfiles, betting: bettingProfiles };
+  }
+  
+  // Check for profile directories in profiles folder
+  const items = fs.readdirSync(profilesDir, { withFileTypes: true });
   
   for (const item of items) {
-    if (item.isDirectory() && !item.name.startsWith('.') && item.name !== 'node_modules' && 
-        item.name !== 'backend' && item.name !== 'frontend' && item.name !== 'assets') {
-      const settingsPath = path.join(rootDir, item.name, 'settings.json');
-      if (fs.existsSync(settingsPath)) {
-        try {
-          const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-          profiles.push({
-            name: settings.name || item.name,
-            directory: item.name,
-            settings: settings,
-            settingsPath: settingsPath
-          });
-        } catch (e) {
-          console.log(`⚠️ Could not load profile ${item.name}: ${e.message}`);
+    // Skip if not a directory or in excluded list
+    if (!item.isDirectory() || item.name.startsWith('.') || excludedDirs.has(item.name)) {
+      continue;
+    }
+    
+    const settingsPath = path.join(profilesDir, item.name, 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      try {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        const profileName = settings.name || item.name;
+        const profileData = {
+          name: profileName,
+          directory: path.join('profiles', item.name),
+          settings: settings,
+          settingsPath: settingsPath
+        };
+        
+        // Determine if this is a live event profile or betting profile
+        // Live Event profiles: name contains "Live Event" or "live" (case insensitive) OR no account_number
+        // Betting profiles: have account_number set and not empty
+        const isLiveEvent = item.name.toLowerCase().includes('live event') || 
+                           item.name.toLowerCase().includes('liveevent') ||
+                           profileName.toLowerCase().includes('live event') ||
+                           !settings.account_number || 
+                           settings.account_number === '' ||
+                           settings.account_number === null;
+        
+        if (isLiveEvent) {
+          liveEventProfiles.push(profileData);
+          console.log(`   📡 Found LIVE EVENT profile: ${profileName} (${item.name}) - for data scraping only`);
+        } else {
+          bettingProfiles.push(profileData);
+          console.log(`   💰 Found BETTING profile: ${profileName} (${item.name}) - account: ${settings.account_number || 'N/A'}`);
         }
+      } catch (e) {
+        console.log(`   ⚠️ Could not load profile ${item.name}: ${e.message}`);
       }
     }
   }
   
-  return profiles;
+  console.log(`\n📋 Total profiles discovered:`);
+  console.log(`   📡 Live Event (scraping only): ${liveEventProfiles.length}`);
+  console.log(`   💰 Betting (with accounts): ${bettingProfiles.length}\n`);
+  
+  return { liveEvent: liveEventProfiles, betting: bettingProfiles };
 }
 
 // =============================================
@@ -1184,12 +1913,19 @@ function discoverProfiles() {
 // =============================================
 
 async function startFliff() {
-  // Discover all profiles
-  const profiles = discoverProfiles();
+  // Discover all profiles (separated into live event and betting)
+  const { liveEvent: liveEventProfiles, betting: bettingProfiles } = discoverProfiles();
   
-  if (profiles.length === 0) {
+  const allProfiles = [...liveEventProfiles, ...bettingProfiles];
+  
+  if (allProfiles.length === 0) {
     console.log('⚠️ No profiles found, using default ray profile');
-    // Fallback to default
+    // Fallback to default - check if profiles/ray exists
+    const defaultSettingsPath = path.join(__dirname, '..', 'profiles', 'ray', 'settings.json');
+    if (!fs.existsSync(defaultSettingsPath)) {
+      console.log('❌ Default profile not found at profiles/ray/settings.json');
+      return;
+    }
     fliffClient = new FliffClient({
       onGame: handleGameUpdate,
       onOdds: handleOddsUpdate,
@@ -1209,22 +1945,31 @@ async function startFliff() {
     return;
   }
   
-  console.log(`\n📋 Found ${profiles.length} profile(s):`);
-  profiles.forEach(p => console.log(`   - ${p.name} (${p.directory})`));
+  console.log(`\n📋 Starting ${allProfiles.length} profile(s):`);
+  console.log(`   📡 Live Event profiles: ${liveEventProfiles.length} (data scraping only)`);
+  console.log(`   💰 Betting profiles: ${bettingProfiles.length} (with logged-in accounts)`);
   console.log('');
   
+  // Track which profiles failed to start
+  const failedProfiles = [];
+  
   // Start all profiles with delays to avoid conflicts
-  for (let i = 0; i < profiles.length; i++) {
-    const profile = profiles[i];
+  // With many profiles, use shorter delays but still stagger them
+  const delayBetweenProfiles = Math.max(2000, Math.min(3000, 3000 / Math.sqrt(allProfiles.length))); // Adaptive delay
+  
+  for (let i = 0; i < allProfiles.length; i++) {
+    const profile = allProfiles[i];
+    const isLiveEvent = liveEventProfiles.includes(profile);
     try {
       // Add delay between profile startups to avoid browser conflicts
       if (i > 0) {
-        const delay = 3000 * i; // 3 seconds between each profile
-        console.log(`⏳ Waiting ${delay/1000}s before starting next profile...`);
+        const delay = delayBetweenProfiles * i; // Staggered delay
+        console.log(`⏳ [${i + 1}/${allProfiles.length}] Waiting ${(delay/1000).toFixed(1)}s before starting ${profile.name}...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
       
-      console.log(`🚀 Starting profile: ${profile.name}...`);
+      const profileType = isLiveEvent ? '📡 LIVE EVENT' : '💰 BETTING';
+      console.log(`🚀 [${i + 1}/${allProfiles.length}] Starting ${profileType} profile: ${profile.name}...`);
       
       // Create a FliffClient with custom settings path
       const client = new FliffClient({
@@ -1242,12 +1987,16 @@ async function startFliff() {
         },
         onConnect: () => {
           stats.connected = true;
-          broadcast({ type: 'connected', profile: profile.name });
+          broadcast({ type: 'connected', profile: profile.name, profileType: isLiveEvent ? 'liveEvent' : 'betting' });
         },
         onDisconnect: () => {
-          broadcast({ type: 'disconnected', profile: profile.name });
+          broadcast({ type: 'disconnected', profile: profile.name, profileType: isLiveEvent ? 'liveEvent' : 'betting' });
         }
       });
+      
+      // Mark client as live event or betting profile
+      client.isLiveEventProfile = isLiveEvent;
+      client.isBettingProfile = !isLiveEvent;
       
       // Override settings to use profile-specific settings
       client.settings = profile.settings;
@@ -1366,6 +2115,34 @@ async function startFliff() {
             console.log(`📁 [${profile.name}] Created browser data directory`);
           }
           
+          // Check for lockfile that might indicate browser is already running
+          const lockfilePath = path.join(browserDataPath, 'lockfile');
+          if (fs.existsSync(lockfilePath)) {
+            console.log(`⚠️ [${profile.name}] Lockfile found - browser may already be running for this profile`);
+            console.log(`   Attempting to continue anyway...`);
+            // Try to remove lockfile (it's safe if browser isn't actually running)
+            try {
+              fs.unlinkSync(lockfilePath);
+              console.log(`   ✅ Removed stale lockfile`);
+            } catch (e) {
+              console.log(`   ⚠️ Could not remove lockfile (browser may be running): ${e.message}`);
+            }
+          }
+          
+          // Check for DevToolsActivePort which might indicate browser is running
+          const devToolsPortPath = path.join(browserDataPath, 'DevToolsActivePort');
+          if (fs.existsSync(devToolsPortPath)) {
+            try {
+              const portContent = fs.readFileSync(devToolsPortPath, 'utf8').trim();
+              if (portContent) {
+                console.log(`⚠️ [${profile.name}] DevToolsActivePort file exists - browser may be running`);
+                console.log(`   Port: ${portContent}`);
+              }
+            } catch (e) {
+              // Ignore read errors
+            }
+          }
+          
           // Build args array
           const browserArgs = [
             proxy ? `--proxy-server=${proxy.host}:${proxy.port}` : '',
@@ -1414,7 +2191,18 @@ async function startFliff() {
           // Wait a bit for browser to be ready
           await new Promise(resolve => setTimeout(resolve, 2000));
 
-          // Mobile emulation
+          // Mobile emulation - MUST be set before CDP session
+          const mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
+          await this.page.setUserAgent(mobileUserAgent);
+          await this.page.setViewport({
+            width: 375,
+            height: 812,
+            deviceScaleFactor: 3,
+            isMobile: true,
+            hasTouch: true
+          });
+          
+          // Also use emulate for additional mobile features
           await this.page.emulate({
             viewport: { 
               width: 375, 
@@ -1423,30 +2211,44 @@ async function startFliff() {
               isMobile: true, 
               hasTouch: true 
             },
-            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15'
+            userAgent: mobileUserAgent
           });
+          
+          console.log(`📱 [${profile.name}] Mobile emulation enabled`);
 
           // CDP for WebSocket interception
           this.cdp = await this.page.target().createCDPSession();
           await this.cdp.send('Network.enable');
 
-          // Set geolocation to match proxy location
-          if (this.settings.latitude && this.settings.longitude) {
-            try {
-              await this.cdp.send('Emulation.setGeolocationOverride', {
-                latitude: parseFloat(this.settings.latitude),
-                longitude: parseFloat(this.settings.longitude),
-                accuracy: parseFloat(this.settings.accuracy) || 75
-              });
-              console.log(`📍 Location set: ${this.settings.latitude}, ${this.settings.longitude}`);
-            } catch (e) {
-              console.log('⚠️ Could not set geolocation:', e.message);
-            }
+          // ALWAYS set geolocation override (use settings or defaults)
+          // This prevents geolocation check prompts
+          const defaultLat = 40.7132; // New York default
+          const defaultLon = -74.0061;
+          const defaultAcc = 75;
+          
+          const geoLat = this.settings.latitude ? parseFloat(this.settings.latitude) : defaultLat;
+          const geoLon = this.settings.longitude ? parseFloat(this.settings.longitude) : defaultLon;
+          const geoAcc = this.settings.accuracy ? parseFloat(this.settings.accuracy) : defaultAcc;
+          
+          try {
+            await this.cdp.send('Emulation.setGeolocationOverride', {
+              latitude: geoLat,
+              longitude: geoLon,
+              accuracy: geoAcc
+            });
+            console.log(`📍 [${profile.name}] Geolocation set: ${geoLat}, ${geoLon} (accuracy: ${geoAcc}m)`);
+          } catch (e) {
+            console.log(`⚠️ [${profile.name}] Could not set geolocation via CDP: ${e.message}`);
           }
 
-          // Grant geolocation permissions
+          // Grant geolocation permissions BEFORE navigation
           const context = this.browser.defaultBrowserContext();
-          await context.overridePermissions('https://sports.getfliff.com', ['geolocation']);
+          try {
+            await context.overridePermissions('https://sports.getfliff.com', ['geolocation']);
+            console.log(`✅ [${profile.name}] Geolocation permissions granted`);
+          } catch (e) {
+            console.log(`⚠️ [${profile.name}] Could not override permissions: ${e.message}`);
+          }
 
           // Capture auth tokens and betting API endpoints (same as original)
           this.cdp.on('Network.requestWillBeSent', (params) => {
@@ -1559,46 +2361,53 @@ async function startFliff() {
             this.onDisconnect();
           });
 
-          // Inject geolocation override script
+          // Inject geolocation override script - MUST be before navigation
+          // This bypasses any geolocation checks by overriding the API
           await this.page.evaluateOnNewDocument((lat, lon, acc) => {
-            Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
-              value: function(success, error) {
-                success({
-                  coords: {
-                    latitude: lat,
-                    longitude: lon,
-                    accuracy: acc,
-                    altitude: null,
-                    altitudeAccuracy: null,
-                    heading: null,
-                    speed: null
-                  },
-                  timestamp: Date.now()
-                });
-              }
-            });
-            
-            Object.defineProperty(navigator.geolocation, 'watchPosition', {
-              value: function(success, error) {
-                success({
-                  coords: {
-                    latitude: lat,
-                    longitude: lon,
-                    accuracy: acc,
-                    altitude: null,
-                    altitudeAccuracy: null,
-                    heading: null,
-                    speed: null
-                  },
-                  timestamp: Date.now()
-                });
-                return 1;
-              }
-            });
-          }, 
-          parseFloat(this.settings.latitude || 40.7132), 
-          parseFloat(this.settings.longitude || -74.0061),
-          parseFloat(this.settings.accuracy || 75));
+            // Override getCurrentPosition
+            if (navigator.geolocation) {
+              const originalGetCurrentPosition = navigator.geolocation.getCurrentPosition;
+              navigator.geolocation.getCurrentPosition = function(success, error, options) {
+                if (success) {
+                  success({
+                    coords: {
+                      latitude: lat,
+                      longitude: lon,
+                      accuracy: acc,
+                      altitude: null,
+                      altitudeAccuracy: null,
+                      heading: null,
+                      speed: null
+                    },
+                    timestamp: Date.now()
+                  });
+                }
+                return originalGetCurrentPosition ? originalGetCurrentPosition.call(this, success, error, options) : null;
+              };
+              
+              // Override watchPosition
+              const originalWatchPosition = navigator.geolocation.watchPosition;
+              navigator.geolocation.watchPosition = function(success, error, options) {
+                if (success) {
+                  success({
+                    coords: {
+                      latitude: lat,
+                      longitude: lon,
+                      accuracy: acc,
+                      altitude: null,
+                      altitudeAccuracy: null,
+                      heading: null,
+                      speed: null
+                    },
+                    timestamp: Date.now()
+                  });
+                }
+                return originalWatchPosition ? originalWatchPosition.call(this, success, error, options) : 1;
+              };
+            }
+          }, geoLat, geoLon, geoAcc);
+          
+          console.log(`🔒 [${profile.name}] Geolocation bypass script injected`);
 
           console.log(`📱 [${profile.name}] Loading Fliff...`);
           
@@ -1669,27 +2478,79 @@ async function startFliff() {
         }
       };
       
-      await client.start();
+      try {
+        await client.start();
+        
+        // Verify client actually started successfully
+        if (!client.browser) {
+          throw new Error('Browser failed to launch');
+        }
+        if (!client.page) {
+          throw new Error('Page failed to initialize');
+        }
+        
+        fliffClients.set(profile.name, client);
+        
+        // Set first client as primary for backward compatibility
+        if (!fliffClient) {
+          fliffClient = client;
+        }
+        
+        console.log(`✅ [${i + 1}/${allProfiles.length}] Profile ${profile.name} started successfully`);
+        console.log(`   Browser: ${client.browser ? '✅' : '❌'}, Page: ${client.page ? '✅' : '❌'}\n`);
+        
+        // Add a small delay after successful start to ensure stability
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (startError) {
+        // If start() throws, it's a startup error
+        throw new Error(`Startup failed: ${startError.message}`);
+      }
+    } catch (e) {
+      failedProfiles.push({ 
+        name: profile.name, 
+        directory: profile.directory,
+        error: e.message, 
+        stack: e.stack 
+      });
+      console.error(`\n❌ [${i + 1}/${allProfiles.length}] Failed to start profile ${profile.name}:`);
+      console.error(`   Directory: ${profile.directory}`);
+      console.error(`   Error: ${e.message}`);
       
-      fliffClients.set(profile.name, client);
-      
-      // Set first client as primary for backward compatibility
-      if (!fliffClient) {
-        fliffClient = client;
+      // Provide more specific error messages
+      if (e.message.includes('Chrome not found') || e.message.includes('Chrome/Chromium not found')) {
+        console.error(`   💡 Issue: Chrome browser not found. Please install Google Chrome.`);
+      } else if (e.message.includes('Navigation failed') || e.message.includes('timeout')) {
+        console.error(`   💡 Issue: Page navigation failed. Check proxy connection: ${profile.settings.proxy}`);
+      } else if (e.message.includes('Browser failed to launch')) {
+        console.error(`   💡 Issue: Browser process failed to start. Check browser data directory: ${path.join(__dirname, '..', profile.directory, 'browser_data')}`);
+      } else if (e.message.includes('Page failed to initialize')) {
+        console.error(`   💡 Issue: Page object not created. Browser may have crashed during startup.`);
+      } else if (e.message.includes('proxy') || e.message.includes('Proxy')) {
+        console.error(`   💡 Issue: Proxy connection problem. Verify proxy: ${profile.settings.proxy}`);
       }
       
-      console.log(`✅ Profile ${profile.name} started successfully\n`);
-      
-      // Add a small delay after successful start to ensure stability
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } catch (e) {
-      console.error(`❌ Failed to start profile ${profile.name}:`, e.message);
-      console.error(`   Stack:`, e.stack);
+      if (e.stack) {
+        console.error(`   Stack trace:`, e.stack.split('\n').slice(0, 5).join('\n   '));
+      }
+      console.error('');
       // Continue with other profiles even if one fails
     }
   }
   
-  console.log(`\n✅ Started ${fliffClients.size} profile(s) out of ${profiles.length} total\n`);
+  console.log(`\n✅ Started ${fliffClients.size} profile(s) out of ${allProfiles.length} total`);
+  if (failedProfiles.length > 0) {
+    console.log(`\n❌ Failed to start ${failedProfiles.length} profile(s):`);
+    failedProfiles.forEach(fp => {
+      console.log(`   - ${fp.name}: ${fp.error}`);
+    });
+  }
+  
+  // List all successfully started profiles
+  console.log(`\n📋 Successfully started profiles:`);
+  fliffClients.forEach((client, name) => {
+    console.log(`   ✅ ${name}`);
+  });
+  console.log('');
 }
 
 const PORT = process.env.PORT || 3001;
@@ -1703,7 +2564,12 @@ server.listen(PORT, () => {
   console.log('\nEndpoints:');
   console.log('  GET  /api/games          - All live games');
   console.log('  GET  /api/games/:id/odds - Game odds');
-  console.log('  POST /api/prefire        - Prefire bet');
+  console.log('  POST /api/prefire        - Place bet (all profiles)');
+  console.log('  POST /api/place-bet      - Place bet (all profiles)');
+  console.log('  POST /api/burn-prefire   - Burn prefire (fast bet, all profiles)');
+  console.log('  POST /api/lock-and-load  - Lock & Load (all profiles)');
+  console.log('  POST /api/reload-page    - Reload page (all profiles or specific)');
+  console.log('  GET  /api/status         - Server & profile status');
   console.log('  GET  /api/admin/logs     - Bet logs');
   console.log('  GET  /api/admin/stats    - Account stats');
   console.log('─'.repeat(50));

@@ -33,6 +33,10 @@ class FliffClient {
     this.apiHeaders = {};
     this.capturedBetRequests = []; // Store last few bet requests for analysis
     
+    // Locked API requests - stores the exact API request for each oddId (locked during lock & load)
+    // Key: oddId, Value: { url, headers, requestBody, timestamp }
+    this.lockedAPIRequests = new Map();
+    
     // Event handlers
     this.onGame = handlers.onGame || (() => {});
     this.onOdds = handlers.onOdds || (() => {});
@@ -49,7 +53,7 @@ class FliffClient {
 
   loadSettings() {
     try {
-      const settingsPath = path.join(__dirname, '..', 'ray', 'settings.json');
+      const settingsPath = path.join(__dirname, '..', 'profiles', 'ray', 'settings.json');
       return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     } catch {
       return { 
@@ -62,7 +66,7 @@ class FliffClient {
   // Load persisted API credentials from disk
   loadAPICredentials() {
     try {
-      const credentialsPath = path.join(__dirname, '..', 'ray', 'api_credentials.json');
+      const credentialsPath = path.join(__dirname, '..', 'profiles', 'ray', 'api_credentials.json');
       if (fs.existsSync(credentialsPath)) {
         const data = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
         if (data.bettingEndpoint) {
@@ -94,7 +98,7 @@ class FliffClient {
   // Save API credentials to disk
   saveAPICredentials() {
     try {
-      const credentialsPath = path.join(__dirname, '..', 'ray', 'api_credentials.json');
+      const credentialsPath = path.join(__dirname, '..', 'profiles', 'ray', 'api_credentials.json');
       const data = {
         bettingEndpoint: this.bettingEndpoint,
         bearerToken: this.bearerToken,
@@ -192,7 +196,7 @@ class FliffClient {
         }
       }
       
-      const browserDataPath = path.join(__dirname, '..', 'ray', 'browser_data');
+      const browserDataPath = path.join(__dirname, '..', 'profiles', 'ray', 'browser_data');
 
       console.log('🚀 Launching browser...');
       
@@ -318,6 +322,34 @@ class FliffClient {
               timestamp: Date.now()
             };
             
+            // ENHANCED LOGGING: Capture full bet request details
+            console.log('\n🎯 ========================================');
+            console.log('🎯 CAPTURED BET REQUEST (MANUAL PLACEMENT)');
+            console.log('🎯 ========================================');
+            console.log(`📤 URL: ${url}`);
+            console.log(`📤 Method: ${method}`);
+            console.log(`📤 Headers (${Object.keys(headers).length}):`);
+            Object.entries(headers).forEach(([key, value]) => {
+              if (key.toLowerCase().includes('auth') || key.toLowerCase().includes('token')) {
+                console.log(`   ${key}: ${value.substring(0, 20)}...${value.slice(-10)}`);
+              } else {
+                console.log(`   ${key}: ${value}`);
+              }
+            });
+            
+            if (postData) {
+              try {
+                const data = JSON.parse(postData);
+                console.log(`📤 Request Body (${Object.keys(data).length} fields):`);
+                console.log(JSON.stringify(data, null, 2));
+              } catch (e) {
+                console.log(`📤 Request Body (raw): ${postData.substring(0, 500)}`);
+              }
+            } else {
+              console.log('📤 Request Body: (empty)');
+            }
+            console.log('🎯 ========================================\n');
+            
             this.capturedBetRequests.push(betRequest);
             // Keep only last 20 requests (increased for better analysis)
             if (this.capturedBetRequests.length > 20) {
@@ -366,10 +398,28 @@ class FliffClient {
               requestId: params.requestId
             });
             if (response.body) {
-              console.log('📥 Betting API response:', response.body.substring(0, 500));
+              console.log('\n📥 ========================================');
+              console.log('📥 BETTING API RESPONSE (MANUAL PLACEMENT)');
+              console.log('📥 ========================================');
+              console.log(`📥 Status: ${params.response.status} ${params.response.statusText}`);
+              console.log(`📥 Headers:`);
+              if (params.response.headers) {
+                Object.entries(params.response.headers).forEach(([key, value]) => {
+                  console.log(`   ${key}: ${value}`);
+                });
+              }
+              console.log(`📥 Response Body:`);
+              try {
+                const responseData = JSON.parse(response.body);
+                console.log(JSON.stringify(responseData, null, 2));
+              } catch (e) {
+                console.log(response.body);
+              }
+              console.log('📥 ========================================\n');
             }
           } catch (e) {
             // Response body might not be available, that's okay
+            console.log(`📥 Response received but body not available: ${e.message}`);
           }
         }
       });
@@ -392,46 +442,98 @@ class FliffClient {
         this.onDisconnect();
       });
 
-      // Inject geolocation override script before page loads
-      await this.page.evaluateOnNewDocument((lat, lon, acc) => {
-        Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
-          value: function(success, error) {
-            success({
-              coords: {
-                latitude: lat,
-                longitude: lon,
-                accuracy: acc,
-                altitude: null,
-                altitudeAccuracy: null,
-                heading: null,
-                speed: null
-              },
-              timestamp: Date.now()
+          // Inject geolocation override script before page loads
+          await this.page.evaluateOnNewDocument((lat, lon, acc) => {
+            Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
+              value: function(success, error) {
+                success({
+                  coords: {
+                    latitude: lat,
+                    longitude: lon,
+                    accuracy: acc,
+                    altitude: null,
+                    altitudeAccuracy: null,
+                    heading: null,
+                    speed: null
+                  },
+                  timestamp: Date.now()
+                });
+              }
             });
-          }
-        });
-        
-        Object.defineProperty(navigator.geolocation, 'watchPosition', {
-          value: function(success, error) {
-            success({
-              coords: {
-                latitude: lat,
-                longitude: lon,
-                accuracy: acc,
-                altitude: null,
-                altitudeAccuracy: null,
-                heading: null,
-                speed: null
-              },
-              timestamp: Date.now()
+            
+            Object.defineProperty(navigator.geolocation, 'watchPosition', {
+              value: function(success, error) {
+                success({
+                  coords: {
+                    latitude: lat,
+                    longitude: lon,
+                    accuracy: acc,
+                    altitude: null,
+                    altitudeAccuracy: null,
+                    heading: null,
+                    speed: null
+                  },
+                  timestamp: Date.now()
+                });
+                return 1; // Return watch ID
+              }
             });
-            return 1; // Return watch ID
-          }
-        });
-      }, 
-      parseFloat(this.settings.latitude || 40.7132), 
-      parseFloat(this.settings.longitude || -74.0061),
-      parseFloat(this.settings.accuracy || 75));
+          }, 
+          parseFloat(this.settings.latitude || 40.7132), 
+          parseFloat(this.settings.longitude || -74.0061),
+          parseFloat(this.settings.accuracy || 75));
+
+          // Inject bearer token capture script
+          await this.page.evaluateOnNewDocument(() => {
+            // Intercept fetch requests to capture bearer token
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+              const request = args[0];
+              const options = args[1] || {};
+              
+              // Check for Authorization header
+              if (options.headers) {
+                const authHeader = options.headers.Authorization || 
+                                  options.headers.authorization ||
+                                  (typeof options.headers.get === 'function' ? options.headers.get('Authorization') : null);
+                
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                  // Send token to parent (will be captured by CDP)
+                  window.__fliffBearerToken = authHeader;
+                  console.log('🔑 Bearer token captured from injection: present');
+                }
+              }
+              
+              return originalFetch.apply(this, args);
+            };
+            
+            // Also intercept XMLHttpRequest
+            const originalXHROpen = XMLHttpRequest.prototype.open;
+            const originalXHRSend = XMLHttpRequest.prototype.send;
+            
+            XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+              this._url = url;
+              return originalXHROpen.apply(this, [method, url, ...rest]);
+            };
+            
+            XMLHttpRequest.prototype.send = function(data) {
+              if (this._url && typeof data === 'string') {
+                try {
+                  const headers = this.getAllResponseHeaders ? this.getAllResponseHeaders() : '';
+                  if (headers.includes('Authorization') || headers.includes('authorization')) {
+                    const authHeader = this.getRequestHeader ? this.getRequestHeader('Authorization') : null;
+                    if (authHeader && authHeader.startsWith('Bearer ')) {
+                      window.__fliffBearerToken = authHeader;
+                      console.log('🔑 Bearer token captured from injection: present');
+                    }
+                  }
+                } catch (e) {
+                  // Ignore
+                }
+              }
+              return originalXHRSend.apply(this, [data]);
+            };
+          });
 
       console.log('📱 Loading Fliff...');
       await this.page.goto('https://sports.getfliff.com/', { 
@@ -709,23 +811,48 @@ class FliffClient {
             }
             
             if (!targetGameId) {
-              console.log(`❌ Could not determine target game for odd: ${p.t_141_selection_name || 'N/A'}`);
-              return;
+              // Don't log every time - these are ghost lines, filter them silently
+              return; // Skip ghost lines (odds that don't match any game)
             }
 
-            // Count this odd
+            // Verify the game info matches before creating odd
+            const verifiedGameInfo = this.gameInfo.get(targetGameId);
+            if (!verifiedGameInfo) {
+              // Don't log every time - these are ghost lines
+              return; // Skip ghost lines (game not found in gameInfo)
+            }
+            
+            // Additional verification: check if event info actually matches the game
+            // eventInfo is already declared above, just reuse it
+            const gameHome = (verifiedGameInfo.home || '').toLowerCase();
+            const gameAway = (verifiedGameInfo.away || '').toLowerCase();
+            
+            // If event info doesn't contain either team name, it's likely a ghost line
+            if (eventInfo && !eventInfo.includes(gameHome.substring(0, 5)) && !eventInfo.includes(gameAway.substring(0, 5))) {
+              // Silent filter - this is a ghost line
+              return;
+            }
+            
+            // Verify proposal_fkey format - ghost lines often have malformed IDs
+            const proposalFkey = String(p.proposal_fkey || '');
+            if (!proposalFkey || proposalFkey.length < 5) {
+              return; // Skip odds with invalid proposal_fkey
+            }
+            
+            // Check for valid proposal_fkey format (should have proper structure)
+            // Valid: "123456_p_399_inplay", "123456_p_399_prematch", "123456_p_602_universal"
+            // Or at least: "123456_p_399" or similar
+            const hasValidFormat = /^\d+_p_\d+/.test(proposalFkey) || /^\d+_/.test(proposalFkey) || /^\d+$/.test(proposalFkey);
+            if (!hasValidFormat) {
+              return; // Skip ghost lines with malformed proposal_fkey
+            }
+
+            // Count this odd (only if it passed all checks)
             oddsPerChannel[channelId].count++;
 
             // Create a more unique ID by combining multiple fields
             // This helps ensure we can identify the exact odd even if proposal_fkey is not unique
             const uniqueId = `${p.proposal_fkey}_${p.coeff}_${(p.t_141_selection_name || '').substring(0, 20)}_${(p.t_142_selection_param_1 || '').substring(0, 10)}`;
-            
-            // Verify the game info matches before creating odd
-            const verifiedGameInfo = this.gameInfo.get(targetGameId);
-            if (!verifiedGameInfo) {
-              console.log(`❌ Game ${targetGameId} not found in gameInfo, skipping odd`);
-              return;
-            }
             
             const odd = {
               id: p.proposal_fkey, // Keep original ID for compatibility
@@ -1126,8 +1253,16 @@ class FliffClient {
           
           // Additional check: verify the text actually contains what we're looking for
           const text = item.text.toLowerCase();
-          const hasSelectionText = selLower && text.includes(selLower);
-          const hasOddsText = text.includes(oddsStr);
+          
+          // STRICT: Selection text must match - require significant portion of selection
+          const hasSelectionText = selLower && (
+            text === selLower || // Exact match (best)
+            text.includes(selLower) || // Contains full selection
+            (selLower.length > 15 && text.includes(selLower.substring(0, 20))) // First 20 chars for long selections
+          );
+          
+          // STRICT: Odds must match exactly
+          const hasOddsText = text.includes(oddsStr) || text.includes(odds.toString());
           
           // For totals (over/under), REQUIRE exact number match to prevent wrong selection
           if (isTotal && numberInSel) {
@@ -1144,12 +1279,17 @@ class FliffClient {
           // For spreads/totals, be extra strict - require exact selection match
           if (isSpread || isTotal) {
             if (!hasExactSelection) return false; // No partial matches for spreads/totals
+            // Also require selection text to be present
+            if (!hasSelectionText) return false;
           }
           
           // Must have selection text or exact number
           if (!hasExactSelection && !hasExactNumber) return false;
           
-          return hasSelectionText && hasOddsText;
+          // FINAL CHECK: Both selection AND odds must be present
+          if (!hasSelectionText || !hasOddsText) return false;
+          
+          return true;
         });
         
         console.log('🔍 Strict matches found:', strictMatches.length);
@@ -1462,95 +1602,253 @@ class FliffClient {
   // DIRECT API BETTING - Fast method using API
   // =============================================
 
-  async placeBetViaAPI(selection, targetOdds, wager, coinType, param = null, market = null, oddId = null) {
+  // Save locked API request for a specific oddId (from lock and load)
+  saveLockedAPIRequest(oddId, url, headers, requestBody) {
+    if (!oddId) return;
+    this.lockedAPIRequests.set(oddId, {
+      url,
+      headers: { ...headers },
+      requestBody: JSON.parse(JSON.stringify(requestBody)), // Deep clone
+      timestamp: Date.now()
+    });
+    console.log(`🔒 Saved locked API request for oddId: ${oddId}`);
+  }
+  
+  // Get locked API request for a specific oddId
+  getLockedAPIRequest(oddId) {
+    if (!oddId) return null;
+    return this.lockedAPIRequests.get(oddId) || null;
+  }
+
+  async placeBetViaAPI(selection, targetOdds, wager, coinType, param = null, market = null, oddId = null, useLockedRequest = false) {
     // Always use cash - coinType parameter kept for compatibility but ignored
     coinType = 'cash';
-    if (!this.bettingEndpoint) {
-      return { success: false, error: 'Betting API endpoint not captured yet. Place a bet manually in the browser first to capture it.' };
+    
+    // Check if we have a locked API request for this oddId
+    let lockedRequest = null;
+    if (useLockedRequest && oddId) {
+      lockedRequest = this.getLockedAPIRequest(oddId);
+      if (lockedRequest) {
+        console.log(`🔒 Using locked API request for oddId: ${oddId}`);
+      }
     }
     
-    if (!this.bearerToken && !this.authToken) {
-      return { success: false, error: 'Auth token not available. Please ensure you are logged in.' };
+    if (!lockedRequest) {
+      // Fallback to regular endpoint
+      if (!this.bettingEndpoint) {
+        return { success: false, error: 'Betting API endpoint not captured yet. Place a bet manually in the browser first to capture it.' };
+      }
+      
+      if (!this.bearerToken && !this.authToken) {
+        return { success: false, error: 'Auth token not available. Please ensure you are logged in.' };
+      }
     }
     
-    console.log(`\n🚀 PLACING BET VIA API: ${selection} @ ${targetOdds} - $${wager} (${coinType})`);
-    console.log(`   Endpoint: ${this.bettingEndpoint}`);
-    console.log(`   Odd ID: ${oddId}`);
+    // Reduced logging for cleaner output
+    console.log(`🚀 PLACING BET VIA API: ${selection} @ ${targetOdds} - $${wager}${lockedRequest ? ' (using locked request)' : ''}`);
+    if (lockedRequest) {
+      console.log(`   Using locked endpoint: ${lockedRequest.url.substring(0, 100)}...`);
+    } else {
+      console.log(`   Endpoint: ${this.bettingEndpoint.substring(0, 100)}...`);
+    }
+    console.log(`   Has bearer token: ${!!this.bearerToken}`);
+    console.log(`   Has auth token: ${!!this.authToken}`);
     
     try {
       // Analyze captured bet requests to understand the format
       let requestBody = {};
       let template = null;
+      let requestUrl = null;
+      let requestHeaders = {};
       
-      if (this.capturedBetRequests.length > 0) {
+      if (lockedRequest) {
+        // Use locked request - this locks the odds!
+        requestUrl = lockedRequest.url;
+        requestHeaders = { ...lockedRequest.headers };
+        requestBody = JSON.parse(JSON.stringify(lockedRequest.requestBody)); // Deep clone
+        
+        console.log(`🔒 Using locked API request - odds are locked!`);
+      } else if (this.capturedBetRequests.length > 0) {
         // Use the most recent bet request as a template
         template = this.capturedBetRequests[this.capturedBetRequests.length - 1];
         try {
           requestBody = JSON.parse(template.postData);
-          console.log('📋 Using captured request format:', Object.keys(requestBody).join(', '));
-          console.log('📋 Template body:', JSON.stringify(requestBody).substring(0, 500));
+          // Reduced logging - only log if needed for debugging
         } catch (e) {
           console.log('⚠️ Could not parse template request body:', e.message);
         }
       }
       
-      // Build request body - try multiple formats based on what we captured
-      // First, try to preserve the exact structure from captured request
-      if (template && requestBody && Object.keys(requestBody).length > 0) {
-        // Clone the template and update relevant fields
-        requestBody = { ...requestBody };
+      // Build request body - properly handle nested Fliff API structure
+      if (lockedRequest) {
+        // Using locked request - ONLY update wager amount, keep everything else the same!
+        // Convert wager to cents (Fliff uses cents for amounts)
+        const riskAmountCents = Math.round(wager * 100);
         
-        // Update fields that we know
-        if (oddId) {
-          // Try common field names for odd ID
-          if (requestBody.proposal_fkey !== undefined) requestBody.proposal_fkey = oddId;
-          if (requestBody.proposal_id !== undefined) requestBody.proposal_id = oddId;
-          if (requestBody.odd_id !== undefined) requestBody.odd_id = oddId;
-          if (requestBody.id !== undefined) requestBody.id = oddId;
+        // Calculate expected payout based on odds (from locked request)
+        const lockedPick = requestBody.invocation?.request?.picks?.[0];
+        if (lockedPick) {
+          const lockedOdds = lockedPick.selections?.[0]?.coeff || targetOdds;
+          let expectedPayoutCents;
+          if (lockedOdds > 0) {
+            expectedPayoutCents = Math.round((lockedOdds / 100) * riskAmountCents) + riskAmountCents;
+          } else {
+            expectedPayoutCents = Math.round((100 / Math.abs(lockedOdds)) * riskAmountCents) + riskAmountCents;
+          }
+          
+          // ONLY update the wager amount - keep everything else locked!
+          lockedPick.risk_amount = riskAmountCents;
+          lockedPick.expected_payout_amount = expectedPayoutCents;
+          
+          // Generate new shopping cart ID (required for each bet)
+          if (requestBody.invocation?.request) {
+            requestBody.invocation.request.unique_shopping_cart_id = Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
+          }
+          
+          // Update conn_id (increment it)
+          if (requestBody.header && typeof requestBody.header.conn_id === 'number') {
+            requestBody.header.conn_id = requestBody.header.conn_id + 1;
+          }
+        }
+      } else if (template && requestBody && Object.keys(requestBody).length > 0) {
+        // Deep clone the template structure
+        requestBody = JSON.parse(JSON.stringify(requestBody));
+        
+        // Convert wager to cents (Fliff uses cents for amounts)
+        const riskAmountCents = Math.round(wager * 100);
+        
+        // Calculate expected payout based on odds
+        // For American odds: positive odds = (odds/100) * wager, negative odds = (100/|odds|) * wager
+        let expectedPayoutCents;
+        if (targetOdds > 0) {
+          expectedPayoutCents = Math.round((targetOdds / 100) * riskAmountCents) + riskAmountCents;
+        } else {
+          expectedPayoutCents = Math.round((100 / Math.abs(targetOdds)) * riskAmountCents) + riskAmountCents;
         }
         
-        if (requestBody.amount !== undefined) requestBody.amount = wager;
-        if (requestBody.wager !== undefined) requestBody.wager = wager;
-        if (requestBody.stake !== undefined) requestBody.stake = wager;
+        // Update the nested structure properly
+        if (requestBody.invocation && requestBody.invocation.request) {
+          const request = requestBody.invocation.request;
+          
+          // Update picks array
+          if (request.picks && request.picks.length > 0) {
+            const pick = request.picks[0];
+            
+            // Update risk amount and expected payout
+            pick.risk_amount = riskAmountCents;
+            pick.expected_payout_amount = expectedPayoutCents;
+            pick.confirmed_server_quote_coeff = 0;
+            
+            // Update selections array
+            if (pick.selections && pick.selections.length > 0) {
+              const selection = pick.selections[0];
+              if (oddId) {
+                selection.proposal_fkey = oddId;
+              }
+              // Use American odds directly (no conversion needed)
+              selection.coeff = targetOdds;
+            } else {
+              // Create selection if it doesn't exist
+              pick.selections = [{
+                proposal_fkey: oddId || '',
+                coeff: targetOdds
+              }];
+            }
+            
+            // FORCE Fliff Cash - always override (never use gold coins)
+            // Remove any gold coin related fields
+            delete pick.currency_code;
+            delete pick.type;
+            pick.currency_code = 331; // 331 = Fliff Cash in cents
+            pick.type = 81; // 81 = Fliff Cash
+          } else {
+            // Create picks array if it doesn't exist
+            request.picks = [{
+              type: 81,
+              currency_code: 331,
+              risk_amount: riskAmountCents,
+              confirmed_server_quote_coeff: 0,
+              expected_payout_amount: expectedPayoutCents,
+              selections: [{
+                proposal_fkey: oddId || '',
+                coeff: targetOdds
+              }],
+              is_same_game_parlay_mode: false
+            }];
+          }
+          
+          // Generate new unique shopping cart ID
+          request.unique_shopping_cart_id = Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
+          
+          // Ensure verify_mode is 0
+          request.verify_mode = 0;
+        }
         
-        if (requestBody.coin_type !== undefined) requestBody.coin_type = 'cash';
-        if (requestBody.currency !== undefined) requestBody.currency = 'cash';
+        // Update header conn_id (increment it)
+        if (requestBody.header && typeof requestBody.header.conn_id === 'number') {
+          requestBody.header.conn_id = requestBody.header.conn_id + 1;
+        }
         
-        if (requestBody.odds !== undefined) requestBody.odds = targetOdds;
-        if (requestBody.coeff !== undefined) requestBody.coeff = targetOdds;
       } else {
-        // Fallback: build from scratch with common field names
+        // Fallback: build from scratch (shouldn't happen if template exists, but just in case)
+        console.warn('⚠️ No template available, using fallback structure');
         requestBody = {
-          proposal_fkey: oddId,
-          proposal_id: oddId,
-          odd_id: oddId,
-          id: oddId,
-          amount: wager,
-          wager: wager,
-          coin_type: 'cash',
-          currency: 'cash',
-          odds: targetOdds,
-          coeff: targetOdds,
-          selection: selection,
-          ...(param && { param: param, selection_param: param }),
-          ...(market && { market: market })
+          header: {
+            device_x_id: this.deviceXId || 'web.unknown',
+            app_x_version: '5.0.23.241',
+            app_install_token: this.appInstallToken || '',
+            auth_token: this.authToken || '',
+            conn_id: 1,
+            platform: 'prod',
+            usa_state_code: 'CA',
+            usa_state_code_source: 'ipOrigin=radar|regionCode=CA|meta=successGetRegionCode|geocodeOrigin=radar|regionCode=CA|meta=successGetRegionCode'
+          },
+          invocation: {
+            request: {
+              __object_class_name: 'FCM__Place_Pick__Request',
+              picks: [{
+                type: 81,
+                currency_code: 331,
+                risk_amount: Math.round(wager * 100),
+                confirmed_server_quote_coeff: 0,
+                expected_payout_amount: Math.round((targetOdds > 0 ? (targetOdds / 100) : (100 / Math.abs(targetOdds))) * wager * 100) + Math.round(wager * 100),
+                selections: [{
+                  proposal_fkey: oddId || '',
+                  coeff: targetOdds
+                }],
+                is_same_game_parlay_mode: false
+              }],
+              unique_shopping_cart_id: Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11),
+              verify_mode: 0,
+              subfeed_meta: {
+                packed_subfeed_revisions: []
+              }
+            }
+          }
         };
       }
       
-      // Build headers - preserve all captured headers
-      const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...this.apiHeaders
-      };
-      
-      // Ensure auth token is included (use bearer token or auth token)
-      if (this.bearerToken) {
-        headers['Authorization'] = this.bearerToken;
-      } else if (this.authToken) {
-        // Some APIs use auth_token in query or header
-        headers['X-Auth-Token'] = this.authToken;
-        headers['Authorization'] = `Bearer ${this.authToken}`;
+      // Build headers - use locked headers if available, otherwise use captured headers
+      let headers = {};
+      if (lockedRequest) {
+        // Use locked headers (preserves exact auth tokens and other params)
+        headers = { ...lockedRequest.headers };
+      } else {
+        // Build headers from captured data
+        headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...this.apiHeaders
+        };
+        
+        // Ensure auth token is included (use bearer token or auth token)
+        if (this.bearerToken) {
+          headers['Authorization'] = this.bearerToken;
+        } else if (this.authToken) {
+          // Some APIs use auth_token in query or header
+          headers['X-Auth-Token'] = this.authToken;
+          headers['Authorization'] = `Bearer ${this.authToken}`;
+        }
       }
       
       // Remove undefined values
@@ -1558,10 +1856,17 @@ class FliffClient {
         if (headers[key] === undefined) delete headers[key];
       });
       
-      console.log('📤 Sending API request:');
-      console.log('   URL:', this.bettingEndpoint);
-      console.log('   Headers:', Object.keys(headers).join(', '));
-      console.log('   Body:', JSON.stringify(requestBody).substring(0, 500));
+      // Update conn_id in URL query parameters to match header
+      if (!requestUrl) {
+        requestUrl = this.bettingEndpoint;
+      }
+      if (requestBody.header && typeof requestBody.header.conn_id === 'number') {
+        const urlObj = new URL(requestUrl);
+        urlObj.searchParams.set('conn_id', requestBody.header.conn_id.toString());
+        requestUrl = urlObj.toString();
+      }
+      
+      // Reduced logging - only log essential info
       
       // Make the API request - use built-in fetch (Node 18+) or require node-fetch
       let fetch;
@@ -1573,7 +1878,7 @@ class FliffClient {
         const https = require('https');
         const url = require('url');
         return new Promise((resolve) => {
-          const parsedUrl = new url.URL(this.bettingEndpoint);
+          const parsedUrl = new url.URL(requestUrl);
           const options = {
             hostname: parsedUrl.hostname,
             port: parsedUrl.port || 443,
@@ -1609,11 +1914,39 @@ class FliffClient {
         });
       }
       
-      const response = await fetch(this.bettingEndpoint, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody)
-      });
+      // Add timeout to fetch request (30 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      console.log(`📤 Sending API request...`);
+      
+      // If this is a lock and load request ($0.20), capture it for later use
+      const isLockAndLoad = wager === 0.20 && oddId;
+      if (isLockAndLoad && !lockedRequest) {
+        // Save this request as locked - it will be reused for the actual bet
+        this.saveLockedAPIRequest(oddId, requestUrl, headers, requestBody);
+        console.log(`🔒 Captured and saved API request for lock & load (oddId: ${oddId})`);
+      }
+      
+      let response;
+      try {
+        response = await fetch(requestUrl, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        console.log(`📥 Received response: ${response.status} ${response.statusText}`);
+      } catch (e) {
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') {
+          console.error('❌ API request timeout after 30 seconds');
+          return { success: false, error: 'API request timeout' };
+        }
+        console.error('❌ API request error:', e.message);
+        return { success: false, error: `API request failed: ${e.message}` };
+      }
       
       // Get response text first to handle both JSON and non-JSON responses
       const responseText = await response.text();
@@ -1631,38 +1964,389 @@ class FliffClient {
         }
       }
       
-      console.log('📥 API Response:', JSON.stringify(responseData).substring(0, 500));
-      console.log('   Status:', response.status, response.statusText);
+      // Check status in multiple possible locations
+      const apiStatus = responseData.status || responseData.code || responseData.result?.status || responseData.data?.status;
+      
+      // Log response status with actual data
+      console.log(`📥 Response: ${response.status} | Status: ${apiStatus || 'N/A'}`);
+      if (apiStatus) {
+        console.log(`Final result: ${JSON.stringify({ status: apiStatus, hasPickResult: responseData.hasPickResult || responseData.result?.hasPickResult || false })}`);
+      } else if (responseData) {
+        // Log first few keys to see what we got
+        const keys = Object.keys(responseData).slice(0, 5);
+        console.log(`Response keys: ${keys.join(', ')}`);
+        
+        // If we have a result field, log its structure for debugging
+        if (responseData.result && typeof responseData.result === 'object') {
+          const resultKeys = Object.keys(responseData.result);
+          console.log(`Result keys: ${resultKeys.join(', ')}`);
+          if (resultKeys.length > 0 && resultKeys.length <= 10) {
+            console.log(`Result content: ${JSON.stringify(responseData.result).substring(0, 500)}`);
+          }
+        }
+      }
       
       if (response.ok) {
-        // Check if bet was successful - try multiple success indicators
-        if (responseData.success === true || 
+        
+        // Status 8301 and 8300 are SUCCESS (as seen in other bots)
+        if (apiStatus === 8301 || apiStatus === '8301' || apiStatus === 8300 || apiStatus === '8300') {
+          console.log(`✅ Bet successful (${apiStatus} as expected)`);
+          return { success: true, response: responseData, status: apiStatus };
+        }
+        
+        // Check for other success indicators in response
+        if (apiStatus && typeof apiStatus === 'number') {
+          // Some status codes indicate success (8301, 200, etc.)
+          if (apiStatus >= 200 && apiStatus < 400) {
+            console.log(`✅ Bet accepted (status: ${apiStatus})`);
+            return { success: true, response: responseData, status: apiStatus };
+          }
+        }
+        
+        // Check result field first (since response has header, result, schema_version, x_slots)
+        if (responseData.result) {
+          const resultStatus = responseData.result.status || responseData.result.code;
+          
+          // Log result structure for debugging
+          const resultKeys = Object.keys(responseData.result);
+          console.log(`📋 Result keys: ${resultKeys.join(', ')}`);
+          if (resultKeys.length <= 10) {
+            console.log(`📋 Result content: ${JSON.stringify(responseData.result).substring(0, 500)}`);
+          }
+          
+          // Status 8301 and 8300 are SUCCESS
+          if (resultStatus === 8301 || resultStatus === '8301' || resultStatus === 8300 || resultStatus === '8300') {
+            console.log(`✅ Bet successful (result.status: ${resultStatus})`);
+            return { success: true, response: responseData, status: resultStatus };
+          }
+          
+          // Check if result has success indicators
+          if (responseData.result.success === true || 
+              responseData.result.id ||
+              responseData.result.bet_id ||
+              responseData.result.ticket_id ||
+              (resultStatus && typeof resultStatus === 'number' && resultStatus >= 200 && resultStatus < 400)) {
+            console.log(`✅ Bet accepted (result.status: ${resultStatus || 'success'})`);
+            return { success: true, response: responseData, status: resultStatus || 'success' };
+          }
+          
+              // Check for error in result - check multiple possible error fields
+              const errorFields = ['error', 'message', 'err', 'failure', 'fail'];
+              for (const field of errorFields) {
+                if (responseData.result[field]) {
+                  const resultError = responseData.result[field];
+                  let errorStr = '';
+                  if (typeof resultError === 'string') {
+                    errorStr = resultError;
+                  } else if (typeof resultError === 'object' && resultError !== null) {
+                    // Try to extract error_message first (Fliff API format)
+                    if (resultError.error_message) {
+                      errorStr = String(resultError.error_message);
+                    } else if (resultError.message) {
+                      errorStr = String(resultError.message);
+                    } else if (resultError.error) {
+                      errorStr = String(resultError.error);
+                    } else if (resultError.error_code) {
+                      // If we have error_code but no message, create a descriptive error
+                      errorStr = `Error ${resultError.error_code}: ${resultError.error_message || 'Unknown error'}`;
+                    } else {
+                      // Last resort: convert to JSON but limit length
+                      const jsonStr = JSON.stringify(resultError);
+                      errorStr = jsonStr.length > 200 ? jsonStr.substring(0, 200) + '...' : jsonStr;
+                    }
+                  } else {
+                    errorStr = String(resultError);
+                  }
+                  
+                  const resultErrorLower = errorStr.toLowerCase();
+                  
+                  // Check for "no Fliff Cash" errors - skip this account
+                  if (resultErrorLower.includes('gold coins') || 
+                      resultErrorLower.includes('below min') ||
+                      resultErrorLower.includes('bad risk_amount') ||
+                      resultErrorLower.includes('insufficient') ||
+                      resultErrorLower.includes('balance error') ||
+                      resultErrorLower.includes('no enough playable') ||
+                      resultErrorLower.includes('no enough') ||
+                      resultErrorLower.includes('available: 0.00') ||
+                      (resultErrorLower.includes('cash') && (resultErrorLower.includes('not available') || resultErrorLower.includes('no enough')))) {
+                    console.log(`⚠️ Account has no Fliff Cash available: ${errorStr}`);
+                    return { 
+                      success: false, 
+                      error: errorStr, 
+                      noFliffCash: true, 
+                      skipAccount: true 
+                    };
+                  }
+                  
+                  if (resultErrorLower.includes('odds') || resultErrorLower.includes('price') || resultErrorLower.includes('changed')) {
+                    console.log(`⚠️ Odds changed detected in result.${field}: ${errorStr}`);
+                    return { oddsChanged: true, error: errorStr };
+                  }
+                  
+                  // Check for MARKET NOT AVAILABLE (error_code 30721) - specific error, don't retry
+                  const hasMarketNotAvailableError = resultErrorLower.includes('market not available') || 
+                      (resultError && typeof resultError === 'object' && resultError.error_code === 30721);
+                  
+                  if (hasMarketNotAvailableError) {
+                    console.log(`⚠️ Market not available: ${errorStr}`);
+                    return { 
+                      success: false, 
+                      error: errorStr, 
+                      marketNotAvailable: true, 
+                      skipRetry: true,
+                      skipAccount: false // Don't skip account, just this market
+                    };
+                  }
+                  
+                  // Check for event not available or no longer inplay
+                  if (resultErrorLower.includes('not available') || resultErrorLower.includes('no longer') || resultErrorLower.includes('inplay')) {
+                    console.log(`⚠️ Event not available (no longer inplay): ${errorStr}`);
+                    return { success: false, error: errorStr, eventNotAvailable: true, skipRetry: true };
+                  }
+                  console.log(`⚠️ Error detected in result.${field}: ${errorStr}`);
+                  return { success: false, error: errorStr };
+                }
+              }
+          
+          // If result exists but no clear success/error, check if it's an error-like structure
+          // Some APIs return errors in the result field itself
+          if (typeof responseData.result === 'object' && !responseData.result.status && !responseData.result.id) {
+            // Check all string values for error indicators
+            for (const [key, value] of Object.entries(responseData.result)) {
+              if (typeof value === 'string' && (value.toLowerCase().includes('error') || value.toLowerCase().includes('fail') || value.toLowerCase().includes('invalid'))) {
+                console.log(`⚠️ Error-like value found in result.${key}: ${value}`);
+                return { success: false, error: value };
+              }
+            }
+          }
+        }
+        
+        // Check if bet was successful - try multiple success indicators (only if result field wasn't already checked)
+        if (!responseData.result && (
+            responseData.success === true || 
             responseData.status === 'accepted' || 
             responseData.status === 'success' ||
             responseData.id ||
             responseData.bet_id ||
             responseData.ticket_id ||
-            (responseData.message && responseData.message.toLowerCase().includes('success'))) {
-          return { success: true, response: responseData };
-        } else if (responseData.error || responseData.message) {
-          // Check for odds changed
-          const errorMsg = (responseData.message || responseData.error || '').toLowerCase();
-          if (errorMsg.includes('odds') || errorMsg.includes('price') || errorMsg.includes('changed')) {
-            return { oddsChanged: true, error: responseData.message || responseData.error };
-          }
-          return { success: false, error: responseData.message || responseData.error };
+            responseData.data?.id ||
+            (responseData.message && typeof responseData.message === 'string' && responseData.message.toLowerCase().includes('success'))
+          )) {
+          return { success: true, response: responseData, status: apiStatus || 'success' };
         }
+        
+        // Check for errors at top level (only if result field wasn't checked)
+        if (!responseData.result && (responseData.error || responseData.message)) {
+          // Safely extract error message as string
+          let errorMsg = '';
+          if (responseData.message) {
+            errorMsg = typeof responseData.message === 'string' ? responseData.message : String(responseData.message);
+          } else if (responseData.error) {
+            errorMsg = typeof responseData.error === 'string' ? responseData.error : String(responseData.error);
+          }
+          
+          // Check for odds changed
+          const errorMsgLower = errorMsg.toLowerCase();
+          if (errorMsgLower.includes('odds') || errorMsgLower.includes('price') || errorMsgLower.includes('changed')) {
+            return { oddsChanged: true, error: String(errorMsg || 'Odds changed') };
+          }
+          
+          // Check for MARKET NOT AVAILABLE
+          if (errorMsgLower.includes('market not available')) {
+            console.log(`⚠️ Market not available: ${errorMsg}`);
+            return { 
+              success: false, 
+              error: String(errorMsg || 'Market not available'), 
+              marketNotAvailable: true, 
+              skipRetry: true 
+            };
+          }
+          
+          // Check for "no Fliff Cash" errors
+          if (errorMsgLower.includes('balance error') ||
+              errorMsgLower.includes('no enough playable') ||
+              errorMsgLower.includes('no enough') ||
+              errorMsgLower.includes('available: 0.00') ||
+              (errorMsgLower.includes('cash') && errorMsgLower.includes('no enough'))) {
+            console.log(`⚠️ Account has no Fliff Cash available: ${errorMsg}`);
+            return { 
+              success: false, 
+              error: String(errorMsg || 'No Fliff Cash available'), 
+              noFliffCash: true, 
+              skipAccount: true 
+            };
+          }
+          
+          return { success: false, error: String(errorMsg || 'Unknown error') };
+        }
+        
+        // If we have a result field but no clear success/error indicators, log it for debugging
+        if (responseData.result && !responseData.result.status && !responseData.result.error && !responseData.result.id && !responseData.result.bet_id && !responseData.result.ticket_id) {
+          console.log(`⚠️ Response has result field but no clear status/error/id. Result keys: ${Object.keys(responseData.result).slice(0, 10).join(', ')}`);
+          console.log(`⚠️ Result content: ${JSON.stringify(responseData.result).substring(0, 500)}`);
+          
+          // Check if result has any error-like fields
+          const resultKeys = Object.keys(responseData.result);
+          const errorKeys = resultKeys.filter(k => k.toLowerCase().includes('error') || k.toLowerCase().includes('fail') || k.toLowerCase().includes('message'));
+          
+          if (errorKeys.length > 0) {
+            // Found error-like keys, extract the error message
+            const errorValue = responseData.result[errorKeys[0]];
+            let errorStr = '';
+            if (typeof errorValue === 'string') {
+              errorStr = errorValue;
+            } else if (typeof errorValue === 'object' && errorValue !== null) {
+              // Try to extract message from object
+              if (errorValue.message) {
+                errorStr = String(errorValue.message);
+              } else if (errorValue.error) {
+                errorStr = String(errorValue.error);
+              } else {
+                // Convert entire object to JSON string
+                errorStr = JSON.stringify(errorValue);
+              }
+            } else {
+              errorStr = String(errorValue);
+            }
+            
+            // Check for MARKET NOT AVAILABLE
+            const errorStrLower = errorStr.toLowerCase();
+            if (errorStrLower.includes('market not available')) {
+              console.log(`⚠️ Market not available: ${errorStr}`);
+              return { 
+                success: false, 
+                error: errorStr, 
+                marketNotAvailable: true, 
+                skipRetry: true 
+              };
+            }
+            
+            // Check for "no Fliff Cash" errors
+            if (errorStrLower.includes('balance error') ||
+                errorStrLower.includes('no enough playable') ||
+                errorStrLower.includes('no enough') ||
+                errorStrLower.includes('available: 0.00') ||
+                (errorStrLower.includes('cash') && errorStrLower.includes('no enough'))) {
+              console.log(`⚠️ Account has no Fliff Cash available: ${errorStr}`);
+              return { 
+                success: false, 
+                error: errorStr, 
+                noFliffCash: true, 
+                skipAccount: true 
+              };
+            }
+            
+            console.log(`⚠️ Found error in result: ${errorStr}`);
+            return { success: false, error: errorStr };
+          }
+          
+          // Check if result itself might be an error (if it's an object with error-like structure)
+          if (typeof responseData.result === 'object' && responseData.result !== null) {
+            // Check all values in result for error indicators
+            for (const [key, value] of Object.entries(responseData.result)) {
+              if (typeof value === 'string' && (value.toLowerCase().includes('error') || value.toLowerCase().includes('fail'))) {
+                console.log(`⚠️ Found error-like value in result.${key}: ${value}`);
+                return { success: false, error: String(value) };
+              }
+            }
+          }
+          
+          // Try to parse result as success if it exists and has no error
+          // BUT only if we haven't already detected an error above
+          if (responseData.result && !responseData.result.error && !responseData.result.message) {
+            // Double-check: make sure result doesn't have error_code indicating failure
+            if (!responseData.result.error_code || responseData.result.error_code < 30000) {
+              console.log(`✅ Assuming success - result exists with no error`);
+              return { success: true, response: responseData, status: 'success' };
+            }
+          }
+        }
+        
         // If no clear success/error, assume success if status is 200
-        return { success: true, response: responseData };
+        return { success: true, response: responseData, status: apiStatus || 'unknown' };
       } else {
         // HTTP error status
-        const errorMsg = responseData.message || responseData.error || response.statusText;
-        return { success: false, error: `API error (${response.status}): ${errorMsg}` };
+        let errorMsg = responseData.message || responseData.error || response.statusText;
+        if (errorMsg && typeof errorMsg !== 'string') {
+          errorMsg = typeof errorMsg === 'object' && errorMsg.message 
+            ? String(errorMsg.message) 
+            : String(errorMsg);
+        }
+        return { success: false, error: `API error (${response.status}): ${errorMsg || 'Unknown error'}` };
       }
       
     } catch (e) {
       console.error('❌ API betting error:', e.message);
-      return { success: false, error: e.message, method: 'api' };
+      return { success: false, error: String(e.message || 'Unknown error'), method: 'api' };
+    }
+  }
+
+  // =============================================
+  // PLACE BET API ONLY - No Puppeteer fallback (for lock and load)
+  // =============================================
+
+  async placeBetAPIOnly(selection, targetOdds, wager, coinType, param = null, market = null, oddId = null) {
+    // Always use cash - coinType parameter kept for compatibility but ignored
+    console.log(`\n💰 PLACING BET VIA API ONLY: ${selection} @ ${targetOdds} - $${wager} (Cash)`);
+    if (param) console.log(`   Param: ${param}`);
+    if (market) console.log(`   Market: ${market}`);
+    if (oddId) console.log(`   Odd ID: ${oddId}`);
+    
+    // Check prerequisites
+    if (!this.page) {
+      const error = 'Browser page not available';
+      console.error(`❌ ${error}`);
+      return { success: false, error };
+    }
+    
+    if (!this.browser) {
+      const error = 'Browser not available';
+      console.error(`❌ ${error}`);
+      return { success: false, error };
+    }
+    
+    // Check API status
+    const apiStatus = this.getBettingAPIStatus();
+    console.log(`📊 API Status: endpoint=${!!apiStatus.endpoint}, hasAuth=${apiStatus.hasAuth}, method=${apiStatus.method}`);
+    
+    // API ONLY - no fallback to Puppeteer
+    if (!this.bettingEndpoint || (!this.bearerToken && !this.authToken)) {
+      const error = this.bettingEndpoint 
+        ? 'Auth token not available. Please ensure you are logged in.'
+        : 'Betting API endpoint not captured yet. Place a bet manually in the browser first to capture it.';
+      console.error(`❌ ${error}`);
+      return { success: false, error };
+    }
+    
+    console.log('🚀 Placing bet via API (API-only mode, no Puppeteer fallback)...');
+    console.log(`   Endpoint: ${this.bettingEndpoint.substring(0, 80)}...`);
+    
+    try {
+      const apiResult = await this.placeBetViaAPI(selection, targetOdds, wager, 'cash', param, market, oddId);
+      
+      if (apiResult && apiResult.success) {
+        console.log('✅ Bet placed via API!');
+        if (apiResult.status) {
+          console.log(`   Status: ${apiResult.status}`);
+        }
+        return apiResult;
+      } else {
+        // API failed - return error (no Puppeteer fallback)
+        const errorMsg = apiResult && typeof apiResult.error === 'string' 
+          ? apiResult.error 
+          : (apiResult && apiResult.error && typeof apiResult.error === 'object' && apiResult.error.message)
+            ? apiResult.error.message
+            : apiResult && apiResult.error
+              ? JSON.stringify(apiResult.error)
+              : 'API bet failed - no fallback available';
+        console.error(`❌ API bet failed: ${errorMsg}`);
+        return apiResult || { success: false, error: errorMsg };
+      }
+    } catch (e) {
+      console.error(`❌ API bet error: ${e.message}`);
+      console.error(`   Stack: ${e.stack}`);
+      return { success: false, error: e.message };
     }
   }
 
@@ -1677,17 +2361,75 @@ class FliffClient {
     if (market) console.log(`   Market: ${market}`);
     if (oddId) console.log(`   Odd ID: ${oddId}`);
     
+    // Check prerequisites
+    if (!this.page) {
+      const error = 'Browser page not available';
+      console.error(`❌ ${error}`);
+      return { success: false, error };
+    }
+    
+    if (!this.browser) {
+      const error = 'Browser not available';
+      console.error(`❌ ${error}`);
+      return { success: false, error };
+    }
+    
+    // Check API status
+    const apiStatus = this.getBettingAPIStatus();
+    console.log(`📊 API Status: endpoint=${!!apiStatus.endpoint}, hasAuth=${apiStatus.hasAuth}, method=${apiStatus.method}`);
+    
     // Try API method first (much faster) - ALWAYS try if we have endpoint
     if (this.bettingEndpoint && (this.bearerToken || this.authToken)) {
       console.log('🚀 Attempting direct API bet (preferred method)...');
-      const apiResult = await this.placeBetViaAPI(selection, targetOdds, wager, 'cash', param, market, oddId);
+      console.log(`   Endpoint: ${this.bettingEndpoint.substring(0, 80)}...`);
+      let apiResult;
+      try {
+        apiResult = await this.placeBetViaAPI(selection, targetOdds, wager, 'cash', param, market, oddId);
+      } catch (e) {
+        console.error(`❌ API bet error: ${e.message}`);
+        console.error(`   Stack: ${e.stack}`);
+        apiResult = { success: false, error: e.message };
+      }
       
-      if (apiResult.success) {
+      if (apiResult && apiResult.success) {
         console.log('✅ Bet placed via API! (Fast method)');
+        if (apiResult.status) {
+          console.log(`   Status: ${apiResult.status}`);
+        }
         return apiResult;
       } else {
         // Log the error but still try Puppeteer as fallback
-        console.log(`⚠️ API bet failed: ${apiResult.error}`);
+        const errorMsg = apiResult && typeof apiResult.error === 'string' 
+          ? apiResult.error 
+          : (apiResult && apiResult.error && typeof apiResult.error === 'object' && apiResult.error.message)
+            ? apiResult.error.message
+            : apiResult && apiResult.error
+              ? JSON.stringify(apiResult.error)
+              : 'Unknown error';
+        console.log(`⚠️ API bet failed: ${errorMsg}`);
+        
+        // Don't fall back to Puppeteer if account has no Fliff Cash
+        if (apiResult && (apiResult.noFliffCash || apiResult.skipAccount)) {
+          console.log('   Account has no Fliff Cash - skipping (no fallback to Puppeteer)');
+          return apiResult;
+        }
+        
+        // Don't fall back to Puppeteer if market is not available
+        if (apiResult && apiResult.marketNotAvailable) {
+          console.log('   Market not available - skipping (no fallback to Puppeteer)');
+          return apiResult;
+        }
+        
+        // Don't fall back to Puppeteer if event is not available
+        if (apiResult && apiResult.eventNotAvailable) {
+          console.log('   Event not available - skipping (no fallback to Puppeteer)');
+          return apiResult;
+        }
+        
+        if (apiResult && apiResult.oddsChanged) {
+          console.log('   Odds changed - returning early');
+          return apiResult;
+        }
         console.log('   Falling back to Puppeteer method...');
       }
     } else {
@@ -2080,6 +2822,201 @@ class FliffClient {
     }
   }
 
+  // Place bet with reload during submission - for Lock & Load
+  async placeBetWithReload(selection, targetOdds, wager, coinType, param = null, market = null, oddId = null) {
+    console.log(`\n🔒 PLACING BET WITH RELOAD (Lock & Load): ${selection} @ ${targetOdds} - $${wager} (Cash)`);
+    if (param) console.log(`   Param: ${param}`);
+    if (market) console.log(`   Market: ${market}`);
+    if (oddId) console.log(`   Odd ID: ${oddId}`);
+    
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      // Step 1: Click on the bet
+      const clicked = await this.page.evaluate(async (sel, odds, param, market, oddId) => {
+        // Use the same matching logic as placeBet
+        const selLower = (sel || '').toLowerCase().trim();
+        const oddsStr = odds > 0 ? `+${odds}` : odds.toString();
+        const paramLower = (param || '').toLowerCase().trim();
+        
+        // Get all clickable elements
+        const selectors = [
+          'button', '[role="button"]',
+          '[class*="odds"]', '[class*="Odds"]',
+          '[class*="coeff"]', '[class*="Coeff"]',
+          '[class*="proposal"]', '[class*="Proposal"]',
+          '[data-proposal]', '[data-odd]', '[data-id]'
+        ];
+        
+        const allElements = [];
+        selectors.forEach(selector => {
+          try {
+            const found = document.querySelectorAll(selector);
+            allElements.push(...Array.from(found));
+          } catch (e) {}
+        });
+        
+        // Filter to visible elements
+        const elements = Array.from(allElements).filter(el => {
+          return el.offsetParent !== null && 
+                 el.offsetWidth > 0 && 
+                 el.offsetHeight > 0;
+        });
+        
+        // Find best match
+        let bestMatch = null;
+        let bestScore = 0;
+        
+        for (const el of elements) {
+          const text = (el.textContent || '').toLowerCase();
+          let score = 0;
+          
+          if (oddId && (el.id?.includes(oddId) || el.getAttribute('data-id') === oddId)) {
+            score += 200;
+          }
+          if (selLower && text.includes(selLower)) {
+            score += 50;
+          }
+          if (text.includes(oddsStr) || text.includes(odds.toString())) {
+            score += 30;
+          }
+          if (paramLower && text.includes(paramLower)) {
+            score += 20;
+          }
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = el;
+          }
+        }
+        
+        if (bestMatch && bestScore > 0) {
+          bestMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          await new Promise(r => setTimeout(r, 300));
+          bestMatch.click();
+          return { clicked: true };
+        }
+        
+        return { clicked: false, error: 'No matching element found' };
+      }, selection, targetOdds, param, market, oddId);
+      
+      if (!clicked.clicked) {
+        return { betPlaced: false, error: clicked.error || 'Could not find bet to click' };
+      }
+      
+      await this.page.waitForTimeout(800);
+      
+      // Step 2: Select cash type
+      await this.page.evaluate(() => {
+        const buttons = document.querySelectorAll('button, [role="button"]');
+        for (const btn of buttons) {
+          const text = (btn.textContent || '').toLowerCase();
+          if (text.includes('cash')) {
+            btn.click();
+            break;
+          }
+        }
+      });
+      
+      await this.page.waitForTimeout(300);
+      
+      // Step 3: Enter wager amount ($0.20)
+      await this.page.evaluate((amt) => {
+        const inputs = document.querySelectorAll('input');
+        for (const input of inputs) {
+          if (input.offsetParent !== null) {
+            input.value = '';
+            input.focus();
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            nativeInputValueSetter.call(input, amt.toString());
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+          }
+        }
+      }, wager);
+      
+      await this.page.waitForTimeout(500);
+      
+      // Step 4: Click SUBMIT and reload page simultaneously
+      console.log('🔄 Clicking submit and reloading page...');
+      const submitPromise = this.page.evaluate(() => {
+        const buttons = document.querySelectorAll('button, [role="button"], [type="submit"]');
+        for (const btn of buttons) {
+          const text = (btn.textContent || '').toLowerCase().trim();
+          if (text === 'submit' || text.includes('submit')) {
+            if (!btn.disabled && btn.offsetParent !== null) {
+              btn.click();
+              return true;
+            }
+          }
+        }
+        for (const btn of buttons) {
+          const text = (btn.textContent || '').toLowerCase();
+          if ((text.includes('place') || text.includes('bet')) && !btn.disabled) {
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      });
+      
+      // Reload page while submitting
+      const reloadPromise = this.page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
+      
+      // Wait for both to complete
+      const [submitClicked, reloadResult] = await Promise.all([submitPromise, reloadPromise]);
+      
+      if (!submitClicked) {
+        return { betPlaced: false, error: 'Could not find submit button' };
+      }
+      
+      console.log('✅ Bet submitted and page reloaded');
+      await this.page.waitForTimeout(2000); // Wait for page to fully load
+      
+      // Step 5: Check if odds changed after reload
+      const oddsCheck = await this.getCurrentOddsAfterRefresh(selection, targetOdds, param, market, oddId);
+      
+      if (!oddsCheck.found) {
+        return { 
+          betPlaced: true, 
+          pageReloaded: true, 
+          oddsChanged: true, 
+          currentOdds: null,
+          error: oddsCheck.error || 'Could not verify odds after reload' 
+        };
+      }
+      
+      const currentOdds = oddsCheck.currentOdds;
+      if (currentOdds === null || currentOdds === undefined) {
+        return { 
+          betPlaced: true, 
+          pageReloaded: true, 
+          oddsChanged: true, 
+          currentOdds: null,
+          error: 'Could not extract odds from page' 
+        };
+      }
+      
+      // Compare odds - allow small floating point differences (0.5)
+      const oddsChanged = Math.abs(currentOdds - targetOdds) > 0.5;
+      
+      console.log(`📊 Odds check: target=${targetOdds}, current=${currentOdds}, changed=${oddsChanged}`);
+      
+      return {
+        betPlaced: true,
+        pageReloaded: true,
+        oddsChanged: oddsChanged,
+        currentOdds: currentOdds,
+        targetOdds: targetOdds
+      };
+      
+    } catch (e) {
+      console.error('❌ Place bet with reload error:', e.message);
+      return { betPlaced: false, error: e.message };
+    }
+  }
+
   // Reload page - used to lock odds after placing coin bet
   async reloadPage() {
     if (!this.page) throw new Error('Browser not connected');
@@ -2101,68 +3038,177 @@ class FliffClient {
     if (!this.page) throw new Error('Browser not connected');
     
     try {
-      await this.page.waitForTimeout(1000); // Wait for page to fully render
+      // Wait longer for page to fully render after refresh
+      await this.page.waitForTimeout(3000);
       
-      const result = await this.page.evaluate((sel, odds, param, market, oddId) => {
-        // Try to find the element by oddId first (most reliable)
-        let foundElement = null;
-        
-        if (oddId) {
-          const idSelectors = [
-            `[data-id="${oddId}"]`,
-            `[data-proposal="${oddId}"]`,
-            `[data-odd-id="${oddId}"]`,
-            `[data-proposal-fkey="${oddId}"]`
-          ];
+      // Try multiple times with different strategies
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const result = await this.page.evaluate((sel, odds, param, market, oddId, attemptNum) => {
+          // Strategy 1: Try to find by oddId first (most reliable)
+          let foundElement = null;
           
-          for (const selector of idSelectors) {
-            try {
-              const el = document.querySelector(selector);
-              if (el && el.offsetParent !== null) {
+          if (oddId) {
+            const idSelectors = [
+              `[data-id="${oddId}"]`,
+              `[data-proposal="${oddId}"]`,
+              `[data-odd-id="${oddId}"]`,
+              `[data-proposal-fkey="${oddId}"]`,
+              `[data-id*="${oddId}"]`,
+              `[data-proposal*="${oddId}"]`
+            ];
+            
+            for (const selector of idSelectors) {
+              try {
+                const el = document.querySelector(selector);
+                if (el && el.offsetParent !== null) {
+                  foundElement = el;
+                  break;
+                }
+              } catch (e) {}
+            }
+          }
+          
+          // Strategy 2: Search by selection text with odds (STRICT MATCHING)
+          if (!foundElement) {
+            const selLower = (sel || '').toLowerCase().trim();
+            const oddsStr = odds > 0 ? `+${odds}` : odds.toString();
+            const oddsStrAlt = odds.toString(); // Also check without + sign
+            
+            // Try multiple selectors
+            const selectors = [
+              '[class*="odds"]',
+              '[class*="coeff"]',
+              '[class*="proposal"]',
+              '[class*="bet"]',
+              'button',
+              '[role="button"]',
+              '[class*="line"]',
+              '[class*="pick"]'
+            ];
+            
+            for (const baseSelector of selectors) {
+              try {
+                const allElements = document.querySelectorAll(baseSelector);
+                for (const el of Array.from(allElements)) {
+                  if (el.offsetParent === null) continue;
+                  const text = (el.textContent || '').toLowerCase().trim();
+                  
+                  // STRICT: Must contain BOTH selection text AND odds
+                  // For selection, require significant match (not just a single word)
+                  const hasSelection = selLower && (
+                    text === selLower || // Exact match
+                    text.includes(selLower) || // Contains full selection
+                    (selLower.length > 10 && text.includes(selLower.substring(0, Math.min(15, selLower.length)))) // First part for long selections
+                  );
+                  
+                  // For odds, require exact match (with or without +)
+                  const hasOdds = text.includes(oddsStr) || text.includes(oddsStrAlt);
+                  
+                  // Both must match
+                  if (hasSelection && hasOdds) {
+                    // Additional verification: check if param matches (for totals/spreads)
+                    if (param) {
+                      const paramStr = param.toString();
+                      if (!text.includes(paramStr)) {
+                        continue; // Skip if param doesn't match
+                      }
+                    }
+                    foundElement = el;
+                    break;
+                  }
+                }
+                if (foundElement) break;
+              } catch (e) {}
+            }
+          }
+          
+          // Strategy 3: Search by param (for totals/spreads)
+          if (!foundElement && param) {
+            const paramStr = param.toString();
+            const allElements = document.querySelectorAll('button, [role="button"], [class*="odds"], [class*="coeff"]');
+            
+            for (const el of Array.from(allElements)) {
+              if (el.offsetParent === null) continue;
+              const text = (el.textContent || '').toLowerCase();
+              
+              // Check if it contains param and odds
+              if (text.includes(paramStr) && (text.includes(odds > 0 ? `+${odds}` : odds.toString()))) {
                 foundElement = el;
                 break;
               }
-            } catch (e) {}
-          }
-        }
-        
-        // If not found by ID, search by text
-        if (!foundElement) {
-          const selLower = (sel || '').toLowerCase();
-          const allElements = document.querySelectorAll('[class*="odds"], [class*="coeff"], [class*="proposal"], button, [role="button"]');
-          
-          for (const el of Array.from(allElements)) {
-            if (el.offsetParent === null) continue;
-            const text = (el.textContent || '').toLowerCase();
-            if (text.includes(selLower)) {
-              foundElement = el;
-              break;
             }
           }
+          
+          // Strategy 4: Last resort - find by odds AND selection (never use odds alone)
+          if (!foundElement && sel) {
+            const selLower = (sel || '').toLowerCase().trim();
+            const oddsStr = odds > 0 ? `+${odds}` : odds.toString();
+            const allElements = document.querySelectorAll('[class*="odds"], [class*="coeff"], button, [role="button"]');
+            
+            for (const el of Array.from(allElements)) {
+              if (el.offsetParent === null) continue;
+              const text = (el.textContent || '').toLowerCase().trim();
+              
+              // MUST have both selection AND odds - never match on odds alone
+              const hasSelection = selLower && text.includes(selLower);
+              const hasOdds = text.includes(oddsStr) || text.includes(odds.toString());
+              
+              if (hasSelection && hasOdds) {
+                // Check if it's in the right market context
+                let parent = el.parentElement;
+                let contextText = '';
+                for (let i = 0; i < 5 && parent; i++) {
+                  contextText = (parent.textContent || '').toLowerCase() + ' ' + contextText;
+                  parent = parent.parentElement;
+                }
+                
+                // If market is specified, check context
+                if (!market || contextText.includes(market.toLowerCase()) || contextText.includes(selLower)) {
+                  foundElement = el;
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (!foundElement) {
+            return { found: false, error: 'Element not found', attempt: attemptNum };
+          }
+          
+          const text = foundElement.textContent || '';
+          // Extract odds from text - try multiple patterns
+          let oddsMatch = text.match(/([+-]?\d+)/);
+          if (!oddsMatch) {
+            // Try decimal odds format
+            oddsMatch = text.match(/(\d+\.\d+)/);
+          }
+          const currentOdds = oddsMatch ? parseFloat(oddsMatch[1]) : null;
+          
+          // Extract selection text
+          const selectionText = text.trim().substring(0, 100);
+          
+          return {
+            found: true,
+            currentOdds: currentOdds,
+            currentSelection: selectionText,
+            originalOdds: odds,
+            originalSelection: sel,
+            attempt: attemptNum
+          };
+        }, selection, targetOdds, param, market, oddId, attempt);
+        
+        if (result.found) {
+          return result;
         }
         
-        if (!foundElement) {
-          return { found: false, error: 'Element not found' };
+        // Wait a bit more before next attempt
+        if (attempt < 2) {
+          await this.page.waitForTimeout(1000);
         }
-        
-        const text = foundElement.textContent || '';
-        // Extract odds from text
-        const oddsMatch = text.match(/([+-]?\d+)/);
-        const currentOdds = oddsMatch ? parseInt(oddsMatch[1]) : null;
-        
-        // Extract selection text
-        const selectionText = text.trim().substring(0, 100);
-        
-        return {
-          found: true,
-          currentOdds: currentOdds,
-          currentSelection: selectionText,
-          originalOdds: odds,
-          originalSelection: sel
-        };
-      }, selection, targetOdds, param, market, oddId);
+      }
       
-      return result;
+      // If all attempts failed, return not found
+      return { found: false, error: 'Element not found after multiple attempts' };
     } catch (e) {
       console.error('❌ Error getting current odds:', e.message);
       return { found: false, error: e.message };

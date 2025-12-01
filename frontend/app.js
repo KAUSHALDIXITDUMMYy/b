@@ -10,6 +10,7 @@ let ws = null;
 let games = {};
 let selectedGame = null;
 let gameOdds = {};
+let lockedLines = new Set(); // Track locked lines (format: "gameId_oddId")
 
 // Betting Settings
 let wagerAmount = 100; // Default $100 for betting
@@ -231,7 +232,17 @@ async function loadGameOdds(gameId) {
 // =============================================
 
 // Helper function to generate bet buttons HTML
-function getBetButtonsHTML(oddId) {
+function getBetButtonsHTML(oddId, isLocked = false) {
+  if (isLocked) {
+    // Show "Ready to Bet" when locked
+    return `
+      <div class="d-flex gap-1 mt-2" style="gap: 4px;">
+        <button class="btn btn-sm btn-success flex-fill locked-ready-btn" onclick="placeBet('${oddId}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600; animation: pulse-glow 2s infinite;">
+          ✅ Ready to Bet
+        </button>
+      </div>
+    `;
+  }
   return `
     <div class="d-flex gap-1 mt-2" style="gap: 4px;">
       <button class="btn btn-sm btn-warning flex-fill" onclick="lockAndLoad('${oddId}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600;">
@@ -263,7 +274,8 @@ async function lockAndLoad(oddId) {
   }
   
   isPrefiring = true;
-  showPrefireStatus(`🔒 LOCK & LOAD: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → $0.20 (Cash)`);
+  // Show immediate feedback (optimistic UI)
+  showPrefireStatus(`🚀 LOCK & LOAD: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → $0.20 (Fast mode)...`);
   
   const betData = {
     gameId: selectedGame.id,
@@ -276,48 +288,61 @@ async function lockAndLoad(oddId) {
   };
   
   try {
+    // Use AbortController for timeout (3 second max)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
     const response = await fetch(`${API_URL}/api/lock-and-load`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(betData)
+      body: JSON.stringify(betData),
+      signal: controller.signal
     });
     
+    clearTimeout(timeoutId);
     const result = await response.json();
     
-    // Check if bet was placed (regardless of odds verification)
-    if (result.betPlaced) {
-      // Only show "Locked & Loaded" if odds are actually verified as locked
-      if (result.oddsLocked) {
-        const statusMsg = `✅ LOCKED & LOADED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - $0.20 bet placed, odds verified locked!`;
-        showPrefireStatus(statusMsg);
-        
-        const toastMsg = `🔒 LOCKED & LOADED!<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ $0.20 bet placed<br>✅ Page refreshed<br>✅ Odds verified locked - Ready to place bet!`;
-        showToast(toastMsg, 'lock', 6000);
-      } else if (result.oddsChanged) {
-        const statusMsg = `⚠️ ODDS CHANGED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → ${result.currentOdds !== null ? (result.currentOdds > 0 ? '+' : '') + result.currentOdds : 'N/A'}`;
-        showPrefireStatus(statusMsg);
-        
-        const toastMsg = `⚠️ ODDS CHANGED<br><strong>${odd.selection}</strong><br>Expected: @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>Found: @ ${result.currentOdds !== null ? (result.currentOdds > 0 ? '+' : '') + result.currentOdds : 'N/A'}<br>Odds moved after refresh`;
-        showToast(toastMsg, 'warning', 6000);
-      } else {
-        const statusMsg = `✅ BET PLACED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - $0.20 bet placed, verifying odds...`;
-        showPrefireStatus(statusMsg);
-        
-        const toastMsg = `✅ BET PLACED<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ $0.20 bet placed<br>⏳ Verifying odds...`;
-        showToast(toastMsg, 'info', 4000);
-      }
+    // Immediately update UI based on result (no delays)
+    if (result.betPlaced && result.oddsLocked) {
+      // Mark this line as locked
+      const lockKey = `${selectedGame.id}_${oddId}`;
+      lockedLines.add(lockKey);
       
-      setTimeout(hidePrefireStatus, 4000);
+      const statusMsg = `✅ ARMED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - Ready to bet!`;
+      showPrefireStatus(statusMsg);
+      
+      const toastMsg = `🔒 ARMED!<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ $0.20 bet placed<br>✅ Odds locked - Ready to place bet!`;
+      showToast(toastMsg, 'lock', 3000);
+      
+      // Re-render odds immediately to remove locked line
+      renderOdds();
+      
+      setTimeout(hidePrefireStatus, 2000);
+    } else if (result.betPlaced) {
+      // Bet placed but odds not locked
+      const statusMsg = `⚠️ BET PLACED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - Odds may have changed`;
+      showPrefireStatus(statusMsg);
+      showToast(`⚠️ Bet placed but odds may have changed`, 'warning', 2000);
+      setTimeout(hidePrefireStatus, 2000);
     } else {
-      showPrefireStatus(`❌ ${result.error || 'Lock & Load failed'}`);
-      showToast(`❌ Lock & Load Failed: ${result.error || 'Unknown error'}`, 'error', 4000);
-      setTimeout(hidePrefireStatus, 3000);
+      // Bet failed
+      const errorMsg = result.error || 'Lock & Load failed';
+      showPrefireStatus(`❌ ${errorMsg}`);
+      showToast(`❌ ${errorMsg}`, 'error', 2000);
+      setTimeout(hidePrefireStatus, 2000);
     }
   } catch (error) {
-    console.error('Lock & Load error:', error);
-    showPrefireStatus('❌ Error connecting to server');
-    showToast(`❌ Connection Error: ${error.message || 'Failed to connect to server'}`, 'error', 4000);
-    setTimeout(hidePrefireStatus, 3000);
+    if (error.name === 'AbortError') {
+      showPrefireStatus('⏱️ Request timeout - checking status...');
+      showToast('⏱️ Request taking longer than expected', 'warning', 2000);
+    } else {
+      console.error('Lock & Load error:', error);
+      showPrefireStatus('❌ Connection error');
+      showToast(`❌ ${error.message || 'Connection failed'}`, 'error', 2000);
+    }
+    setTimeout(hidePrefireStatus, 2000);
+  } finally {
+    isPrefiring = false;
   }
   
   isPrefiring = false;
@@ -783,14 +808,14 @@ function getSubsectionOrder(subsection) {
   return order[subsection] || 999;
 }
 
-// Get type display order - Match Fliff order from screenshot
+// Get type display order - User requested order
 function getTypeOrder(type) {
   const order = {
-    'Moneyline': 1,  // First in Fliff
-    'Point Spread': 2,  // Second in Fliff
-    'Total Score': 3,  // Third in Fliff
-    'Alternative Point Spread': 4,  // Fourth in Fliff (changed name)
-    'Alternative Total Score': 5,  // Fifth in Fliff
+    'Moneyline': 1,  // First
+    'Point Spread': 2,  // Second
+    'Alternative Point Spread': 3,  // Third
+    'Total Score': 4,  // Fourth (Total)
+    'Alternative Total Score': 5,  // Fifth (Alternative Total)
     '3-Way Moneyline': 6,
     'Totals': 7,
     'Alternative Totals': 8,
@@ -815,9 +840,78 @@ function renderOdds() {
   
   // Ensure we're using the correct game ID
   const odds = gameOdds[gameId] || {};
-  const oddsList = Object.values(odds);
+  const allOddsList = Object.values(odds);
   
-  console.log(`📈 Found ${oddsList.length} odds for game ${gameId}`);
+  // Filter out ghost lines (but show locked lines with special styling)
+  // Ghost lines are typically:
+  // 1. Odds that don't match the current game (wrong gameId)
+  // 2. Odds without verified game info
+  // 3. Odds with malformed IDs
+  // 4. Odds missing required fields
+  // Locked lines are shown with special animation/indicator
+  const oddsList = allOddsList.filter(odd => {
+    // Don't filter out locked lines - show them with animation instead
+    const lockKey = `${gameId}_${odd.id}`;
+    if (lockedLines.has(lockKey)) {
+      odd._isLocked = true; // Mark as locked for rendering
+    }
+    // CRITICAL: Must match the current game
+    if (odd.gameId && parseInt(odd.gameId) !== gameId) {
+      return false; // Filter out odds from wrong game (ghost lines)
+    }
+    
+    // Must have verified game info (backend verified it belongs to this game)
+    if (!odd.verifiedGame && !odd.gameId) {
+      return false; // Filter out unverified odds
+    }
+    
+    const oddId = odd.id || '';
+    const oddIdStr = String(oddId);
+    
+    // Must have a valid ID
+    if (!oddId || oddIdStr.length < 5) {
+      return false; // Filter out odds with invalid/missing IDs
+    }
+    
+    // Check for valid proposal_fkey format patterns:
+    // Valid formats: "123456_p_399_inplay", "123456_p_399_prematch", "123456_p_602_universal"
+    // Ghost lines often have incomplete or malformed IDs
+    
+    // Pattern 1: Standard format with underscore separators
+    const hasStandardFormat = /^\d+_p_\d+_(inplay|prematch|universal)$/.test(oddIdStr);
+    
+    // Pattern 2: Alternative format (just numbers and underscores)
+    const hasAltFormat = /^\d+_/.test(oddIdStr) && oddIdStr.split('_').length >= 2;
+    
+    // Pattern 3: Simple numeric ID (less common but valid)
+    const isNumericOnly = /^\d+$/.test(oddIdStr);
+    
+    // Must have valid format OR be a simple numeric ID
+    if (!hasStandardFormat && !hasAltFormat && !isNumericOnly) {
+      return false; // Filter out malformed IDs (ghost lines)
+    }
+    
+    // Must have required fields for placing bets
+    if (!odd.selection || odd.odds === undefined || odd.odds === null) {
+      return false; // Filter out odds missing required data
+    }
+    
+    // Filter out odds with suspicious channel patterns (channel 461 with multiple games often has ghost lines)
+    // If channel is 461 and gameId doesn't match, it's likely a ghost line
+    if (odd.channelId === 461 && odd.gameId && parseInt(odd.gameId) !== gameId) {
+      return false; // Filter out channel 461 ghost lines
+    }
+    
+    // Keep odds that pass all checks
+    return true;
+  });
+  
+  const filteredCount = allOddsList.length - oddsList.length;
+  if (filteredCount > 0) {
+    console.log(`🧹 Filtered out ${filteredCount} ghost line(s) for game ${gameId}`);
+  }
+  
+  console.log(`📈 Found ${oddsList.length} placeable odds for game ${gameId} (${allOddsList.length} total)`);
   
   // Debug: Check if odds belong to this game
   if (oddsList.length > 0) {
@@ -1063,10 +1157,16 @@ function renderOdds() {
                 : '';
               const tooltip = `Market: ${over.market || 'N/A'}\nSelection: ${over.selection || 'N/A'}\nParam: ${over.param || 'N/A'}\nEvent: ${over.event || 'N/A'}\nID: ${over.id}`;
               const oddClass = over.odds > 0 ? 'text-success' : 'text-danger';
+              const isLocked = over._isLocked || false;
+              const lockKey = `${gameId}_${over.id}`;
+              const isLockedCheck = lockedLines.has(lockKey);
+              const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               
               html += `
                 <div class="flex-fill">
-                  <div class="card h-100 odd-card" style="border-color: var(--border);">
+                  <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                    ${lockedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">OVER</small>
@@ -1077,14 +1177,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${over.odds > 0 ? '+' : ''}${over.odds}
                       </div>
-                      <div class="d-flex gap-1 mt-2" style="gap: 4px;">
-                        <button class="btn btn-sm btn-warning flex-fill" onclick="lockAndLoad('${over.id}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600;">
-                          🔒 Lock & Load
-                        </button>
-                        <button class="btn btn-sm btn-success flex-fill" onclick="placeBet('${over.id}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600;">
-                          💰 Place Bet
-                        </button>
-                      </div>
+                      ${getBetButtonsHTML(over.id, isLockedCheck)}
                     </div>
                   </div>
                 </div>
@@ -1100,10 +1193,16 @@ function renderOdds() {
                 : '';
               const tooltip = `Market: ${under.market || 'N/A'}\nSelection: ${under.selection || 'N/A'}\nParam: ${under.param || 'N/A'}\nEvent: ${under.event || 'N/A'}\nID: ${under.id}`;
               const oddClass = under.odds > 0 ? 'text-success' : 'text-danger';
+              const isLocked = under._isLocked || false;
+              const lockKey = `${gameId}_${under.id}`;
+              const isLockedCheck = lockedLines.has(lockKey);
+              const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               
               html += `
                 <div class="flex-fill">
-                  <div class="card h-100 odd-card" style="border-color: var(--border);">
+                  <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                    ${lockedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">UNDER</small>
@@ -1114,14 +1213,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${under.odds > 0 ? '+' : ''}${under.odds}
                       </div>
-                      <div class="d-flex gap-1 mt-2" style="gap: 4px;">
-                        <button class="btn btn-sm btn-warning flex-fill" onclick="lockAndLoad('${under.id}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600;">
-                          🔒 Lock & Load
-                        </button>
-                        <button class="btn btn-sm btn-success flex-fill" onclick="placeBet('${under.id}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600;">
-                          💰 Place Bet
-                        </button>
-                      </div>
+                      ${getBetButtonsHTML(under.id, isLockedCheck)}
                     </div>
                   </div>
                 </div>
@@ -1168,10 +1260,15 @@ function renderOdds() {
                 : '';
               const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
               const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+              const lockKey = `${gameId}_${odd.id}`;
+              const isLockedCheck = lockedLines.has(lockKey);
+              const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               
               html += `
                 <div class="col-6">
-                  <div class="card h-100 odd-card">
+                  <div class="card h-100 odd-card ${lockedClass}">
+                    ${lockedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
@@ -1182,7 +1279,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${odd.odds > 0 ? '+' : ''}${odd.odds}
                       </div>
-                      ${getBetButtonsHTML(odd.id)}
+                      ${getBetButtonsHTML(odd.id, isLockedCheck)}
                     </div>
                   </div>
                 </div>
@@ -1244,10 +1341,15 @@ function renderOdds() {
                   : '';
                 const tooltip = `Market: ${positive.market || 'N/A'}\nSelection: ${positive.selection || 'N/A'}\nParam: ${positive.param || 'N/A'}\nEvent: ${positive.event || 'N/A'}\nID: ${positive.id}`;
                 const oddClass = positive.odds > 0 ? 'text-success' : 'text-danger';
+                const lockKey = `${gameId}_${positive.id}`;
+                const isLockedCheck = lockedLines.has(lockKey);
+                const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+                const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
                 
                 html += `
                   <div class="flex-fill">
-                    <div class="card h-100 odd-card" style="border-color: var(--border);">
+                    <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                      ${lockedBadge}
                       <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                           <small style="font-size: 0.75rem; font-weight: 600; color: white;">${positive.market || 'Line'}</small>
@@ -1258,7 +1360,7 @@ function renderOdds() {
                         <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                           ${positive.odds > 0 ? '+' : ''}${positive.odds}
                         </div>
-                        ${getBetButtonsHTML(positive.id)}
+                        ${getBetButtonsHTML(positive.id, isLockedCheck)}
                       </div>
                     </div>
                   </div>
@@ -1274,10 +1376,15 @@ function renderOdds() {
                   : '';
                 const tooltip = `Market: ${negative.market || 'N/A'}\nSelection: ${negative.selection || 'N/A'}\nParam: ${negative.param || 'N/A'}\nEvent: ${negative.event || 'N/A'}\nID: ${negative.id}`;
                 const oddClass = negative.odds > 0 ? 'text-success' : 'text-danger';
+                const lockKey = `${gameId}_${negative.id}`;
+                const isLockedCheck = lockedLines.has(lockKey);
+                const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+                const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
                 
                 html += `
                   <div class="flex-fill">
-                    <div class="card h-100 odd-card" style="border-color: var(--border);">
+                    <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                      ${lockedBadge}
                       <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                           <small style="font-size: 0.75rem; font-weight: 600; color: white;">${negative.market || 'Line'}</small>
@@ -1288,7 +1395,7 @@ function renderOdds() {
                         <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                           ${negative.odds > 0 ? '+' : ''}${negative.odds}
                         </div>
-                        ${getBetButtonsHTML(negative.id)}
+                        ${getBetButtonsHTML(negative.id, isLockedCheck)}
                       </div>
                     </div>
                   </div>
@@ -1332,10 +1439,15 @@ function renderOdds() {
                   : '';
                 const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
                 const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+                const lockKey = `${gameId}_${odd.id}`;
+                const isLockedCheck = lockedLines.has(lockKey);
+                const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+                const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
                 
                 html += `
                   <div class="col-6">
-                    <div class="card h-100 odd-card">
+                    <div class="card h-100 odd-card ${lockedClass}">
+                      ${lockedBadge}
                       <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                           <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
@@ -1346,7 +1458,7 @@ function renderOdds() {
                         <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                           ${odd.odds > 0 ? '+' : ''}${odd.odds}
                         </div>
-                        ${getBetButtonsHTML(odd.id)}
+                        ${getBetButtonsHTML(odd.id, isLockedCheck)}
                       </div>
                     </div>
                   </div>
@@ -1368,10 +1480,15 @@ function renderOdds() {
               
               const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
               const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+              const lockKey = `${gameId}_${odd.id}`;
+              const isLockedCheck = lockedLines.has(lockKey);
+              const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+              const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               
               html += `
                 <div class="col-6">
-                  <div class="card h-100 odd-card">
+                  <div class="card h-100 odd-card ${lockedClass}">
+                    ${lockedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
@@ -1382,7 +1499,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
                         ${odd.odds > 0 ? '+' : ''}${odd.odds}
                       </div>
-                      ${getBetButtonsHTML(odd.id)}
+                      ${getBetButtonsHTML(odd.id, isLockedCheck)}
                     </div>
                   </div>
                 </div>

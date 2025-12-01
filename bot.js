@@ -27,7 +27,7 @@ class FliffBot {
 
   loadSettings() {
     try {
-      return JSON.parse(fs.readFileSync(path.join(__dirname, 'ray', 'settings.json'), 'utf8'));
+      return JSON.parse(fs.readFileSync(path.join(__dirname, 'profiles', 'ray', 'settings.json'), 'utf8'));
     } catch {
       return { proxy: 'Yd0IwkF5:wWXhE4@156.228.210.149:6666', name: 'Default' };
     }
@@ -617,7 +617,7 @@ class FliffBot {
 
     try {
       const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-      const browserDataPath = path.join(__dirname, 'ray', 'browser_data');
+      const browserDataPath = path.join(__dirname, 'profiles', 'ray', 'browser_data');
 
       console.log('\n🚀 Launching browser...');
       

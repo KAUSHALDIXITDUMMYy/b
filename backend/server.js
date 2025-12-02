@@ -1016,6 +1016,7 @@ app.post('/api/lock-and-load', async (req, res) => {
     const allOddsLocked = results.every(r => r.oddsLocked);
     const anyOddsChanged = results.some(r => r.oddsChanged);
     const allProfilesSuccess = results.every(r => r.success);
+    const anyMarketNotAvailable = results.some(r => r.marketNotAvailable);
     
     // Log results for each profile
     results.forEach(r => {
@@ -1069,7 +1070,10 @@ app.post('/api/lock-and-load', async (req, res) => {
     const allLocked = (allOddsLocked && !anyOddsChanged) || (allBetsPlaced && allProfilesSuccess);
     
     let message;
-    if (allLocked) {
+    if (anyMarketNotAvailable) {
+      // Market not available - highest priority message
+      message = `⚠️ Market Not Available: ${finalSelection} @ ${finalOdds} - This market is no longer available for betting`;
+    } else if (allLocked) {
       const successCount = results.filter(r => r.betPlaced && r.success).length;
       message = `🔒 ARMED (${successCount}/${fliffClients.size} profiles): ${finalSelection} @ ${finalOdds} - Odds locked, ready to place bet!`;
     } else if (anyOddsChanged) {
@@ -1112,16 +1116,19 @@ app.post('/api/lock-and-load', async (req, res) => {
     return res.json({ 
       success: allLocked, // Only true if ALL profiles' odds are locked
       armed: allLocked, // ARMED status - ready to place bet
-      message: allLocked 
-        ? `🔒 ARMED! All ${fliffClients.size} profile(s) verified locked at ${finalOdds}. Ready to place bet!`
-        : anyOddsChanged
-          ? `❌ Lock & Load Failed. Odds changed on some profiles. Expected ${finalOdds}, but odds may have moved.`
-          : allBetsPlaced
-            ? `Bet placed on all profiles but could not verify if all odds are locked.`
-            : `Some profiles failed to place bet.`,
+      message: anyMarketNotAvailable
+        ? `⚠️ Market Not Available: This market is no longer available for betting`
+        : allLocked 
+          ? `🔒 ARMED! All ${fliffClients.size} profile(s) verified locked at ${finalOdds}. Ready to place bet!`
+          : anyOddsChanged
+            ? `❌ Lock & Load Failed. Odds changed on some profiles. Expected ${finalOdds}, but odds may have moved.`
+            : allBetsPlaced
+              ? `Bet placed on all profiles but could not verify if all odds are locked.`
+              : `Some profiles failed to place bet.`,
       betPlaced: allBetsPlaced,
       allOddsLocked: allLocked,
       anyOddsChanged: anyOddsChanged,
+      marketNotAvailable: anyMarketNotAvailable, // Add market availability flag
       lockedOdds: allLocked ? finalOdds : null,
       profileResults: results
     });

@@ -12,6 +12,7 @@ let selectedGame = null;
 let gameOdds = {};
 let lockedLines = new Set(); // Track locked lines (format: "gameId_oddId")
 let unavailableMarkets = new Set(); // Track unavailable markets (format: "gameId_oddId")
+let hideUnavailableMarkets = true; // Filter to hide unavailable markets by default
 
 // Betting Settings
 let wagerAmount = 100; // Default $100 for betting
@@ -29,10 +30,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function loadSettings() {
   const savedWager = localStorage.getItem('fliff_wager');
+  const isCustom = localStorage.getItem('fliff_wager_custom') === 'true';
   
   if (savedWager) {
     wagerAmount = parseFloat(savedWager);
-    document.getElementById('wager-amount').value = savedWager;
+    if (isCustom) {
+      // Check if saved value is not in the standard options
+      const standardValues = ['0.20', '0.50', '1', '2', '5', '10', '25', '50', '100', '200', '250', '500'];
+      if (!standardValues.includes(savedWager)) {
+        document.getElementById('wager-amount').value = 'custom';
+        document.getElementById('custom-wager').value = savedWager;
+        document.getElementById('custom-wager').style.display = 'inline-block';
+      } else {
+        document.getElementById('wager-amount').value = savedWager;
+      }
+    } else {
+      document.getElementById('wager-amount').value = savedWager;
+    }
   }
   
   updateDisplays();
@@ -42,10 +56,53 @@ function loadSettings() {
 // SETTINGS CONTROLS
 // =============================================
 
-function setWager(value) {
+function handleWagerChange(value) {
+  const customInput = document.getElementById('custom-wager');
+  
+  if (value === 'custom') {
+    // Show custom input
+    customInput.style.display = 'inline-block';
+    customInput.focus();
+    // If there's a saved custom value, use it
+    const savedWager = localStorage.getItem('fliff_wager');
+    if (savedWager && localStorage.getItem('fliff_wager_custom') === 'true') {
+      customInput.value = savedWager;
+      wagerAmount = parseFloat(savedWager);
+    }
+  } else {
+    // Hide custom input and set standard value
+    customInput.style.display = 'none';
+    setWager(value, false);
+  }
+}
+
+function setCustomWager(value) {
+  const amount = parseFloat(value);
+  if (amount && amount > 0) {
+    setWager(amount.toString(), true);
+  }
+}
+
+function setWager(value, isCustom = false) {
   wagerAmount = parseFloat(value);
   localStorage.setItem('fliff_wager', value);
+  if (isCustom) {
+    localStorage.setItem('fliff_wager_custom', 'true');
+  } else {
+    localStorage.setItem('fliff_wager_custom', 'false');
+  }
   updateDisplays();
+}
+
+// Toggle filter for unavailable markets
+function toggleUnavailableFilter() {
+  const checkbox = document.getElementById('hide-unavailable');
+  hideUnavailableMarkets = checkbox ? checkbox.checked : true;
+  console.log(`🔍 Hide unavailable markets: ${hideUnavailableMarkets ? 'ON' : 'OFF'}`);
+  // Re-render odds to apply filter
+  if (selectedGame) {
+    renderOdds();
+  }
 }
 
 function updateDisplays() {
@@ -285,6 +342,14 @@ async function lockAndLoad(oddId) {
     return;
   }
   
+  // Check if market is already marked as unavailable
+  const marketKey = `${selectedGame.id}_${oddId}`;
+  if (unavailableMarkets.has(marketKey)) {
+    showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
+    showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
+    return;
+  }
+  
   isPrefiring = true;
   // Show immediate feedback (optimistic UI)
   showPrefireStatus(`🚀 LOCK & LOAD: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → $0.20 (Fast mode)...`);
@@ -315,21 +380,32 @@ async function lockAndLoad(oddId) {
     const result = await response.json();
     
     // Immediately update UI based on result (no delays)
-    if (result.betPlaced && result.oddsLocked) {
-      // Mark this line as locked
+    // Check for market not available first
+    if (result.marketNotAvailable) {
+      const marketKey = `${selectedGame.id}_${oddId}`;
+      unavailableMarkets.add(marketKey);
+      showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
+      showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
+      renderOdds();
+      setTimeout(hidePrefireStatus, 2000);
+    } else if (result.armed || (result.success && result.allOddsLocked)) {
+      // Lock & Load successful and ARMED - mark this line as locked
       const lockKey = `${selectedGame.id}_${oddId}`;
       lockedLines.add(lockKey);
       
       const statusMsg = `✅ ARMED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - Ready to bet!`;
       showPrefireStatus(statusMsg);
       
-      const toastMsg = `🔒 ARMED!<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>✅ $0.20 bet placed<br>✅ Odds locked - Ready to place bet!`;
-      showToast(toastMsg, 'lock', 3000);
+      // Show clear success popup with proper message
+      const profileCount = result.profileResults ? result.profileResults.length : 0;
+      const successCount = result.profileResults ? result.profileResults.filter(r => r.success && r.oddsLocked).length : 0;
+      const toastMsg = `🔒 LOCK & LOAD SUCCESSFUL!<br><br><strong>${odd.selection}</strong><br>@ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br><br>✅ $0.20 bet placed on ${successCount}/${profileCount} profile(s)<br>✅ Odds locked and verified<br>✅ Ready to place your bet!`;
+      showToast(toastMsg, 'lock', 5000);
       
-      // Re-render odds immediately to remove locked line
+      // Re-render odds immediately to show locked status
       renderOdds();
       
-      setTimeout(hidePrefireStatus, 2000);
+      setTimeout(hidePrefireStatus, 3000);
     } else if (result.betPlaced) {
       // Bet placed but odds not locked
       const statusMsg = `⚠️ BET PLACED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - Odds may have changed`;
@@ -387,6 +463,14 @@ async function placeBet(oddId) {
   const odd = gameOdds[selectedGame.id]?.[oddId];
   if (!odd || !odd.selection || odd.odds === undefined) {
     console.log('❌ Invalid odds data');
+    return;
+  }
+  
+  // Check if market is already marked as unavailable
+  const marketKey = `${selectedGame.id}_${oddId}`;
+  if (unavailableMarkets.has(marketKey)) {
+    showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
+    showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
     return;
   }
   
@@ -656,9 +740,87 @@ function categorizeOdd(odd) {
     subsection = '2nd Half';
   }
   
-  // Determine section from subsection
+  // Check for props first (before determining section)
+  // Player props: market contains "player prop" or "player", or selection looks like a player name
+  // More robust detection for player props
+  const hasPlayerPropMarket = market.includes('player prop') || 
+                              (market.includes('prop') && market.includes('player')) ||
+                              market.includes('player points') ||
+                              market.includes('player rebounds') ||
+                              market.includes('player assists') ||
+                              market.includes('player steals') ||
+                              market.includes('player blocks');
+  
+  const hasPlayerNamePattern = selection && (
+    selection.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) || // "LeBron James"
+    selection.match(/^[A-Z]\.\s*[A-Z][a-z]+/) ||    // "L. James"
+    selection.match(/^[A-Z][a-z]+\s+[A-Z]\./)        // "LeBron J."
+  );
+  
+  const isPlayerProp = hasPlayerPropMarket || 
+                       (hasPlayerNamePattern && !selection.includes('team') && !selection.includes('home') && !selection.includes('away')) ||
+                       (market.includes('prop') && selection && !selection.includes('team') && !selection.includes('home') && !selection.includes('away') && 
+                        hasPlayerNamePattern);
+  
+  // Team props: market contains "team prop" or selection contains team/home/away
+  // More robust detection for team props
+  const hasTeamPropMarket = market.includes('team prop') || 
+                           (market.includes('prop') && market.includes('team')) ||
+                           market.includes('team points') ||
+                           market.includes('team rebounds') ||
+                           market.includes('team assists') ||
+                           market.includes('team total');
+  
+  const hasTeamKeywords = selection && (
+    selection.includes('team') || 
+    selection.includes('home') || 
+    selection.includes('away') ||
+    selection.includes('Team') || 
+    selection.includes('Home') || 
+    selection.includes('Away') ||
+    selection.toLowerCase().includes('team') ||
+    selection.toLowerCase().includes('home') ||
+    selection.toLowerCase().includes('away')
+  );
+  
+  const isTeamProp = hasTeamPropMarket || 
+                     (market.includes('prop') && !isPlayerProp && hasTeamKeywords) ||
+                     (market.includes('prop') && !isPlayerProp && 
+                      (market.includes('team') || market.includes('home') || market.includes('away')));
+  
+  // General props: market contains "prop" but not clearly player or team
+  // Also check for common prop indicators even if "prop" isn't in market
+  const isGeneralProp = (market.includes('prop') && !isPlayerProp && !isTeamProp) ||
+                       (market && !market.includes('spread') && !market.includes('moneyline') && !market.includes('total') && 
+                        !market.includes('ml') && !market.includes('over') && !market.includes('under') &&
+                        (market.includes('first') || market.includes('last') || market.includes('most') || 
+                         market.includes('least') || market.includes('assist') || market.includes('rebound') || 
+                         market.includes('point') || market.includes('steal') || market.includes('block')));
+  
+  // Determine section from subsection and props
   let section = 'Gameline';
-  if (subsection.includes('Quarter')) {
+  
+  if (isPlayerProp) {
+    if (subsection.includes('Quarter')) {
+      section = 'Player Props - Quarters';
+    } else if (subsection.includes('Half')) {
+      section = 'Player Props - Halves';
+    } else if (subsection.includes('Period')) {
+      section = 'Player Props - Periods';
+    } else {
+      section = 'Player Props';
+    }
+  } else if (isTeamProp) {
+    if (subsection.includes('Quarter')) {
+      section = 'Team Props - Quarters';
+    } else if (subsection.includes('Half')) {
+      section = 'Team Props - Halves';
+    } else if (subsection.includes('Period')) {
+      section = 'Team Props - Periods';
+    } else {
+      section = 'Team Props';
+    }
+  } else if (subsection.includes('Quarter')) {
     section = 'Quarters';
   } else if (subsection.includes('Half')) {
     section = 'Halves';
@@ -738,17 +900,20 @@ function categorizeOdd(odd) {
                      market.includes('tt') ||
                      (market.includes('total') && (selection.includes('home') || selection.includes('away')) && !market.includes('score'));
   
-  // Props - look for "prop", "player", "team", or specific prop indicators
-  if (market.includes('prop') || 
-      market.includes('player') ||
-      market.includes('team prop') ||
-      market.includes('game prop') ||
-      selection.includes('prop') ||
-      (market && !market.includes('spread') && !market.includes('moneyline') && !market.includes('total') && 
-       !market.includes('ml') && !market.includes('over') && !market.includes('under') &&
-       (market.includes('first') || market.includes('last') || market.includes('most') || 
-        market.includes('least') || market.includes('total') || market.includes('score') ||
-        market.includes('assist') || market.includes('rebound') || market.includes('point')))) {
+  // Props - use the same detection logic as section determination
+  // (isPlayerProp, isTeamProp, isGeneralProp already defined above)
+  if (isPlayerProp) {
+    type = 'Player Props';
+  } else if (isTeamProp) {
+    type = 'Team Props';
+  } else if (isGeneralProp || 
+             market.includes('game prop') ||
+             selection.includes('prop') ||
+             (market && !market.includes('spread') && !market.includes('moneyline') && !market.includes('total') && 
+              !market.includes('ml') && !market.includes('over') && !market.includes('under') &&
+              (market.includes('first') || market.includes('last') || market.includes('most') || 
+               market.includes('least') || market.includes('score') ||
+               market.includes('assist') || market.includes('rebound') || market.includes('point')))) {
     type = 'Props';
   }
   // Alternative Point Spread - check FIRST (before regular spread) - Match Fliff naming
@@ -820,9 +985,17 @@ function categorizeOdd(odd) {
 function getSectionOrder(section) {
   const order = {
     'Gameline': 1,
-    'Quarters': 2,
-    'Halves': 3,
-    'Periods': 4,
+    'Player Props': 2,
+    'Team Props': 3,
+    'Quarters': 4,
+    'Player Props - Quarters': 5,
+    'Team Props - Quarters': 6,
+    'Halves': 7,
+    'Player Props - Halves': 8,
+    'Team Props - Halves': 9,
+    'Periods': 10,
+    'Player Props - Periods': 11,
+    'Team Props - Periods': 12,
     'Other': 999
   };
   return order[section] || 999;
@@ -857,7 +1030,9 @@ function getTypeOrder(type) {
     'Totals': 7,
     'Alternative Totals': 8,
     'Team Totals': 9,
-    'Props': 10,
+    'Player Props': 10,
+    'Team Props': 11,
+    'Props': 12,  // General props fallback
     'Other': 999
   };
   return order[type] || 999;
@@ -892,6 +1067,12 @@ function renderOdds() {
     if (lockedLines.has(lockKey)) {
       odd._isLocked = true; // Mark as locked for rendering
     }
+    
+    // Filter out unavailable markets if filter is enabled
+    if (hideUnavailableMarkets && unavailableMarkets.has(lockKey)) {
+      return false; // Hide unavailable markets when filter is on
+    }
+    
     // CRITICAL: Must match the current game
     if (odd.gameId && parseInt(odd.gameId) !== gameId) {
       return false; // Filter out odds from wrong game (ghost lines)
@@ -988,8 +1169,13 @@ function renderOdds() {
   oddsList.forEach(odd => {
     const { section, subsection, type } = categorizeOdd(odd);
     
-    // Debug: Track market names
+    // Debug: Log props categorization for debugging
     const market = (odd.market || '').toLowerCase();
+    if (type === 'Player Props' || type === 'Team Props' || type === 'Props') {
+      console.log(`🎯 Prop detected: ${type} | Section: ${section} | Market: ${odd.market} | Selection: ${odd.selection?.substring(0, 50)}`);
+    }
+    
+    // Debug: Track market names
     if (type === 'Point Spread' || type === 'Alternative Point Spread') {
       if (type === 'Alternative Point Spread') {
         marketDebug.alternativeSpreads.add(odd.market || 'N/A');
@@ -1201,7 +1387,7 @@ function renderOdds() {
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
-              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
               
               html += `
                 <div class="flex-fill">
@@ -1241,7 +1427,7 @@ function renderOdds() {
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
-              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
               
               html += `
                 <div class="flex-fill">
@@ -1311,7 +1497,7 @@ function renderOdds() {
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
-              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
               
               html += `
                 <div class="col-6">
@@ -1494,7 +1680,7 @@ function renderOdds() {
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
-              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
               
               html += `
                 <div class="col-6">
@@ -1705,6 +1891,7 @@ window.FliffApp = {
   lockAndLoad,
   placeBet,
   setWager,
+  toggleUnavailableFilter,
   toggleSection,
   toggleSubsection
 };

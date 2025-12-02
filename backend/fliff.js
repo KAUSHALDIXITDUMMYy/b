@@ -8,11 +8,14 @@ const path = require('path');
 // =============================================
 
 class FliffClient {
-  constructor(handlers = {}) {
+  constructor(handlers = {}, profileDirectory = 'ray') {
     this.browser = null;
     this.page = null;
     this.cdp = null;
     this.messageCount = 0;
+    
+    // Profile directory - used for loading settings, credentials, and browser data
+    this.profileDirectory = profileDirectory;
     
     // Channel to Game ID mapping
     this.channelToGame = new Map(); // channelId -> Set of gameIds
@@ -53,7 +56,7 @@ class FliffClient {
 
   loadSettings() {
     try {
-      const settingsPath = path.join(__dirname, '..', 'profiles', 'ray', 'settings.json');
+      const settingsPath = path.join(__dirname, '..', 'profiles', this.profileDirectory, 'settings.json');
       return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     } catch {
       return { 
@@ -66,7 +69,7 @@ class FliffClient {
   // Load persisted API credentials from disk
   loadAPICredentials() {
     try {
-      const credentialsPath = path.join(__dirname, '..', 'profiles', 'ray', 'api_credentials.json');
+      const credentialsPath = path.join(__dirname, '..', 'profiles', this.profileDirectory, 'api_credentials.json');
       if (fs.existsSync(credentialsPath)) {
         const data = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
         if (data.bettingEndpoint) {
@@ -98,7 +101,7 @@ class FliffClient {
   // Save API credentials to disk
   saveAPICredentials() {
     try {
-      const credentialsPath = path.join(__dirname, '..', 'profiles', 'ray', 'api_credentials.json');
+      const credentialsPath = path.join(__dirname, '..', 'profiles', this.profileDirectory, 'api_credentials.json');
       const data = {
         bettingEndpoint: this.bettingEndpoint,
         bearerToken: this.bearerToken,
@@ -196,7 +199,7 @@ class FliffClient {
         }
       }
       
-      const browserDataPath = path.join(__dirname, '..', 'profiles', 'ray', 'browser_data');
+      const browserDataPath = path.join(__dirname, '..', 'profiles', this.profileDirectory, 'browser_data');
 
       console.log('🚀 Launching browser...');
       
@@ -884,7 +887,6 @@ class FliffClient {
             // Log verification for important odds
             if (p.t_131_market_name?.toLowerCase().includes('total') || 
                 p.t_131_market_name?.toLowerCase().includes('spread')) {
-              console.log(`✅ Verified odd: "${p.t_141_selection_name}" @ ${p.coeff} → Game ${targetGameId} (${verifiedGameInfo.fullName})`);
             }
             
             this.onOdds(targetGameId, odd);
@@ -1832,7 +1834,21 @@ class FliffClient {
       let headers = {};
       if (lockedRequest) {
         // Use locked headers (preserves exact auth tokens and other params)
+        // BUT update Authorization header with current profile's bearer token
         headers = { ...lockedRequest.headers };
+        
+        // IMPORTANT: Update bearer token to use current profile's token (tokens can expire/change)
+        if (this.bearerToken) {
+          headers['Authorization'] = this.bearerToken;
+          console.log(`🔑 Updated locked request with current bearer token`);
+        } else if (this.authToken) {
+          // Fallback to auth token if bearer token not available
+          headers['X-Auth-Token'] = this.authToken;
+          headers['Authorization'] = `Bearer ${this.authToken}`;
+          console.log(`🔑 Updated locked request with current auth token`);
+        } else {
+          console.log(`⚠️ No current bearer/auth token available - using locked request token (may be expired)`);
+        }
       } else {
         // Build headers from captured data
         headers = {
@@ -1986,11 +2002,44 @@ class FliffClient {
         }
       }
       
+      // Check for unauthorized errors first (401, 403) - but ONLY if response is not OK
+      if (response.status === 401 || response.status === 403) {
+        console.error(`❌ Unauthorized error (${response.status}): Bearer token may be expired or invalid`);
+        return { 
+          success: false, 
+          error: `Unauthorized (${response.status}): Bearer token may be expired or invalid`,
+          unauthorized: true,
+          response: responseData
+        };
+      }
+      
       if (response.ok) {
+        // Check status codes FIRST - 8301 and 8300 are SUCCESS (check before unauthorized check)
+        // Check all possible paths for status 8301/8300
+        let actualStatus = apiStatus;
         
-        // Status 8301 and 8300 are SUCCESS (as seen in other bots)
+        // Check nested path: result.response.place_picks_operation_status.status
+        if (responseData?.result?.response?.place_picks_operation_status?.status !== undefined) {
+          actualStatus = responseData.result.response.place_picks_operation_status.status;
+        } 
+        // Check alternative path: response.place_picks_operation_status.status
+        else if (responseData?.response?.place_picks_operation_status?.status !== undefined) {
+          actualStatus = responseData.response.place_picks_operation_status.status;
+        }
+        // Check direct result.status
+        else if (responseData?.result?.status !== undefined) {
+          actualStatus = responseData.result.status;
+        }
+        
+        // Status 8301 and 8300 are SUCCESS - return immediately if found
+        if (actualStatus === 8301 || actualStatus === '8301' || actualStatus === 8300 || actualStatus === '8300') {
+          console.log(`✅ Bet successful (status: ${actualStatus})`);
+          return { success: true, response: responseData, status: actualStatus };
+        }
+        
+        // Also check apiStatus as fallback
         if (apiStatus === 8301 || apiStatus === '8301' || apiStatus === 8300 || apiStatus === '8300') {
-          console.log(`✅ Bet successful (${apiStatus} as expected)`);
+          console.log(`✅ Bet successful (apiStatus: ${apiStatus})`);
           return { success: true, response: responseData, status: apiStatus };
         }
         
@@ -2005,7 +2054,15 @@ class FliffClient {
         
         // Check result field first (since response has header, result, schema_version, x_slots)
         if (responseData.result) {
-          const resultStatus = responseData.result.status || responseData.result.code;
+          // Check nested status path: result.response.place_picks_operation_status.status
+          let resultStatus = responseData.result.status || responseData.result.code;
+          
+          // Check the nested path for status (Fliff API structure)
+          if (responseData.result.response?.place_picks_operation_status?.status) {
+            resultStatus = responseData.result.response.place_picks_operation_status.status;
+          } else if (responseData.result.response?.status) {
+            resultStatus = responseData.result.response.status;
+          }
           
           // Log result structure for debugging
           const resultKeys = Object.keys(responseData.result);
@@ -2014,7 +2071,7 @@ class FliffClient {
             console.log(`📋 Result content: ${JSON.stringify(responseData.result).substring(0, 500)}`);
           }
           
-          // Status 8301 and 8300 are SUCCESS
+          // Status 8301 and 8300 are SUCCESS - check FIRST before any error checks
           if (resultStatus === 8301 || resultStatus === '8301' || resultStatus === 8300 || resultStatus === '8300') {
             console.log(`✅ Bet successful (result.status: ${resultStatus})`);
             return { success: true, response: responseData, status: resultStatus };
@@ -2099,6 +2156,20 @@ class FliffClient {
                     };
                   }
                   
+                  // Check for unauthorized errors
+                  if (resultErrorLower.includes('unauthorized') || 
+                      resultErrorLower.includes('401') || 
+                      resultErrorLower.includes('authentication failed') ||
+                      resultErrorLower.includes('invalid token') ||
+                      resultErrorLower.includes('token expired')) {
+                    console.error(`❌ Unauthorized error detected: ${errorStr}`);
+                    return { 
+                      success: false, 
+                      error: errorStr, 
+                      unauthorized: true 
+                    };
+                  }
+                  
                   // Check for event not available or no longer inplay
                   if (resultErrorLower.includes('not available') || resultErrorLower.includes('no longer') || resultErrorLower.includes('inplay')) {
                     console.log(`⚠️ Event not available (no longer inplay): ${errorStr}`);
@@ -2146,8 +2217,22 @@ class FliffClient {
             errorMsg = typeof responseData.error === 'string' ? responseData.error : String(responseData.error);
           }
           
-          // Check for odds changed
+          // Check for unauthorized errors
           const errorMsgLower = errorMsg.toLowerCase();
+          if (errorMsgLower.includes('unauthorized') || 
+              errorMsgLower.includes('401') || 
+              errorMsgLower.includes('authentication failed') ||
+              errorMsgLower.includes('invalid token') ||
+              errorMsgLower.includes('token expired')) {
+            console.error(`❌ Unauthorized error detected: ${errorMsg}`);
+            return { 
+              success: false, 
+              error: errorMsg, 
+              unauthorized: true 
+            };
+          }
+          
+          // Check for odds changed
           if (errorMsgLower.includes('odds') || errorMsgLower.includes('price') || errorMsgLower.includes('changed')) {
             return { oddsChanged: true, error: String(errorMsg || 'Odds changed') };
           }

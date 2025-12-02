@@ -856,6 +856,28 @@ app.post('/api/lock-and-load', async (req, res) => {
       
       const profilePromise = (async () => {
         try {
+          // Refresh bearer token from page before lock & load (tokens can expire/change)
+          try {
+            const injectedToken = await client.page.evaluate(() => {
+              return window.__fliffBearerToken || null;
+            });
+            
+            if (injectedToken && injectedToken !== client.bearerToken) {
+              client.bearerToken = injectedToken;
+              logBetting(`   [${profileName}] 🔑 Refreshed bearer token from page`);
+              client.saveAPICredentials();
+            } else if (!client.bearerToken && !client.authToken) {
+              logBetting(`   [${profileName}] ⚠️ No bearer token or auth token available - may fail`);
+            }
+          } catch (e) {
+            // Ignore if page context not ready, but log warning
+            if (client.bearerToken || client.authToken) {
+              logBetting(`   [${profileName}] ⚠️ Could not refresh token from page, using stored token`);
+            } else {
+              logBetting(`   [${profileName}] ⚠️ Could not refresh token and no stored token available`);
+            }
+          }
+          
           // LOCK AND LOAD FLOW (Backend API Only - No UI):
           // 1. Place $0.20 bet via API directly (fast, no UI clicks)
           // 2. Immediately reload page to lock odds
@@ -1281,6 +1303,38 @@ app.post('/api/place-bet', async (req, res) => {
       
       const profilePromise = (async () => {
         try {
+          // Refresh bearer token from page before placing bet (tokens can expire/change)
+          try {
+            const injectedToken = await client.page.evaluate(() => {
+              return window.__fliffBearerToken || null;
+            });
+            
+            if (injectedToken && injectedToken !== client.bearerToken) {
+              client.bearerToken = injectedToken;
+              logBetting(`   [${profileName}] 🔑 Refreshed bearer token from page`);
+              client.saveAPICredentials();
+            } else if (!client.bearerToken && !client.authToken) {
+              logBetting(`   [${profileName}] ⚠️ No bearer token or auth token available - may fail`);
+            }
+          } catch (e) {
+            // Ignore if page context not ready, but log warning
+            if (client.bearerToken || client.authToken) {
+              logBetting(`   [${profileName}] ⚠️ Could not refresh token from page, using stored token`);
+            } else {
+              logBetting(`   [${profileName}] ⚠️ Could not refresh token and no stored token available`);
+            }
+          }
+          
+          // Check API status before placing bet
+          const apiStatus = client.getBettingAPIStatus();
+          if (!apiStatus.endpoint) {
+            logBetting(`   [${profileName}] ⚠️ No API endpoint captured - will use Puppeteer method`);
+          } else if (!apiStatus.hasAuth) {
+            logBetting(`   [${profileName}] ⚠️ API endpoint found but no auth token - bet may fail`);
+          } else {
+            logBetting(`   [${profileName}] ✅ API ready: endpoint + auth token available`);
+          }
+          
           // Check if we have a locked API request for this oddId (from lock and load)
           const hasLockedRequest = client.getLockedAPIRequest(oddId);
           if (hasLockedRequest) {
@@ -1308,13 +1362,20 @@ app.post('/api/place-bet', async (req, res) => {
               };
             }
             
+            // Check for unauthorized error
+            const errorMsg = betResult.error || '';
+            const isUnauthorized = errorMsg.toLowerCase().includes('unauthorized') || 
+                                  errorMsg.toLowerCase().includes('401') ||
+                                  errorMsg.toLowerCase().includes('authentication');
+            
             return {
               profileName,
               success: false,
-              retry: false,
+              retry: isUnauthorized, // Retry if unauthorized (token might need refresh)
               message: 'Bet failed',
-              error: betResult.error || 'Bet failed',
-              marketNotAvailable: betResult.marketNotAvailable || false
+              error: errorMsg || 'Bet failed',
+              marketNotAvailable: betResult.marketNotAvailable || false,
+              unauthorized: isUnauthorized
             };
           }
           
@@ -1352,21 +1413,34 @@ app.post('/api/place-bet', async (req, res) => {
             };
           }
           
+          // Check for unauthorized error
+          const errorMsg = betResult.error || '';
+          const isUnauthorized = errorMsg.toLowerCase().includes('unauthorized') || 
+                                errorMsg.toLowerCase().includes('401') ||
+                                errorMsg.toLowerCase().includes('authentication');
+          
           return {
             profileName,
             success: false,
-            retry: false,
+            retry: isUnauthorized,
             message: 'Bet failed',
-            error: betResult.error || 'Bet failed'
+            error: errorMsg || 'Bet failed',
+            unauthorized: isUnauthorized
           };
         } catch (e) {
           logBetting(`   [${profileName}] ❌ Error: ${e.message}`);
+          const errorMsg = e.message || '';
+          const isUnauthorized = errorMsg.toLowerCase().includes('unauthorized') || 
+                                errorMsg.toLowerCase().includes('401') ||
+                                errorMsg.toLowerCase().includes('authentication');
+          
           return {
             profileName,
             success: false,
-            retry: false,
+            retry: isUnauthorized,
             message: 'Error',
-            error: e.message
+            error: errorMsg,
+            unauthorized: isUnauthorized
           };
         }
       })();
@@ -1383,22 +1457,34 @@ app.post('/api/place-bet', async (req, res) => {
     const oddsChangedBets = results.filter(r => r.retry);
     
     // Log detailed results
+    const unauthorizedBets = results.filter(r => r.unauthorized);
     logBetting(`\n📊 Bet Results Summary:`);
     logBetting(`   Total profiles attempted: ${results.length}`);
     logBetting(`   Successful: ${successfulBets.length}`);
     logBetting(`   Failed: ${failedBets.length}`);
     logBetting(`   Odds changed: ${oddsChangedBets.length}`);
+    if (unauthorizedBets.length > 0) {
+      logBetting(`   🔐 Unauthorized: ${unauthorizedBets.length} (bearer token may be expired)`);
+    }
     
     if (successfulBets.length > 0) {
       logBetting(`   ✅ Success on: ${successfulBets.map(r => r.profileName).join(', ')}`);
     }
     if (failedBets.length > 0) {
       failedBets.forEach(r => {
-        logBetting(`   ❌ Failed on ${r.profileName}: ${r.error || 'Unknown error'}`);
+        const errorType = r.unauthorized ? '🔐 UNAUTHORIZED' : '❌';
+        logBetting(`   ${errorType} Failed on ${r.profileName}: ${r.error || 'Unknown error'}`);
+        if (r.unauthorized) {
+          logBetting(`      → Bearer token may be expired or invalid. Try refreshing the page for this profile.`);
+        }
       });
     }
     if (oddsChangedBets.length > 0) {
       logBetting(`   ⚠️ Odds changed on: ${oddsChangedBets.map(r => r.profileName).join(', ')}`);
+    }
+    if (unauthorizedBets.length > 0) {
+      logBetting(`   🔐 Unauthorized errors on: ${unauthorizedBets.map(r => r.profileName).join(', ')}`);
+      logBetting(`      → These profiles may need to refresh their bearer tokens.`);
     }
     
     // Update stats
@@ -1940,7 +2026,7 @@ async function startFliff() {
         stats.connected = false;
         broadcast({ type: 'disconnected' });
       }
-    });
+    }, 'ray'); // Pass 'ray' as profile directory for fallback
     
     await fliffClient.start();
     fliffClients.set('default', fliffClient);
@@ -1973,7 +2059,10 @@ async function startFliff() {
       const profileType = isLiveEvent ? '📡 LIVE EVENT' : '💰 BETTING';
       console.log(`🚀 [${i + 1}/${allProfiles.length}] Starting ${profileType} profile: ${profile.name}...`);
       
-      // Create a FliffClient with custom settings path
+      // Extract profile directory name from profile.directory (e.g., "profiles/justin-voneck" -> "justin-voneck")
+      const profileDirName = path.basename(profile.directory);
+      
+      // Create a FliffClient with profile-specific directory
       const client = new FliffClient({
         onGame: (game) => {
           // Merge games from all profiles (use first one that reports it)
@@ -1994,7 +2083,7 @@ async function startFliff() {
         onDisconnect: () => {
           broadcast({ type: 'disconnected', profile: profile.name, profileType: isLiveEvent ? 'liveEvent' : 'betting' });
         }
-      });
+      }, profileDirName);
       
       // Mark client as live event or betting profile
       client.isLiveEventProfile = isLiveEvent;
@@ -2003,59 +2092,7 @@ async function startFliff() {
       // Override settings to use profile-specific settings
       client.settings = profile.settings;
       
-      // Override loadAPICredentials to use profile-specific directory
-      const originalLoadAPICredentials = client.loadAPICredentials;
-      client.loadAPICredentials = function() {
-        try {
-          const credentialsPath = path.join(__dirname, '..', profile.directory, 'api_credentials.json');
-          if (fs.existsSync(credentialsPath)) {
-            const data = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
-            if (data.bettingEndpoint) {
-              this.bettingEndpoint = data.bettingEndpoint;
-              console.log(`📂 [${profile.name}] Loaded persisted betting endpoint`);
-            }
-            if (data.bearerToken) {
-              this.bearerToken = data.bearerToken;
-              console.log(`📂 [${profile.name}] Loaded persisted bearer token`);
-            }
-            if (data.authToken) {
-              this.authToken = data.authToken;
-              console.log(`📂 [${profile.name}] Loaded persisted auth token`);
-            }
-            if (data.apiHeaders) {
-              this.apiHeaders = data.apiHeaders;
-            }
-            if (data.capturedBetRequests && Array.isArray(data.capturedBetRequests)) {
-              this.capturedBetRequests = data.capturedBetRequests.slice(-10);
-              console.log(`📂 [${profile.name}] Loaded ${this.capturedBetRequests.length} persisted bet request templates`);
-            }
-          }
-        } catch (e) {
-          console.log(`⚠️ [${profile.name}] Could not load API credentials:`, e.message);
-        }
-      };
-      
-      // Override saveAPICredentials to use profile-specific directory
-      const originalSaveAPICredentials = client.saveAPICredentials;
-      client.saveAPICredentials = function() {
-        try {
-          const credentialsPath = path.join(__dirname, '..', profile.directory, 'api_credentials.json');
-          const data = {
-            bettingEndpoint: this.bettingEndpoint,
-            bearerToken: this.bearerToken,
-            authToken: this.authToken,
-            apiHeaders: this.apiHeaders,
-            capturedBetRequests: this.capturedBetRequests.slice(-10),
-            lastUpdated: new Date().toISOString()
-          };
-          fs.writeFileSync(credentialsPath, JSON.stringify(data, null, 2), 'utf8');
-          console.log(`💾 [${profile.name}] Saved API credentials to disk`);
-        } catch (e) {
-          console.log(`⚠️ [${profile.name}] Could not save API credentials:`, e.message);
-        }
-      };
-      
-      // Reload API credentials with profile-specific path
+      // Reload API credentials with profile-specific path (now handled by FliffClient constructor)
       client.loadAPICredentials();
       
       // Override browser data path to use profile-specific directory

@@ -19,6 +19,59 @@ app.use(cors());
 app.use(express.json());
 
 // =============================================
+// VNC DASHBOARD AND noVNC ROUTES
+// =============================================
+
+// Serve VNC dashboard route (before static files)
+app.get('/vnc', (req, res) => {
+  const vncPath = path.join(__dirname, '..', 'frontend', 'vnc-dashboard.html');
+  if (fs.existsSync(vncPath)) {
+    res.sendFile(vncPath);
+  } else {
+    res.status(404).send('VNC Dashboard not found');
+  }
+});
+
+// Serve frontend index.html for root route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+});
+
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
+// Serve noVNC files if they exist (for web-based VNC)
+const novncPath = path.join(__dirname, '..', 'frontend', 'novnc');
+if (fs.existsSync(novncPath)) {
+  app.use('/novnc', express.static(novncPath));
+  console.log('✅ Serving noVNC files from /novnc');
+  
+  // Serve noVNC viewer page
+  app.get('/novnc-viewer', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'frontend', 'novnc-viewer.html'));
+  });
+  
+  // Also serve original noVNC pages
+  // Serve from /novnc/ path so relative imports work correctly
+  app.get('/vnc-lite', (req, res) => {
+    res.redirect('/novnc/vnc_lite.html');
+  });
+  
+  app.get('/vnc-full', (req, res) => {
+    res.redirect('/novnc/vnc.html');
+  });
+  
+  // Serve vnc_lite.html directly from novnc directory
+  app.get('/novnc/vnc_lite.html', (req, res) => {
+    res.sendFile(path.join(novncPath, 'vnc_lite.html'));
+  });
+  
+  app.get('/novnc/vnc.html', (req, res) => {
+    res.sendFile(path.join(novncPath, 'vnc.html'));
+  });
+}
+
+// =============================================
 // SEPARATE LOGGING
 // =============================================
 
@@ -246,6 +299,7 @@ app.get('/api/odds', (req, res) => {
 app.get('/api/status', (req, res) => {
   // Get profile status
   const profileStatuses = [];
+  let profileIndex = 0;
   for (const [profileName, client] of fliffClients.entries()) {
     // Skip live event profiles in status (they're for data scraping only)
     if (client.isLiveEventProfile) {
@@ -253,6 +307,12 @@ app.get('/api/status', (req, res) => {
     }
     const isReady = !!(client.page && client.browser);
     const apiStatus = client.getBettingAPIStatus();
+    
+    // Use client's vncPort if set, otherwise calculate from index
+    const vncPort = client.profileVncPort || (5900 + profileIndex);
+    const wsPort = 6081 + profileIndex;
+    const vncUrl = `/novnc-viewer?port=${vncPort}&ws=${wsPort}`;
+    
     profileStatuses.push({
       name: profileName,
       ready: isReady,
@@ -261,8 +321,12 @@ app.get('/api/status', (req, res) => {
       hasBettingEndpoint: !!apiStatus.endpoint,
       hasAuth: apiStatus.hasAuth,
       method: apiStatus.method,
-      profileType: client.isBettingProfile ? 'betting' : 'liveEvent'
+      profileType: client.isBettingProfile ? 'betting' : 'liveEvent',
+      vncPort: vncPort, // Include VNC port for this profile
+      vncDisplay: client.profileDisplay || null, // Include display number
+      vncUrl: vncUrl // websockify URL for this profile
     });
+    profileIndex++;
   }
   
   res.json({

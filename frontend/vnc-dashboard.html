@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNC Dashboard - Fliff Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .vnc-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .vnc-info a {
+            color: #ffd700;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .vnc-info a:hover {
+            text-decoration: underline;
+        }
+
+        .profiles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .profile-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .profile-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .profile-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.ready {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-badge.not-ready {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-badge.pending {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .profile-info {
+            margin: 15px 0;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .info-value.true {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .info-value.false {
+            color: #ef4444;
+        }
+
+        .vnc-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-radius: 8px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ VNC Dashboard</h1>
+            <p>View and connect to all Fliff Bot profiles via VNC</p>
+        </div>
+
+        <div class="vnc-info">
+            <strong>🌐 VNC Access:</strong> 
+            <a href="/novnc-viewer" target="_blank">Open VNC Viewer</a> | 
+            <a href="/novnc/vnc_lite.html" target="_blank">Lite Interface</a> |
+            <a href="/novnc/vnc.html" target="_blank">Full Interface</a>
+            <br>
+            <small>All browser windows from all profiles are visible in the VNC session</small>
+        </div>
+
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat-card">
+                <div class="stat-label">Total Profiles</div>
+                <div class="stat-value" id="total-profiles">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ready</div>
+                <div class="stat-value" id="ready-profiles">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Live Games</div>
+                <div class="stat-value" id="live-games">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Connected</div>
+                <div class="stat-value" id="connected-status">-</div>
+            </div>
+        </div>
+
+        <div id="profiles-container">
+            <div class="loading">Loading profiles...</div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadProfiles()" title="Refresh">🔄</button>
+
+    <script>
+        const API_URL = window.location.origin;
+        const VNC_BASE_URL = window.location.origin;
+
+        async function loadProfiles() {
+            try {
+                const response = await fetch(`${API_URL}/api/status`);
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('total-profiles').textContent = data.profiles.total || 0;
+                document.getElementById('ready-profiles').textContent = data.profiles.ready || 0;
+                document.getElementById('live-games').textContent = data.liveGames || 0;
+                document.getElementById('connected-status').textContent = data.connected ? '✅' : '❌';
+
+                // Render profiles
+                const container = document.getElementById('profiles-container');
+                const profiles = data.profiles.statuses || [];
+
+                if (profiles.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h2>No Profiles Found</h2>
+                            <p>Profiles will appear here when they are discovered and started.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="profiles-grid">
+                        ${profiles.map(profile => createProfileCard(profile)).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading profiles:', error);
+                document.getElementById('profiles-container').innerHTML = `
+                    <div class="empty-state">
+                        <h2>Error Loading Profiles</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function createProfileCard(profile) {
+            const statusClass = profile.ready ? 'ready' : 'not-ready';
+            const statusText = profile.ready ? 'Ready' : 'Not Ready';
+
+            // Determine VNC URL - use profile-specific if available, otherwise default
+            const vncPort = profile.vncPort || 5900;
+            const wsPort = profile.vncPort ? (profile.vncPort - 5900 + 6081) : 6081;
+            const vncUrl = `${VNC_BASE_URL}/novnc-viewer?port=${vncPort}&ws=${wsPort}`;
+
+            return `
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="profile-name">${escapeHtml(profile.name)}</div>
+                        <div class="status-badge ${statusClass}">${statusText}</div>
+                    </div>
+                    
+                    <div class="profile-info">
+                        <div class="info-item">
+                            <span class="info-label">Browser:</span>
+                            <span class="info-value ${profile.hasBrowser}">${profile.hasBrowser ? '✅' : '❌'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Page:</span>
+                            <span class="info-value ${profile.hasPage}">${profile.hasPage ? '✅' : '❌'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Betting API:</span>
+                            <span class="info-value ${profile.hasBettingEndpoint}">${profile.hasBettingEndpoint ? '✅' : '❌'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Auth:</span>
+                            <span class="info-value ${profile.hasAuth}">${profile.hasAuth ? '✅' : '❌'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Type:</span>
+                            <span class="info-value">${profile.profileType || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Method:</span>
+                            <span class="info-value">${profile.method || 'N/A'}</span>
+                        </div>
+                        ${profile.vncPort ? `
+                        <div class="info-item">
+                            <span class="info-label">VNC Port:</span>
+                            <span class="info-value">${profile.vncPort}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="vnc-actions">
+                        <a href="${vncUrl}" target="_blank" class="btn btn-primary">
+                            🖥️ View Profile VNC
+                        </a>
+                        ${profile.ready ? `
+                            <button class="btn btn-secondary" onclick="openVNC('${escapeHtml(profile.name)}', '${vncUrl}')">
+                                🔗 Connect
+                            </button>
+                        ` : `
+                            <button class="btn btn-secondary" disabled>
+                                ⏳ Not Ready
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        function openVNC(profileName, vncUrl) {
+            // Open VNC in new window (use profile-specific URL if available)
+            const url = vncUrl || `${VNC_BASE_URL}/novnc-viewer`;
+            const vncWindow = window.open(url, `vnc-${profileName}`, 'width=1200,height=800');
+            if (vncWindow) {
+                vncWindow.focus();
+            } else {
+                alert('Please allow popups to open VNC viewer');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load profiles on page load
+        loadProfiles();
+
+        // Auto-refresh every 5 seconds
+        setInterval(loadProfiles, 5000);
+    </script>
+</body>
+</html>
+

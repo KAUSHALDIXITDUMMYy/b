@@ -10,9 +10,13 @@ let ws = null;
 let games = {};
 let selectedGame = null;
 let gameOdds = {};
+let activeSection = null; // Currently selected odds section (Gameline, Player Props, etc.)
 let lockedLines = new Set(); // Track locked lines (format: "gameId_oddId")
 let unavailableMarkets = new Set(); // Track unavailable markets (format: "gameId_oddId")
-let hideUnavailableMarkets = true; // Filter to hide unavailable markets by default
+let hideUnavailableMarkets = false; // By default, SHOW unavailable markets with a label
+let lastArmedLockKey = null; // Track last ARMED lock key to avoid duplicate popups
+let lockedOddsMap = {}; // Track locked odds per line (format: "gameId_oddId" -> odds number)
+let activeLeagueFilter = 'all'; // Current league filter for games list ('all' or specific league name)
 
 // Betting Settings
 let wagerAmount = 100; // Default $100 for betting
@@ -34,22 +38,38 @@ function loadSettings() {
   
   if (savedWager) {
     wagerAmount = parseFloat(savedWager);
-    if (isCustom) {
-      // Check if saved value is not in the standard options
-      const standardValues = ['0.20', '0.50', '1', '2', '5', '10', '25', '50', '100', '200', '250', '500'];
-      if (!standardValues.includes(savedWager)) {
-        document.getElementById('wager-amount').value = 'custom';
-        document.getElementById('custom-wager').value = savedWager;
-        document.getElementById('custom-wager').style.display = 'inline-block';
-      } else {
-        document.getElementById('wager-amount').value = savedWager;
-      }
+    const standardValues = ['0.20', '0.50', '1', '2', '5', '10', '25', '50', '100', '200', '250', '500'];
+    const selects = [
+      document.getElementById('wager-amount'),
+      document.getElementById('wager-amount-inner')
+    ].filter(Boolean);
+    const customInputs = [
+      document.getElementById('custom-wager'),
+      document.getElementById('custom-wager-inner')
+    ].filter(Boolean);
+
+    if (isCustom && !standardValues.includes(savedWager)) {
+      selects.forEach(sel => {
+        sel.value = 'custom';
+      });
+      customInputs.forEach(input => {
+        input.value = savedWager;
+        input.style.display = 'inline-block';
+      });
     } else {
-      document.getElementById('wager-amount').value = savedWager;
+      selects.forEach(sel => {
+        if (sel) sel.value = savedWager;
+      });
+      customInputs.forEach(input => {
+        if (input) input.style.display = 'none';
+      });
     }
   }
   
   updateDisplays();
+
+  // Initialize league filter options after games are loaded
+  updateLeagueFilterOptions();
 }
 
 // =============================================
@@ -57,21 +77,43 @@ function loadSettings() {
 // =============================================
 
 function handleWagerChange(value) {
-  const customInput = document.getElementById('custom-wager');
-  
+  const customInputs = [
+    document.getElementById('custom-wager'),
+    document.getElementById('custom-wager-inner')
+  ].filter(Boolean);
+  const selects = [
+    document.getElementById('wager-amount'),
+    document.getElementById('wager-amount-inner')
+  ].filter(Boolean);
+
   if (value === 'custom') {
-    // Show custom input
-    customInput.style.display = 'inline-block';
-    customInput.focus();
-    // If there's a saved custom value, use it
+    // Show custom inputs and sync selects to 'custom'
+    customInputs.forEach(input => {
+      input.style.display = 'inline-block';
+    });
+    selects.forEach(sel => {
+      if (sel.value !== 'custom') sel.value = 'custom';
+    });
+    // Use saved custom value if present
     const savedWager = localStorage.getItem('fliff_wager');
-    if (savedWager && localStorage.getItem('fliff_wager_custom') === 'true') {
-      customInput.value = savedWager;
+    const isCustomSaved = localStorage.getItem('fliff_wager_custom') === 'true';
+    if (savedWager && isCustomSaved) {
+      customInputs.forEach(input => {
+        input.value = savedWager;
+      });
       wagerAmount = parseFloat(savedWager);
+      updateDisplays();
+    } else if (customInputs[0]) {
+      customInputs[0].focus();
     }
   } else {
-    // Hide custom input and set standard value
-    customInput.style.display = 'none';
+    // Hide custom inputs and sync all selects to the chosen standard value
+    customInputs.forEach(input => {
+      input.style.display = 'none';
+    });
+    selects.forEach(sel => {
+      if (sel.value !== value) sel.value = value;
+    });
     setWager(value, false);
   }
 }
@@ -79,6 +121,14 @@ function handleWagerChange(value) {
 function setCustomWager(value) {
   const amount = parseFloat(value);
   if (amount && amount > 0) {
+    // Sync both custom inputs with this value
+    const customInputs = [
+      document.getElementById('custom-wager'),
+      document.getElementById('custom-wager-inner')
+    ].filter(Boolean);
+    customInputs.forEach(input => {
+      input.value = amount.toString();
+    });
     setWager(amount.toString(), true);
   }
 }
@@ -91,6 +141,16 @@ function setWager(value, isCustom = false) {
   } else {
     localStorage.setItem('fliff_wager_custom', 'false');
   }
+  // Keep both wager selects in sync with the chosen value
+  const selects = [
+    document.getElementById('wager-amount'),
+    document.getElementById('wager-amount-inner')
+  ].filter(Boolean);
+  selects.forEach(sel => {
+    if (sel.value !== (isCustom ? 'custom' : value)) {
+      sel.value = isCustom ? 'custom' : value;
+    }
+  });
   updateDisplays();
 }
 
@@ -233,6 +293,7 @@ async function loadGames() {
     data.forEach(game => {
       games[game.id] = game;
     });
+    updateLeagueFilterOptions();
     renderGames();
   } catch (error) {
     console.error('Error loading games:', error);
@@ -380,26 +441,31 @@ async function lockAndLoad(oddId) {
     const result = await response.json();
     
     // Immediately update UI based on result (no delays)
-    // Check for market not available first
-    if (result.marketNotAvailable) {
+    // Check for market/event not available first
+    if (result.marketNotAvailable || result.eventNotAvailable) {
       const marketKey = `${selectedGame.id}_${oddId}`;
       unavailableMarkets.add(marketKey);
       showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
-      showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
+      showToast(`⚠️ Market / Event Not Available<br>This selection is no longer available for betting`, 'warning', 3000);
       renderOdds();
       setTimeout(hidePrefireStatus, 2000);
     } else if (result.armed || (result.success && result.allOddsLocked)) {
       // Lock & Load successful and ARMED - mark this line as locked
       const lockKey = `${selectedGame.id}_${oddId}`;
       lockedLines.add(lockKey);
+      lastArmedLockKey = lockKey;
       
-      const statusMsg = `✅ ARMED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - Ready to bet!`;
+      // Use locked odds from backend if provided, otherwise fall back to current odds
+      const lockedOdds = typeof result.lockedOdds === 'number' ? result.lockedOdds : odd.odds;
+      lockedOddsMap[lockKey] = lockedOdds;
+      
+      const statusMsg = `✅ ARMED: ${odd.selection} @ ${lockedOdds > 0 ? '+' : ''}${lockedOdds} - Ready to bet!`;
       showPrefireStatus(statusMsg);
       
       // Show clear success popup with proper message
       const profileCount = result.profileResults ? result.profileResults.length : 0;
       const successCount = result.profileResults ? result.profileResults.filter(r => r.success && r.oddsLocked).length : 0;
-      const toastMsg = `🔒 LOCK & LOAD SUCCESSFUL!<br><br><strong>${odd.selection}</strong><br>@ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br><br>✅ $0.20 bet placed on ${successCount}/${profileCount} profile(s)<br>✅ Odds locked and verified<br>✅ Ready to place your bet!`;
+      const toastMsg = `🔒 LOCK & LOAD SUCCESSFUL!<br><br><strong>${odd.selection}</strong><br>@ ${lockedOdds > 0 ? '+' : ''}${lockedOdds}<br><br>✅ $0.20 bet placed on ${successCount}/${profileCount} profile(s)<br>✅ Odds locked and verified<br>✅ Ready to place your bet!`;
       showToast(toastMsg, 'lock', 5000);
       
       // Re-render odds immediately to show locked status
@@ -413,18 +479,44 @@ async function lockAndLoad(oddId) {
       showToast(`⚠️ Bet placed but odds may have changed`, 'warning', 2000);
       setTimeout(hidePrefireStatus, 2000);
     } else {
-      // Bet failed - check if market is not available
+      // Bet failed - distinguish between market unavailable and odds changed
       const errorMsg = result.error || 'Lock & Load failed';
       const marketKey = `${selectedGame.id}_${oddId}`;
       
-      // Check if error indicates market not available
-      if (result.marketNotAvailable || 
-          (errorMsg && errorMsg.toLowerCase().includes('market not available'))) {
+      const lower = (errorMsg || '').toLowerCase();
+      const unavailableByText =
+        lower.includes('market not available') ||
+        lower.includes('event not available') ||
+        lower.includes('no longer in') ||
+        lower.includes("no longer in 'inplay'") ||
+        lower.includes('no longer in "inplay"') ||
+        lower.includes('inplay state');
+      const oddsChangedByText =
+        lower.includes('odds have changed') ||
+        lower.includes('odds changed') ||
+        lower.includes('price changed');
+
+      if (result.marketNotAvailable || result.eventNotAvailable || unavailableByText) {
+        // Mark this line as unavailable so the card shows the warning badge
         unavailableMarkets.add(marketKey);
         showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
-        showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
-        // Re-render to show the warning label
+        showToast(
+          `⚠️ Market / Event Not Available<br>This selection is no longer available for betting`,
+          'warning',
+          3000
+        );
         renderOdds();
+      } else if (result.anyOddsChanged || oddsChangedByText) {
+        // Odds moved while trying to lock – nothing locked, advise user what to do
+        showPrefireStatus(
+          `⚠️ Lock & Load failed: odds moved for ${odd.selection}. No bet was locked.`
+        );
+        showToast(
+          `⚠️ Lock & Load Failed: Odds moved on this market before we could lock them.<br>` +
+            `👉 Recommendation: Check the new odds on Fliff. If you still like it, Lock & Load again at the new price, otherwise skip this market.`,
+          'warning',
+          6000
+        );
       } else {
         showPrefireStatus(`❌ ${errorMsg}`);
         showToast(`❌ ${errorMsg}`, 'error', 2000);
@@ -475,7 +567,13 @@ async function placeBet(oddId) {
   }
   
   isPrefiring = true;
-  showPrefireStatus(`💰 PLACING BET: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → $${wagerAmount} (Cash)`);
+  const lockKey = `${selectedGame.id}_${oddId}`;
+  const effectiveOdds =
+    typeof lockedOddsMap[lockKey] === 'number' ? lockedOddsMap[lockKey] : odd.odds;
+  const effectiveOddsDisplay =
+    effectiveOdds > 0 ? `+${effectiveOdds}` : `${effectiveOdds}`;
+
+  showPrefireStatus(`💰 PLACING BET: ${odd.selection} @ ${effectiveOddsDisplay} → $${wagerAmount} (Cash)`);
   
   const betData = {
     gameId: selectedGame.id,
@@ -498,11 +596,18 @@ async function placeBet(oddId) {
     const result = await response.json();
     
     if (result.success) {
-      showPrefireStatus(`✅ BET PLACED: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} - $${wagerAmount}`);
-      
-      // Show success pop-up
+      // Prefer locked odds if we have them
+      let placedOdds = effectiveOdds;
+      if (typeof result.lockedOdds === 'number') {
+        placedOdds = result.lockedOdds;
+        lockedOddsMap[lockKey] = result.lockedOdds;
+      }
+      const placedOddsDisplay = placedOdds > 0 ? `+${placedOdds}` : `${placedOdds}`;
+
+      showPrefireStatus(`✅ BET PLACED: ${odd.selection} @ ${placedOddsDisplay} - $${wagerAmount}`);
+      // Show success pop-up with locked odds
       showToast(
-        `💰 BET PLACED SUCCESSFULLY!<br><strong>${odd.selection}</strong> @ ${odd.odds > 0 ? '+' : ''}${odd.odds}<br>Amount: $${wagerAmount} (Fliff Cash)`,
+        `💰 BET PLACED SUCCESSFULLY!<br><strong>${odd.selection}</strong> @ ${placedOddsDisplay}<br>Amount: $${wagerAmount} (Fliff Cash)`,
         'success',
         5000
       );
@@ -516,12 +621,19 @@ async function placeBet(oddId) {
       const errorMsg = result.error || 'Bet failed';
       const marketKey = `${selectedGame.id}_${oddId}`;
       
-      // Check if error indicates market is not available
-      if (result.marketNotAvailable || 
-          (errorMsg && errorMsg.toLowerCase().includes('market not available'))) {
+      // Check if error indicates market/event is not available
+      const lower = (errorMsg || '').toLowerCase();
+      const unavailableByText = lower.includes('market not available') ||
+                                lower.includes('event not available') ||
+                                lower.includes('no longer in') ||
+                                lower.includes('no longer in \'inplay\'') ||
+                                lower.includes('no longer in \"inplay\"') ||
+                                lower.includes('inplay state');
+
+      if (result.marketNotAvailable || result.eventNotAvailable || unavailableByText) {
         unavailableMarkets.add(marketKey);
         showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
-        showToast(`⚠️ Market Not Available<br>This market is no longer available for betting`, 'warning', 3000);
+        showToast(`⚠️ Market / Event Not Available<br>This selection is no longer available for betting`, 'warning', 3000);
         // Re-render to show the warning label
         renderOdds();
       } else {
@@ -603,12 +715,66 @@ function showToast(message, type = 'success', duration = 5000) {
 }
 
 function handlePrefireResult(data) {
-  if (data.success) {
-    showPrefireStatus('✅ ' + data.message);
+  // WebSocket notification from backend after Lock & Load flow completes.
+  // This is especially important when the HTTP request times out but the
+  // backend still finishes and ARMS the bet.
+
+  // If this selection is armed/locked, mark the line as locked in the UI
+  if (data.armed || (data.success && data.allOddsLocked)) {
+    if (data.gameId && data.oddId) {
+      const gameIdInt = parseInt(data.gameId);
+      const lockKey = `${gameIdInt}_${data.oddId}`;
+      lockedLines.add(lockKey);
+      console.log('✅ PrefireResult ARMED - marking locked line:', lockKey);
+      // Re-render odds so the card shows the LOCKED badge and "Ready to Bet"
+      if (selectedGame && parseInt(selectedGame.id) === gameIdInt) {
+        renderOdds();
+      }
+
+      // Update locked odds map from backend, if provided
+      if (typeof data.lockedOdds === 'number') {
+        lockedOddsMap[lockKey] = data.lockedOdds;
+      }
+
+      // Show a Lock & Load ARMED popup if we didn't already show it for this line
+      if (!lastArmedLockKey || lastArmedLockKey !== lockKey) {
+        const sel = data.selection || 'Selection';
+        const oddsSource =
+          typeof data.lockedOdds === 'number'
+            ? data.lockedOdds
+            : typeof data.odds === 'number'
+              ? data.odds
+              : null;
+        const oddsVal =
+          typeof oddsSource === 'number'
+            ? (oddsSource > 0 ? `+${oddsSource}` : `${oddsSource}`)
+            : '';
+        const toastMsg = `🔒 LOCK & LOAD ARMED!<br><br><strong>${sel}</strong>${oddsVal ? `<br>@ ${oddsVal}` : ''}<br><br>✅ Ready to place your real bet.`;
+        showToast(toastMsg, 'lock', 5000);
+      }
+
+      // Remember last armed key so we don't double-pop the same ARMED toast
+      lastArmedLockKey = lockKey;
+    }
+    const armedMsg = data.message || 'Lock & Load ARMED and ready to bet';
+    showPrefireStatus('✅ ' + armedMsg);
+  } else if (data.marketNotAvailable || data.eventNotAvailable) {
+    // Mark this line as unavailable if backend says so
+    if (data.gameId && data.oddId) {
+      const gameIdInt = parseInt(data.gameId);
+      const marketKey = `${gameIdInt}_${data.oddId}`;
+      unavailableMarkets.add(marketKey);
+      console.log('⚠️ PrefireResult UNAVAILABLE - marking market:', marketKey);
+      if (selectedGame && parseInt(selectedGame.id) === gameIdInt) {
+        renderOdds();
+      }
+    }
+    const unavailableMsg = data.message || 'Market / Event Not Available';
+    showPrefireStatus('⚠️ ' + unavailableMsg);
   } else if (data.retry) {
-    showPrefireStatus('⚠️ ' + data.message);
+    showPrefireStatus('⚠️ ' + (data.message || 'Lock & Load: please retry'));
   } else {
-    showPrefireStatus('❌ ' + data.message);
+    showPrefireStatus('❌ ' + (data.message || 'Lock & Load failed'));
   }
   
   if (!data.retry) {
@@ -622,12 +788,27 @@ function handlePrefireResult(data) {
 
 function renderGames() {
   const container = document.getElementById('games-list');
-  const gamesList = Object.values(games);
+  const allGames = Object.values(games);
+  const gamesList = activeLeagueFilter === 'all'
+    ? allGames
+    : allGames.filter(game => {
+        const league =
+          game.league ||
+          game.competition ||
+          game.sport ||
+          game.category ||
+          '';
+        return String(league).toLowerCase() === activeLeagueFilter.toLowerCase();
+      });
   
   document.getElementById('games-count').textContent = gamesList.length;
   
   if (gamesList.length === 0) {
-    container.innerHTML = '<div class="no-data">No live games right now</div>';
+    const noDataMsg =
+      allGames.length === 0
+        ? 'No live games right now'
+        : `No games found for league filter: ${activeLeagueFilter}`;
+    container.innerHTML = `<div class="no-data">${noDataMsg}</div>`;
     return;
   }
   
@@ -636,6 +817,7 @@ function renderGames() {
       <div class="game-header">
         <span class="game-status">${game.status || 'In Progress'}</span>
         <span class="live-badge">🔴 LIVE</span>
+        ${renderGameLeagueBadge(game)}
       </div>
       <div class="teams-display">
         <div class="team">
@@ -650,6 +832,72 @@ function renderGames() {
       </div>
     </div>
   `).join('');
+}
+
+// Helper: render league badge for a game card (if league info available)
+function renderGameLeagueBadge(game) {
+  const league =
+    game.league ||
+    game.competition ||
+    game.sport ||
+    game.category ||
+    '';
+  if (!league) return '';
+  return `<span class="badge bg-secondary ms-2" style="font-size: 0.7rem; text-transform: uppercase;">${league}</span>`;
+}
+
+// Update league filter dropdown options based on current games
+function updateLeagueFilterOptions() {
+  const select = document.getElementById('league-filter-select');
+  if (!select) return;
+
+  const leaguesSet = new Set();
+  Object.values(games).forEach(game => {
+    const league =
+      game.league ||
+      game.competition ||
+      game.sport ||
+      game.category ||
+      '';
+    if (league) {
+      leaguesSet.add(String(league).trim());
+    }
+  });
+
+  const leagues = Array.from(leaguesSet).sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  // Preserve currently selected value if still present
+  const currentValue = select.value || 'all';
+
+  // Rebuild options
+  select.innerHTML =
+    '<option value="all">All</option>' +
+    leagues
+      .map(
+        lg =>
+          `<option value="${lg}">${lg}</option>`
+      )
+      .join('');
+
+  // Restore selection when possible
+  if (
+    currentValue !== 'all' &&
+    leagues.some(lg => lg.toLowerCase() === currentValue.toLowerCase())
+  ) {
+    select.value = currentValue;
+    activeLeagueFilter = currentValue;
+  } else {
+    select.value = 'all';
+    activeLeagueFilter = 'all';
+  }
+}
+
+// Handle league filter change from UI
+function handleLeagueFilterChange(value) {
+  activeLeagueFilter = value || 'all';
+  renderGames();
 }
 
 function renderScoreCard(game) {
@@ -1038,6 +1286,406 @@ function getTypeOrder(type) {
   return order[type] || 999;
 }
 
+// Build vertical odds layout like Fliff "Game Lines" UI:
+// - Top: section tabs (Gameline, Halves, Player Props, etc.)
+// - Below: for the active section, a vertical list of bet types
+//   (Moneyline, Point Spread, Total Score, Alternative Point Spread, etc.)
+//   where each type row is collapsible and shows its odds grouped by period.
+function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
+  const sortedSections = Object.keys(organizedOdds).sort((a, b) => {
+    return getSectionOrder(a) - getSectionOrder(b);
+  });
+
+  if (sortedSections.length === 0) {
+    return `
+      <div class="alert alert-warning">
+        <h5>No odds available</h5>
+        <p>There are currently no markets for this game.</p>
+      </div>
+    `;
+  }
+
+  // Decide which section is currently active; default to first available
+  if (!activeSection || !organizedOdds[activeSection]) {
+    activeSection = sortedSections[0];
+  }
+
+  const activeSectionData = organizedOdds[activeSection];
+
+  // Build section tabs (Game Lines / Halves / etc.)
+  const tabsHtml = `
+    <ul class="nav nav-pills mb-3 odds-section-tabs">
+      ${sortedSections
+        .map(
+          (section) => `
+        <li class="nav-item">
+          <button 
+            class="nav-link ${section === activeSection ? 'active' : ''}" 
+            onclick="setActiveSection('${section.replace(/'/g, "\\'")}')"
+          >
+            ${section}
+          </button>
+        </li>
+      `
+        )
+        .join('')}
+    </ul>
+  `;
+
+  // Render only the active section (vertical type list)
+  let html = '';
+
+  if (activeSectionData) {
+    const sectionId = `section-active`;
+
+    // Build type groups across all subsections so we can show a
+    // vertical list like: MONEYLINE, POINT SPREAD, TOTAL SCORE, etc.
+    const typeGroups = {}; // type -> { total, subsections: { [subsection]: odds[] } }
+
+    Object.keys(activeSectionData).forEach((subsection) => {
+      const subsectionData = activeSectionData[subsection];
+      Object.keys(subsectionData).forEach((type) => {
+        const oddsArr = subsectionData[type];
+        if (!typeGroups[type]) {
+          typeGroups[type] = { total: 0, subsections: {} };
+        }
+        typeGroups[type].total += oddsArr.length;
+        typeGroups[type].subsections[subsection] = oddsArr;
+      });
+    });
+
+    const sortedTypesForSection = Object.keys(typeGroups).sort((a, b) => {
+      return getTypeOrder(a) - getTypeOrder(b);
+    });
+
+    // Helper renderers for different type layouts
+    function renderTotalsGroup(typeOdds, subsectionLabel) {
+      if (!typeOdds || typeOdds.length === 0) return '';
+
+      const groupedByLine = {};
+      typeOdds.forEach((odd) => {
+        const selection = odd.selection || '';
+        const selectionLower = selection.toLowerCase();
+        const isOver = selectionLower.includes('over') || selectionLower.startsWith('o ');
+        const isUnder = selectionLower.includes('under') || selectionLower.startsWith('u ');
+
+        let lineKey = '';
+        const afterKeywordMatch = selectionLower.match(/(?:over|under|o|u)\s+(\d+\.?\d*)/);
+        if (afterKeywordMatch) {
+          lineKey = afterKeywordMatch[1];
+        } else {
+          const numberMatch = selection.match(/(\d+\.?\d*)/);
+          if (numberMatch) {
+            lineKey = numberMatch[1];
+          } else {
+            lineKey = odd.param || selection;
+          }
+        }
+
+        if (!groupedByLine[lineKey]) {
+          groupedByLine[lineKey] = { over: null, under: null, lineKey };
+        }
+        if (isOver) groupedByLine[lineKey].over = odd;
+        else if (isUnder) groupedByLine[lineKey].under = odd;
+      });
+
+      const sortedPairs = Object.values(groupedByLine).sort((a, b) => {
+        const numA = parseFloat(a.lineKey) || 0;
+        const numB = parseFloat(b.lineKey) || 0;
+        return numA - numB;
+      });
+
+      let h = '';
+      if (subsectionLabel && subsectionLabel !== 'Game') {
+        h += `<div class="mb-1"><small class="text-uppercase text-muted" style="font-size: 0.7rem;">${subsectionLabel}</small></div>`;
+      }
+      h += `<div class="row g-2">`;
+
+      sortedPairs.forEach(({ over, under, lineKey }) => {
+        const param = over?.param || under?.param || lineKey;
+
+        h += `
+          <div class="col-12 mb-3">
+            <div class="d-flex gap-2" style="gap: 8px;">
+        `;
+
+        function renderTotalsCard(label, odd) {
+          const change = odd.prevOdds ? odd.odds - odd.prevOdds : 0;
+          const changeClass = change > 0 ? 'text-success' : change < 0 ? 'text-danger' : '';
+          const changeText = change !== 0 ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`) : '';
+          const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+          const lockKey = `${gameId}_${odd.id}`;
+          const isLockedCheck = lockedLines.has(lockKey);
+          const isUnavailableCheck = unavailableMarkets.has(lockKey);
+          const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+          const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+          const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+          const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+
+          return `
+            <div class="flex-fill">
+              <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}" style="border-color: var(--border);">
+                ${lockedBadge}
+                ${unavailableBadge}
+                <div class="card-body p-3">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <small style="font-size: 0.75rem; font-weight: 600; color: white;">${label}</small>
+                    ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
+                  </div>
+                  <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || label}</div>
+                  ${param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${param}</small>` : ''}
+                  <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
+                    ${odd.odds > 0 ? '+' : ''}${odd.odds}
+                  </div>
+                  ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        if (over) h += renderTotalsCard('OVER', over);
+        if (under) h += renderTotalsCard('UNDER', under);
+
+        h += `
+            </div>
+          </div>
+        `;
+      });
+
+      h += `</div>`;
+      return h;
+    }
+
+    function renderSpreadGroup(typeOdds, subsectionLabel) {
+      if (!typeOdds || typeOdds.length === 0) return '';
+
+      const groupedByLine = {};
+      typeOdds.forEach((odd) => {
+        const selection = odd.selection || '';
+        const numberMatch = selection.match(/([+-]?\d+\.?\d*)/);
+        if (numberMatch) {
+          const lineNumber = Math.abs(parseFloat(numberMatch[1]));
+          const isPositive = selection.includes('+') || (numberMatch[1] && !numberMatch[1].startsWith('-'));
+
+          if (!groupedByLine[lineNumber]) {
+            groupedByLine[lineNumber] = { positive: null, negative: null };
+          }
+          if (isPositive) groupedByLine[lineNumber].positive = odd;
+          else groupedByLine[lineNumber].negative = odd;
+        } else {
+          const key = selection || 'other';
+          if (!groupedByLine[key]) {
+            groupedByLine[key] = { positive: null, negative: null };
+          }
+          groupedByLine[key].positive = odd;
+        }
+      });
+
+      let h = '';
+      if (subsectionLabel && subsectionLabel !== 'Game') {
+        h += `<div class="mb-1"><small class="text-uppercase text-muted" style="font-size: 0.7rem;">${subsectionLabel}</small></div>`;
+      }
+      h += `<div class="row g-2">`;
+
+      Object.values(groupedByLine).forEach(({ positive, negative }) => {
+        h += `
+          <div class="col-12 mb-3">
+            <div class="d-flex gap-2" style="gap: 8px;">
+        `;
+
+        function renderSpreadCard(odd) {
+          const change = odd.prevOdds ? odd.odds - odd.prevOdds : 0;
+          const changeClass = change > 0 ? 'text-success' : change < 0 ? 'text-danger' : '';
+          const changeText = change !== 0 ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`) : '';
+          const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+          const lockKey = `${gameId}_${odd.id}`;
+          const isLockedCheck = lockedLines.has(lockKey);
+          const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+          const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+
+          return `
+            <div class="flex-fill">
+              <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                ${lockedBadge}
+                <div class="card-body p-3">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
+                    ${changeText ? `<small class="${changeClass}" style="font-weight: 600; color: white;">${changeText}</small>` : ''}
+                  </div>
+                  <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || ''}</div>
+                  ${odd.param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${odd.param}</small>` : ''}
+                  <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
+                    ${odd.odds > 0 ? '+' : ''}${odd.odds}
+                  </div>
+                  ${getBetButtonsHTML(odd.id, isLockedCheck)}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        if (positive) h += renderSpreadCard(positive);
+        if (negative) h += renderSpreadCard(negative);
+
+        h += `
+            </div>
+          </div>
+        `;
+      });
+
+      h += `</div>`;
+      return h;
+    }
+
+    function renderGenericGroup(typeOdds, subsectionLabel) {
+      if (!typeOdds || typeOdds.length === 0) return '';
+
+      let h = '';
+      if (subsectionLabel && subsectionLabel !== 'Game') {
+        h += `<div class="mb-1"><small class="text-uppercase text-muted" style="font-size: 0.7rem;">${subsectionLabel}</small></div>`;
+      }
+      h += `<div class="row g-2">`;
+
+      typeOdds.forEach((odd) => {
+        const change = odd.prevOdds ? odd.odds - odd.prevOdds : 0;
+        const changeClass = change > 0 ? 'text-success' : change < 0 ? 'text-danger' : '';
+        const changeText = change !== 0 ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`) : '';
+        const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+        const lockKey = `${gameId}_${odd.id}`;
+        const isLockedCheck = lockedLines.has(lockKey);
+        const isUnavailableCheck = unavailableMarkets.has(lockKey);
+        const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+        const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+        const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+        const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+
+        h += `
+          <div class="col-6">
+            <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
+              ${lockedBadge}
+              ${unavailableBadge}
+              <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
+                  ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
+                </div>
+                <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4;">${odd.selection || '-'}</div>
+                ${odd.param ? `<small class="text-muted d-block mb-2" style="font-size: 0.75rem; font-weight: 500;">${odd.param}</small>` : ''}
+                <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
+                  ${odd.odds > 0 ? '+' : ''}${odd.odds}
+                </div>
+                ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      h += `</div>`;
+      return h;
+    }
+
+    // Count total odds in this section
+    const sectionTotal = Object.values(typeGroups).reduce((sum, g) => sum + g.total, 0);
+
+    // Card wrapper for the active section
+    html += `
+      <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">${activeSection} <span class="badge bg-light text-dark ms-2">${sectionTotal}</span></h5>
+          </div>
+        </div>
+        <div class="card-body" id="${sectionId}" style="display: block; overflow: hidden;">
+          <div class="odds-type-columns-wrapper" style="overflow-x: auto; padding-bottom: 4px;">
+            <div class="d-flex" style="gap: 24px; min-width: 100%;">
+    `;
+
+    // Render bet types (Moneyline, Point Spread, etc.) as horizontal columns.
+    // Up to ~3 columns are visible depending on viewport; extra columns scroll horizontally.
+    sortedTypesForSection.forEach((type, typeIndex) => {
+      const group = typeGroups[type];
+      const typeId = `${sectionId}-type-${typeIndex}`;
+
+      html += `
+              <div class="odds-type-column" style="flex: 0 0 calc(100% / 2 - 24px); min-width: 420px; max-width: 520px;">
+                <div class="odds-type-group mb-3" style="border: 1px solid var(--border); border-radius: 12px; padding: 8px 8px 12px 8px; background: rgba(0,0,0,0.25);">
+                  <div class="d-flex justify-content-between align-items-center odds-type-header"
+                       style="cursor: pointer; padding: 10px 12px; border-bottom: 1px solid var(--border);"
+                       onclick="toggleSubsection('${typeId}')">
+                    <div class="d-flex align-items-center">
+                      <span style="font-size: 0.8rem; margin-right: 6px;">★</span>
+                      <span style="font-weight: 700; text-transform: uppercase;">${type}</span>
+                    </div>
+                    <div>
+                      <span class="badge bg-secondary me-2">${group.total}</span>
+                      <span class="subsection-toggle" id="toggle-${typeId}" style="font-size: 0.9em;">▼</span>
+                    </div>
+                  </div>
+                  <div id="${typeId}" style="display: block; padding: 8px 4px 0 4px;">
+      `;
+
+      // Within each type we still respect subsections (Game / 1st Half / etc.)
+      const subsectionsForType = Object.keys(group.subsections).sort((a, b) => {
+        return getSubsectionOrder(a) - getSubsectionOrder(b);
+      });
+
+      subsectionsForType.forEach((subsectionLabel) => {
+        const typeOdds = group.subsections[subsectionLabel];
+        if (!typeOdds || typeOdds.length === 0) return;
+
+        const isTotalsType =
+          type === 'Totals' ||
+          type === 'Total Score' ||
+          type === 'Alternative Total Score' ||
+          type === 'Alternative Totals' ||
+          type === 'Team Totals';
+        const isSpreadType = type === 'Point Spread' || type === 'Alternative Point Spread';
+
+        if (isTotalsType) {
+          html += renderTotalsGroup(typeOdds, subsectionLabel);
+        } else if (isSpreadType) {
+          html += renderSpreadGroup(typeOdds, subsectionLabel);
+        } else {
+          html += renderGenericGroup(typeOdds, subsectionLabel);
+        }
+      });
+
+      html += `
+                  </div>
+                </div>
+              </div>
+      `;
+    });
+
+    // Close flex row, wrapper, and card body
+    html += `
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Add summary at top (same as before) and prepend tabs
+  const summaryHtml = `
+    <div class="alert alert-info mb-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <strong>📊 Total Odds: ${oddsList.length}</strong>
+          <span class="ms-2 text-muted">Sections: ${sortedSections.length}</span>
+        </div>
+        <div>
+          <small class="text-muted">Game ID: ${gameId}</small>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return summaryHtml + tabsHtml + html;
+}
+
 function renderOdds() {
   const container = document.getElementById('odds-list');
   
@@ -1233,88 +1881,105 @@ function renderOdds() {
   console.log('📊 Total odds:', oddsList.length);
   console.log('📊 Organized by sections:', Object.keys(organizedOdds));
   
-  // Render organized odds
-  let html = '';
-  
   // Sort sections
   const sortedSections = Object.keys(organizedOdds).sort((a, b) => {
     return getSectionOrder(a) - getSectionOrder(b);
   });
-  
-  // Render each section
-  sortedSections.forEach((section, sectionIndex) => {
-    const sectionData = organizedOdds[section];
-    const sectionId = `section-${sectionIndex}`;
-    
+  // Decide which section is currently active; default to first available
+  if (!activeSection || !organizedOdds[activeSection]) {
+    activeSection = sortedSections[0];
+  }
+
+  const activeSectionData = organizedOdds[activeSection];
+
+  // Build section tabs (Showcase / Game Lines / etc style)
+  const tabsHtml = `
+    <ul class="nav nav-pills mb-3 odds-section-tabs">
+      ${sortedSections.map(section => `
+        <li class="nav-item">
+          <button 
+            class="nav-link ${section === activeSection ? 'active' : ''}" 
+            onclick="setActiveSection('${section.replace(/'/g, "\\'")}')"
+          >
+            ${section}
+          </button>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+
+  // Render only the active section (to avoid long scrolling)
+  let html = '';
+
+  if (activeSectionData) {
+    const sectionId = `section-active`;
+
     // Count total odds in this section
     let sectionTotal = 0;
-    Object.keys(sectionData).forEach(subsection => {
-      Object.keys(sectionData[subsection]).forEach(type => {
-        sectionTotal += sectionData[subsection][type].length;
+    Object.keys(activeSectionData).forEach(subsection => {
+      Object.keys(activeSectionData[subsection]).forEach(type => {
+        sectionTotal += activeSectionData[subsection][type].length;
       });
     });
-    
-    if (sectionTotal === 0) return;
-    
-    // Sort subsections
-    const sortedSubsections = Object.keys(sectionData).sort((a, b) => {
+
+    // Sort subsections within active section
+    const sortedSubsections = Object.keys(activeSectionData).sort((a, b) => {
       return getSubsectionOrder(a) - getSubsectionOrder(b);
     });
-    
+
     html += `
       <div class="card mb-3">
-        <div class="card-header bg-primary text-white" style="cursor: pointer;" onclick="toggleSection('${sectionId}')">
+        <div class="card-header bg-primary text-white">
           <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">${section} <span class="badge bg-light text-dark ms-2">${sectionTotal}</span></h5>
-            <span class="section-toggle" id="toggle-${sectionId}">▼</span>
+            <h5 class="mb-0">${activeSection} <span class="badge bg-light text-dark ms-2">${sectionTotal}</span></h5>
           </div>
         </div>
         <div class="card-body" id="${sectionId}" style="display: block;">
     `;
-    
-    // Render each subsection within section
+
+    // Render each subsection within active section
     sortedSubsections.forEach((subsection, subsectionIndex) => {
-      const subsectionData = sectionData[subsection];
+      const subsectionData = activeSectionData[subsection];
       const subsectionId = `${sectionId}-sub-${subsectionIndex}`;
-      
+
       // Count total odds in this subsection
       let subsectionTotal = 0;
       Object.keys(subsectionData).forEach(type => {
         subsectionTotal += subsectionData[type].length;
       });
-      
+
       if (subsectionTotal === 0) return;
-      
+
       // Sort types
       const sortedTypes = Object.keys(subsectionData).sort((a, b) => {
         return getTypeOrder(a) - getTypeOrder(b);
       });
-      
+
       html += `
         <div class="mb-4">
           <h6 class="text-primary mb-3" style="cursor: pointer; font-size: 16px; font-weight: 700;" onclick="toggleSubsection('${subsectionId}')">
             ${subsection} <span class="badge bg-secondary" style="font-size: 0.85em;">${subsectionTotal}</span>
             <span class="subsection-toggle" id="toggle-${subsectionId}" style="font-size: 0.9em; margin-left: 8px;">▼</span>
           </h6>
-          <div id="${subsectionId}" style="display: block;">
+          <div id="${subsectionId}" style="display: block; white-space: nowrap; overflow-x: auto; padding-bottom: 4px;">
       `;
-      
-      // Render each type within subsection
+
+      // Render each type within subsection (reuse existing logic)
       sortedTypes.forEach(type => {
         const typeOdds = subsectionData[type];
         if (typeOdds.length === 0) return;
-        
+
         // Check if this is a Totals type (Over/Under)
         const isTotalsType = type === 'Totals' || type === 'Total Score' || type === 'Alternative Total Score' || 
                             type === 'Alternative Totals' || type === 'Team Totals';
-        
+
         html += `
-          <div class="mb-3">
+          <div class="mb-3 odds-type-column" style="display: inline-block; vertical-align: top; width: 420px; max-width: 520px; margin-right: 24px; white-space: normal; border: 1px solid var(--border); border-radius: 12px; padding: 8px 8px 12px 8px; background: rgba(0,0,0,0.25);">
             <h6 class="text-muted mb-2" style="font-size: 0.95rem; font-weight: 600;">
               ${type} <span class="badge bg-secondary" style="font-size: 0.8rem;">${typeOdds.length}</span>
             </h6>
         `;
-        
+
         if (isTotalsType) {
           // Group Over/Under by extracting number from selection text (e.g., "Over 62.5" -> 62.5)
           const groupedByLine = {};
@@ -1378,9 +2043,7 @@ function renderOdds() {
               const changeText = change !== 0 
                 ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
                 : '';
-              const tooltip = `Market: ${over.market || 'N/A'}\nSelection: ${over.selection || 'N/A'}\nParam: ${over.param || 'N/A'}\nEvent: ${over.event || 'N/A'}\nID: ${over.id}`;
               const oddClass = over.odds > 0 ? 'text-success' : 'text-danger';
-              const isLocked = over._isLocked || false;
               const lockKey = `${gameId}_${over.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
               const isUnavailableCheck = unavailableMarkets.has(lockKey);
@@ -1418,9 +2081,7 @@ function renderOdds() {
               const changeText = change !== 0 
                 ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
                 : '';
-              const tooltip = `Market: ${under.market || 'N/A'}\nSelection: ${under.selection || 'N/A'}\nParam: ${under.param || 'N/A'}\nEvent: ${under.event || 'N/A'}\nID: ${under.id}`;
               const oddClass = under.odds > 0 ? 'text-success' : 'text-danger';
-              const isLocked = under._isLocked || false;
               const lockKey = `${gameId}_${under.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
               const isUnavailableCheck = unavailableMarkets.has(lockKey);
@@ -1489,7 +2150,6 @@ function renderOdds() {
               const changeText = change !== 0 
                 ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
                 : '';
-              const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
               const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
               const lockKey = `${gameId}_${odd.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
@@ -1560,7 +2220,7 @@ function renderOdds() {
             // Render grouped Point Spread pairs
             html += `<div class="row g-2">`;
             
-            Object.values(groupedByLine).forEach(({ positive, negative, lineNumber }) => {
+            Object.values(groupedByLine).forEach(({ positive, negative }) => {
               // Render +X and -X side by side
               html += `
                 <div class="col-12 mb-3">
@@ -1574,7 +2234,6 @@ function renderOdds() {
                 const changeText = change !== 0 
                   ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
                   : '';
-                const tooltip = `Market: ${positive.market || 'N/A'}\nSelection: ${positive.selection || 'N/A'}\nParam: ${positive.param || 'N/A'}\nEvent: ${positive.event || 'N/A'}\nID: ${positive.id}`;
                 const oddClass = positive.odds > 0 ? 'text-success' : 'text-danger';
                 const lockKey = `${gameId}_${positive.id}`;
                 const isLockedCheck = lockedLines.has(lockKey);
@@ -1609,7 +2268,6 @@ function renderOdds() {
                 const changeText = change !== 0 
                   ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
                   : '';
-                const tooltip = `Market: ${negative.market || 'N/A'}\nSelection: ${negative.selection || 'N/A'}\nParam: ${negative.param || 'N/A'}\nEvent: ${negative.event || 'N/A'}\nID: ${negative.id}`;
                 const oddClass = negative.odds > 0 ? 'text-success' : 'text-danger';
                 const lockKey = `${gameId}_${negative.id}`;
                 const isLockedCheck = lockedLines.has(lockKey);
@@ -1672,7 +2330,50 @@ function renderOdds() {
                 const changeText = change !== 0 
                   ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
                   : '';
-              const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
+                const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
+                const lockKey = `${gameId}_${odd.id}`;
+                const isLockedCheck = lockedLines.has(lockKey);
+                const isUnavailableCheck = unavailableMarkets.has(lockKey);
+                const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+                const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+                const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+                const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
+                
+                html += `
+                  <div class="col-6">
+                    <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
+                      ${lockedBadge}
+                      ${unavailableBadge}
+                      <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                          <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
+                          ${changeText ? `<small class="${changeClass}" style="font-weight: 600; color: white;">${changeText}</small>` : ''}
+                        </div>
+                        <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || '-'}</div>
+                        ${odd.param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${odd.param}</small>` : ''}
+                        <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
+                          ${odd.odds > 0 ? '+' : ''}${odd.odds}
+                        </div>
+                        ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }
+            });
+            
+            html += `</div>`;
+          } else {
+            // Regular rendering for non-totals, non-spread types
+            html += `<div class="row g-2">`;
+            
+            typeOdds.forEach(odd => {
+              const change = odd.prevOdds ? odd.odds - odd.prevOdds : 0;
+              const changeClass = change > 0 ? 'text-success' : change < 0 ? 'text-danger' : '';
+              const changeText = change !== 0 
+                ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
+                : '';
+              
               const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
               const lockKey = `${gameId}_${odd.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
@@ -1680,7 +2381,7 @@ function renderOdds() {
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
-              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
+              const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
               
               html += `
                 <div class="col-6">
@@ -1689,12 +2390,12 @@ function renderOdds() {
                     ${unavailableBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
-                        <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
-                        ${changeText ? `<small class="${changeClass}" style="font-weight: 600; color: white;">${changeText}</small>` : ''}
+                        <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
+                        ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
                       </div>
-                      <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || '-'}</div>
-                      ${odd.param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${odd.param}</small>` : ''}
-                      <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
+                      <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4;">${odd.selection || '-'}</div>
+                      ${odd.param ? `<small class="text-muted d-block mb-2" style="font-size: 0.75rem; font-weight: 500;">${odd.param}</small>` : ''}
+                      <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
                         ${odd.odds > 0 ? '+' : ''}${odd.odds}
                       </div>
                       ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
@@ -1702,53 +2403,8 @@ function renderOdds() {
                   </div>
                 </div>
               `;
-            }
-          });
-          
-          html += `</div>`;
-        } else {
-          // Regular rendering for non-totals, non-spread types
-          html += `<div class="row g-2">`;
-          
-          typeOdds.forEach(odd => {
-            const change = odd.prevOdds ? odd.odds - odd.prevOdds : 0;
-            const changeClass = change > 0 ? 'text-success' : change < 0 ? 'text-danger' : '';
-            const changeText = change !== 0 
-              ? (change > 0 ? `↑${change}` : `↓${Math.abs(change)}`)
-              : '';
-            
-            const tooltip = `Market: ${odd.market || 'N/A'}\nSelection: ${odd.selection || 'N/A'}\nParam: ${odd.param || 'N/A'}\nEvent: ${odd.event || 'N/A'}\nID: ${odd.id}`;
-            const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
-            const lockKey = `${gameId}_${odd.id}`;
-            const isLockedCheck = lockedLines.has(lockKey);
-            const isUnavailableCheck = unavailableMarkets.has(lockKey);
-            const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
-            const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
-            const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
-            const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
-            
-            html += `
-              <div class="col-6">
-                <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
-                  ${lockedBadge}
-                  ${unavailableBadge}
-                  <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                      <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
-                      ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
-                    </div>
-                    <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4;">${odd.selection || '-'}</div>
-                    ${odd.param ? `<small class="text-muted d-block mb-2" style="font-size: 0.75rem; font-weight: 500;">${odd.param}</small>` : ''}
-                    <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
-                      ${odd.odds > 0 ? '+' : ''}${odd.odds}
-                    </div>
-                    ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
-                  </div>
-                </div>
-              </div>
-            `;
-          });
-            
+            });
+              
             html += `</div>`;
           }
         }
@@ -1763,12 +2419,12 @@ function renderOdds() {
         </div>
       `;
     });
-    
+
     html += `
         </div>
       </div>
     `;
-  });
+  }
   
   // Add summary at top
   const summaryHtml = `
@@ -1783,7 +2439,7 @@ function renderOdds() {
         </div>
       </div>
     </div>
-  `;
+  ` + tabsHtml;
   
   container.innerHTML = summaryHtml + html;
 }
@@ -1878,6 +2534,12 @@ function toggleSubsection(subsectionId) {
   }
 }
 
+// Change active odds section (Gameline, Player Props, etc.)
+function setActiveSection(sectionName) {
+  activeSection = sectionName;
+  renderOdds();
+}
+
 // =============================================
 // EXPORTS
 // =============================================
@@ -1893,5 +2555,7 @@ window.FliffApp = {
   setWager,
   toggleUnavailableFilter,
   toggleSection,
-  toggleSubsection
+  toggleSubsection,
+  setActiveSection,
+  handleLeagueFilterChange
 };

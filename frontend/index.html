@@ -39,7 +39,7 @@
         <!-- Filter Unavailable Markets -->
         <div class="wager-select" style="margin-left: 15px;">
           <label>
-            <input type="checkbox" id="hide-unavailable" onchange="toggleUnavailableFilter()" checked>
+            <input type="checkbox" id="hide-unavailable" onchange="toggleUnavailableFilter()">
             Hide Unavailable
           </label>
         </div>
@@ -51,6 +51,12 @@
           <span id="status-text">Connecting...</span>
         </span>
         <span class="stat">🎮 <span id="games-count">0</span></span>
+        <div class="league-filter">
+          <label for="league-filter-select" style="margin-right: 6px; font-size: 0.85rem;">League:</label>
+          <select id="league-filter-select" onchange="handleLeagueFilterChange(this.value)">
+            <option value="all">All</option>
+          </select>
+        </div>
         <a href="admin.html" class="admin-link">📊 Admin</a>
       </div>
     </header>
@@ -79,7 +85,34 @@
           <button class="back-btn" onclick="closeGamePanel()">← Back</button>
           <h2 id="panel-title">Game Details</h2>
           <div class="panel-controls">
-            <span class="wager-display">💰 $<span id="current-wager">10.00</span></span>
+            <div class="wager-select" style="display: flex; align-items: center; gap: 8px;">
+              <label for="wager-amount-inner" style="margin: 0; font-size: 0.9rem;">Wager:</label>
+              <select id="wager-amount-inner" onchange="handleWagerChange(this.value)" style="min-width: 90px;">
+                <option value="0.20">$0.20</option>
+                <option value="0.50">$0.50</option>
+                <option value="1">$1</option>
+                <option value="2">$2</option>
+                <option value="5">$5</option>
+                <option value="10" selected>$10</option>
+                <option value="25">$25</option>
+                <option value="50">$50</option>
+                <option value="100">$100</option>
+                <option value="200">$200</option>
+                <option value="250">$250</option>
+                <option value="500">$500</option>
+                <option value="custom">Custom</option>
+              </select>
+              <input type="number"
+                     id="custom-wager-inner"
+                     class="custom-wager-input"
+                     placeholder="Enter amount"
+                     min="0.01"
+                     step="0.01"
+                     style="display: none; width: 110px; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px;"
+                     onchange="setCustomWager(this.value)"
+                     onblur="setCustomWager(this.value)" />
+              <span class="wager-display" style="font-size: 0.9rem;">💰 $<span id="current-wager">10.00</span></span>
+            </div>
             <span id="coin-type-display" class="coin-type">💵 Cash</span>
           </div>
         </div>

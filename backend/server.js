@@ -1002,8 +1002,54 @@ app.post('/api/lock-and-load', async (req, res) => {
           // API METHOD: Place $0.20 bet via API and capture the exact request
           // This request will be saved and reused for the actual bet (locks odds without reload!)
           logBetting(`   [${profileName}] Placing $${lockWager} bet via API to capture locked request...`);
-          const betResult = await client.placeBetViaAPI(finalSelection, finalOdds, lockWager, 'cash', finalParam, finalMarket, oddId, false);
-          
+          let betResult = await client.placeBetViaAPI(
+            finalSelection,
+            finalOdds,
+            lockWager,
+            'cash',
+            finalParam,
+            finalMarket,
+            oddId,
+            false
+          );
+
+          // If we hit an unauthorized error (401), refresh bearer token from page and retry once
+          if (!betResult.success && betResult.unauthorized) {
+            logBetting(
+              `   [${profileName}] ⚠️ Unauthorized (401) from API. Refreshing bearer token from page and retrying once...`
+            );
+            try {
+              const injectedToken = await client.page.evaluate(() => {
+                return window.__fliffBearerToken || null;
+              });
+              if (injectedToken && injectedToken !== client.bearerToken) {
+                client.bearerToken = injectedToken;
+                client.saveAPICredentials();
+                logBetting(`   [${profileName}] 🔑 Bearer token refreshed after 401`);
+              } else {
+                logBetting(
+                  `   [${profileName}] ⚠️ No new bearer token found in page after 401 (using existing token)`
+                );
+              }
+            } catch (e) {
+              logBetting(
+                `   [${profileName}] ⚠️ Failed to refresh bearer token from page after 401: ${e.message}`
+              );
+            }
+
+            // Retry once with (possibly) refreshed token
+            betResult = await client.placeBetViaAPI(
+              finalSelection,
+              finalOdds,
+              lockWager,
+              'cash',
+              finalParam,
+              finalMarket,
+              oddId,
+              false
+            );
+          }
+
           if (!betResult.success) {
             logBetting(`   [${profileName}] ❌ API bet failed: ${betResult.error}`);
             return {
@@ -1016,7 +1062,8 @@ app.post('/api/lock-and-load', async (req, res) => {
               lockedOdds: null,
               currentOdds: null,
               error: betResult.error || 'API bet failed',
-              marketNotAvailable: betResult.marketNotAvailable || false
+              marketNotAvailable: betResult.marketNotAvailable || betResult.eventNotAvailable || false,
+              eventNotAvailable: betResult.eventNotAvailable || false
             };
           }
           
@@ -1081,6 +1128,8 @@ app.post('/api/lock-and-load', async (req, res) => {
     const anyOddsChanged = results.some(r => r.oddsChanged);
     const allProfilesSuccess = results.every(r => r.success);
     const anyMarketNotAvailable = results.some(r => r.marketNotAvailable);
+    const anyEventNotAvailable = results.some(r => r.eventNotAvailable);
+    const anyUnavailable = anyMarketNotAvailable || anyEventNotAvailable;
     
     // Log results for each profile
     results.forEach(r => {
@@ -1170,7 +1219,18 @@ app.post('/api/lock-and-load', async (req, res) => {
     broadcast({
       type: 'prefire_result',
       success: allLocked,
-      message: message,
+      armed: allLocked,
+      allOddsLocked,
+      anyOddsChanged,
+      marketNotAvailable: anyUnavailable,
+      eventNotAvailable: anyEventNotAvailable,
+      oddId,
+      gameId,
+      selection: finalSelection,
+      odds: finalOdds,
+      message: anyUnavailable
+        ? `⚠️ Market / Event Not Available: This selection is no longer available for betting`
+        : message,
       profileResults: results
     });
     
@@ -1192,7 +1252,8 @@ app.post('/api/lock-and-load', async (req, res) => {
       betPlaced: allBetsPlaced,
       allOddsLocked: allLocked,
       anyOddsChanged: anyOddsChanged,
-      marketNotAvailable: anyMarketNotAvailable, // Add market availability flag
+      marketNotAvailable: anyUnavailable, // Treat event-not-available same as market-not-available
+      eventNotAvailable: anyEventNotAvailable,
       lockedOdds: allLocked ? finalOdds : null,
       profileResults: results
     });
@@ -1445,7 +1506,8 @@ app.post('/api/place-bet', async (req, res) => {
               retry: isUnauthorized, // Retry if unauthorized (token might need refresh)
               message: 'Bet failed',
               error: errorMsg || 'Bet failed',
-              marketNotAvailable: betResult.marketNotAvailable || false,
+              marketNotAvailable: betResult.marketNotAvailable || betResult.eventNotAvailable || false,
+              eventNotAvailable: betResult.eventNotAvailable || false,
               unauthorized: isUnauthorized
             };
           }

@@ -6,14 +6,23 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 const FliffClient = require('./fliff');
+const UserManager = require('./userManager');
+const DockerProfileManager = require('../docker/profile-manager');
 
 // =============================================
-// FLIFF BACKEND SERVER
+// FLIFF BACKEND SERVER - MULTI-USER EDITION
 // =============================================
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+
+// Initialize User Manager
+const userManager = new UserManager();
+
+// Initialize Docker Profile Manager
+const dockerManager = new DockerProfileManager();
+dockerManager.load();
 
 app.use(cors());
 app.use(express.json());
@@ -35,6 +44,77 @@ app.get('/vnc', (req, res) => {
 // Serve frontend index.html for root route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+});
+
+// Serve admin.html for /admin route
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'admin.html'));
+});
+
+// =============================================
+// USER DASHBOARD ROUTES (URL-based access)
+// Access: /user/:username - No login required
+// =============================================
+
+// Serve user-specific dashboard
+app.get('/user/:username', (req, res) => {
+  const { username } = req.params;
+  
+  // Check if user exists and is active
+  if (!userManager.userExists(username)) {
+    return res.status(404).send(`
+      <html>
+        <head><title>User Not Found</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px; background: #1a1a2e; color: white;">
+          <h1>❌ User Not Found</h1>
+          <p>The user "${username}" does not exist.</p>
+          <a href="/" style="color: #00d4ff;">Go to Home</a>
+        </body>
+      </html>
+    `);
+  }
+  
+  if (!userManager.isUserActive(username)) {
+    return res.status(403).send(`
+      <html>
+        <head><title>Account Inactive</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px; background: #1a1a2e; color: white;">
+          <h1>🔒 Account Inactive</h1>
+          <p>This account is currently inactive.</p>
+          <a href="/" style="color: #00d4ff;">Go to Home</a>
+        </body>
+      </html>
+    `);
+  }
+  
+  // Serve the user dashboard
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'user-dashboard.html'));
+});
+
+// User dashboard data endpoint
+app.get('/api/user/:username/dashboard', (req, res) => {
+  const { username } = req.params;
+  
+  if (!userManager.userExists(username) || !userManager.isUserActive(username)) {
+    return res.status(404).json({ error: 'User not found or inactive' });
+  }
+  
+  const dashboardData = userManager.getUserDashboardData(username);
+  
+  // Add running status for each profile
+  const profilesWithStatus = dashboardData.profiles.map(profileName => {
+    const client = fliffClients.get(profileName);
+    return {
+      name: profileName,
+      isRunning: !!client,
+      isMain: profileName === dashboardData.mainProfile
+    };
+  });
+  
+  res.json({
+    ...dashboardData,
+    profiles: profilesWithStatus
+  });
 });
 
 // Serve frontend static files
@@ -100,6 +180,920 @@ const accountStats = {
 let fliffClient = null; // Keep for backward compatibility (primary client)
 let fliffClients = new Map(); // Map of profileName -> FliffClient for all profiles
 let stats = { messages: 0, connected: false };
+
+// =============================================
+// MAIN PROFILE CONFIGURATION (Fliff Cluster V1 approach)
+// The main profile is used for data scraping - it browses games
+// and captures all market data via WebSocket
+// =============================================
+let mainProfile = 'Live Event'; // Default main profile for data scraping
+
+// Priority game tracking - for faster updates when a game is selected
+let priorityGameId = null;
+let priorityGameUpdateInterval = null;
+
+// =============================================
+// ADMIN API - USER MANAGEMENT
+// =============================================
+
+// Get all users (admin only)
+app.get('/api/admin/users', (req, res) => {
+  const users = userManager.getAllUsers();
+  res.json(users);
+});
+
+// Create new user
+app.post('/api/admin/users', (req, res) => {
+  const { username, displayName, role } = req.body;
+  
+  if (!username) {
+    return res.status(400).json({ error: 'Username is required' });
+  }
+  
+  const result = userManager.createUser(username, displayName, role);
+  
+  if (result.success) {
+    res.json(result.user);
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+// Update user
+app.put('/api/admin/users/:username', (req, res) => {
+  const { username } = req.params;
+  const updates = req.body;
+  
+  const result = userManager.updateUser(username, updates);
+  
+  if (result.success) {
+    res.json(result.user);
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+// Delete user
+app.delete('/api/admin/users/:username', (req, res) => {
+  const { username } = req.params;
+  
+  const result = userManager.deleteUser(username);
+  
+  if (result.success) {
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+// =============================================
+// ADMIN API - PROFILE MANAGEMENT
+// =============================================
+
+// Get all profiles with assignment info
+app.get('/api/admin/profiles', (req, res) => {
+  // Sync running profiles first
+  userManager.syncRunningProfiles(fliffClients);
+  
+  const profiles = userManager.getAllProfiles();
+  
+  // Add running status from fliffClients
+  const profilesWithStatus = profiles.map(profile => ({
+    ...profile,
+    isRunning: fliffClients.has(profile.name),
+    hasClient: !!fliffClients.get(profile.name)
+  }));
+  
+  res.json(profilesWithStatus);
+});
+
+// Assign profile to user
+app.post('/api/admin/assign-profile', (req, res) => {
+  const { username, profileName } = req.body;
+  
+  if (!username || !profileName) {
+    return res.status(400).json({ error: 'username and profileName are required' });
+  }
+  
+  const result = userManager.assignProfile(username, profileName);
+  
+  if (result.success) {
+    res.json({ success: true, user: userManager.getUser(username) });
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+// Unassign profile from user
+app.post('/api/admin/unassign-profile', (req, res) => {
+  const { username, profileName } = req.body;
+  
+  if (!username || !profileName) {
+    return res.status(400).json({ error: 'username and profileName are required' });
+  }
+  
+  const result = userManager.unassignProfile(username, profileName);
+  
+  if (result.success) {
+    res.json({ success: true, user: userManager.getUser(username) });
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+// Set main profile for user
+app.post('/api/admin/set-main-profile', (req, res) => {
+  const { username, profileName } = req.body;
+  
+  if (!username || !profileName) {
+    return res.status(400).json({ error: 'username and profileName are required' });
+  }
+  
+  const result = userManager.setMainProfile(username, profileName);
+  
+  if (result.success) {
+    res.json({ success: true, user: userManager.getUser(username) });
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+// Bulk assign profiles to user
+app.post('/api/admin/bulk-assign', (req, res) => {
+  const { username, profileNames, mainProfile } = req.body;
+  
+  if (!username || !profileNames || !Array.isArray(profileNames)) {
+    return res.status(400).json({ error: 'username and profileNames array are required' });
+  }
+  
+  const result = userManager.assignMultipleProfiles(username, profileNames, mainProfile);
+  
+  if (result.success) {
+    res.json(result);
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+// Get admin overview
+app.get('/api/admin/overview', (req, res) => {
+  // Sync profiles first
+  userManager.syncRunningProfiles(fliffClients);
+  
+  const overview = userManager.getAdminOverview();
+  
+  // Add running status
+  overview.runningProfiles = Array.from(fliffClients.keys());
+  overview.totalRunning = fliffClients.size;
+  
+  res.json(overview);
+});
+
+// =============================================
+// ADMIN API - PROFILE CONTROL (START/STOP)
+// =============================================
+
+// Get available (not running) profiles from filesystem
+app.get('/api/admin/available-profiles', (req, res) => {
+  try {
+    const profilesPath = path.join(__dirname, '..', 'profiles');
+    const directories = fs.readdirSync(profilesPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+    
+    const availableProfiles = [];
+    
+    for (const dir of directories) {
+      const settingsPath = path.join(profilesPath, dir, 'settings.json');
+      if (fs.existsSync(settingsPath)) {
+        try {
+          const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+          const isRunning = fliffClients.has(settings.name);
+          availableProfiles.push({
+            directory: dir,
+            name: settings.name,
+            isRunning,
+            hasProxy: !!settings.proxy,
+            isLiveEvent: settings.isLiveEvent || false
+          });
+        } catch (e) {
+          console.error(`Error reading settings for ${dir}:`, e.message);
+        }
+      }
+    }
+    
+    res.json(availableProfiles);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Start a single profile
+app.post('/api/admin/start-profile', async (req, res) => {
+  const { profileDirectory } = req.body;
+  
+  if (!profileDirectory) {
+    return res.status(400).json({ error: 'profileDirectory is required' });
+  }
+  
+  try {
+    const result = await startSingleProfile(profileDirectory);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Stop a single profile
+app.post('/api/admin/stop-profile', async (req, res) => {
+  const { profileName } = req.body;
+  
+  if (!profileName) {
+    return res.status(400).json({ error: 'profileName is required' });
+  }
+  
+  try {
+    const client = fliffClients.get(profileName);
+    if (!client) {
+      return res.status(404).json({ error: 'Profile not running' });
+    }
+    
+    // Close browser
+    if (client.browser) {
+      await client.browser.close();
+    }
+    
+    // Remove from clients map
+    fliffClients.delete(profileName);
+    
+    // Update user manager
+    userManager.updateProfileStatus(profileName, false);
+    
+    console.log(`🛑 Profile ${profileName} stopped`);
+    res.json({ success: true, message: `Profile ${profileName} stopped` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Start all profiles for a specific user
+app.post('/api/admin/start-user-profiles', async (req, res) => {
+  const { username } = req.body;
+  
+  if (!username) {
+    return res.status(400).json({ error: 'username is required' });
+  }
+  
+  const user = userManager.getUser(username);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const assignedProfiles = user.assignedProfiles || [];
+  const results = [];
+  
+  for (const profileName of assignedProfiles) {
+    // Find profile directory from user manager data
+    const profile = userManager.getProfile(profileName);
+    if (!profile) continue;
+    
+    // Skip if already running
+    if (fliffClients.has(profileName)) {
+      results.push({ profile: profileName, success: true, status: 'already_running' });
+      continue;
+    }
+    
+    // Find the directory by searching profiles folder
+    try {
+      const profilesPath = path.join(__dirname, '..', 'profiles');
+      const directories = fs.readdirSync(profilesPath, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+      
+      for (const dir of directories) {
+        const settingsPath = path.join(profilesPath, dir, 'settings.json');
+        if (fs.existsSync(settingsPath)) {
+          const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+          if (settings.name === profileName) {
+            const result = await startSingleProfile(dir);
+            results.push({ profile: profileName, ...result });
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      results.push({ profile: profileName, success: false, error: e.message });
+    }
+  }
+  
+  res.json({ 
+    success: true, 
+    results,
+    startedCount: results.filter(r => r.success).length,
+    totalCount: assignedProfiles.length
+  });
+});
+
+// Start all profiles
+app.post('/api/admin/start-all-profiles', async (req, res) => {
+  try {
+    const profilesPath = path.join(__dirname, '..', 'profiles');
+    const directories = fs.readdirSync(profilesPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+    
+    const results = [];
+    
+    for (const dir of directories) {
+      const settingsPath = path.join(profilesPath, dir, 'settings.json');
+      if (fs.existsSync(settingsPath)) {
+        try {
+          const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+          
+          // Skip if already running
+          if (fliffClients.has(settings.name)) {
+            results.push({ profile: settings.name, success: true, status: 'already_running' });
+            continue;
+          }
+          
+          const result = await startSingleProfile(dir);
+          results.push({ profile: settings.name, ...result });
+          
+          // Add delay between starts
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (e) {
+          results.push({ profile: dir, success: false, error: e.message });
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      results,
+      startedCount: results.filter(r => r.success && r.status !== 'already_running').length,
+      alreadyRunningCount: results.filter(r => r.status === 'already_running').length,
+      totalCount: results.length
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Stop all profiles
+app.post('/api/admin/stop-all-profiles', async (req, res) => {
+  const results = [];
+  
+  for (const [profileName, client] of fliffClients.entries()) {
+    try {
+      if (client.browser) {
+        await client.browser.close();
+      }
+      fliffClients.delete(profileName);
+      userManager.updateProfileStatus(profileName, false);
+      results.push({ profile: profileName, success: true });
+    } catch (e) {
+      results.push({ profile: profileName, success: false, error: e.message });
+    }
+  }
+  
+  console.log(`🛑 All profiles stopped`);
+  res.json({
+    success: true,
+    results,
+    stoppedCount: results.filter(r => r.success).length
+  });
+});
+
+// Helper function to start a single profile
+async function startSingleProfile(profileDirectory) {
+  const profilesPath = path.join(__dirname, '..', 'profiles');
+  const settingsPath = path.join(profilesPath, profileDirectory, 'settings.json');
+  
+  if (!fs.existsSync(settingsPath)) {
+    throw new Error(`Settings not found for profile: ${profileDirectory}`);
+  }
+  
+  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  
+  // Check if already running
+  if (fliffClients.has(settings.name)) {
+    return { success: true, status: 'already_running', message: `${settings.name} is already running` };
+  }
+  
+  const isLiveEvent = settings.isLiveEvent || false;
+  
+  console.log(`🚀 Starting profile: ${settings.name} (${isLiveEvent ? 'Live Event' : 'Betting'})...`);
+  
+  // Create FliffClient
+  const client = new FliffClient({
+    onGame: (game) => handleGameUpdate(game),
+    onOdds: (gameId, odd) => handleOddsUpdate(gameId, odd),
+    onStats: (newStats) => handleStats(newStats),
+    onConnect: () => {
+      stats.connected = true;
+      broadcast({ type: 'connected', profile: settings.name });
+    },
+    onDisconnect: () => {
+      broadcast({ type: 'disconnected', profile: settings.name });
+    }
+  }, profileDirectory);
+  
+  client.isLiveEventProfile = isLiveEvent;
+  client.isBettingProfile = !isLiveEvent;
+  client.settings = settings;
+  client.loadAPICredentials();
+  
+  // Override start to use profile-specific browser data
+  const originalStart = client.start;
+  client.start = async function() {
+    const browserDataPath = path.join(__dirname, '..', 'profiles', profileDirectory, 'browser_data');
+    
+    console.log(`🎮 Starting Fliff Client for ${settings.name}...`);
+    
+    try {
+      let chromePath;
+      if (process.platform === 'win32') {
+        const possiblePaths = [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe')
+        ];
+        chromePath = possiblePaths.find(p => p && fs.existsSync(p));
+      } else if (process.platform === 'darwin') {
+        chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+      } else {
+        chromePath = '/usr/bin/google-chrome';
+      }
+      
+      if (!chromePath || !fs.existsSync(chromePath)) {
+        throw new Error('Chrome not found');
+      }
+      
+      const proxy = this.parseProxy(this.settings.proxy);
+      const launchArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--window-size=1280,800'
+      ];
+      
+      if (proxy) {
+        launchArgs.push(`--proxy-server=${proxy.host}:${proxy.port}`);
+      }
+      
+      this.browser = await puppeteer.launch({
+        executablePath: chromePath,
+        headless: false,
+        defaultViewport: { width: 1280, height: 800 },
+        args: launchArgs,
+        userDataDir: browserDataPath
+      });
+      
+      const pages = await this.browser.pages();
+      this.page = pages[0] || await this.browser.newPage();
+      
+      if (proxy && proxy.username && proxy.password) {
+        await this.page.authenticate({ username: proxy.username, password: proxy.password });
+      }
+      
+      await this.setupInterception();
+      await this.page.goto('https://sports.getfliff.com', { waitUntil: 'networkidle2', timeout: 60000 });
+      
+    } catch (e) {
+      console.error(`Error starting ${settings.name}:`, e.message);
+      throw e;
+    }
+  };
+  
+  // Start the client
+  await client.start();
+  
+  // Register with system
+  fliffClients.set(settings.name, client);
+  userManager.registerProfile(settings.name, {
+    directory: `profiles/${profileDirectory}`,
+    proxy: settings.proxy
+  });
+  
+  if (!fliffClient) {
+    fliffClient = client;
+  }
+  
+  console.log(`✅ Profile ${settings.name} started successfully`);
+  
+  return { success: true, message: `${settings.name} started successfully` };
+}
+
+// =============================================
+// DOCKER CONTAINER MANAGEMENT API
+// =============================================
+
+// Check if Docker is available
+app.get('/api/admin/docker/status', async (req, res) => {
+  const available = await dockerManager.checkDocker();
+  res.json({ 
+    available,
+    message: available ? 'Docker is available' : 'Docker is not installed or not running'
+  });
+});
+
+// Build Docker image
+app.post('/api/admin/docker/build', async (req, res) => {
+  try {
+    const result = await dockerManager.buildImage();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Create Docker container for a profile
+app.post('/api/admin/docker/create-container', async (req, res) => {
+  const { profileName, profileDirectory } = req.body;
+  
+  if (!profileName || !profileDirectory) {
+    return res.status(400).json({ error: 'profileName and profileDirectory are required' });
+  }
+  
+  try {
+    const result = await dockerManager.createContainer(profileName, profileDirectory);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Stop Docker container
+app.post('/api/admin/docker/stop-container', async (req, res) => {
+  const { profileName } = req.body;
+  
+  if (!profileName) {
+    return res.status(400).json({ error: 'profileName is required' });
+  }
+  
+  try {
+    const result = await dockerManager.stopContainer(profileName);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Get all Docker container statuses
+app.get('/api/admin/docker/containers', async (req, res) => {
+  try {
+    const statuses = await dockerManager.getAllStatuses();
+    res.json(statuses);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get VNC info for a profile
+app.get('/api/admin/docker/vnc/:profileName', (req, res) => {
+  const { profileName } = req.params;
+  const info = dockerManager.getVncInfo(profileName);
+  
+  if (!info) {
+    return res.status(404).json({ error: 'No Docker container found for this profile' });
+  }
+  
+  res.json(info);
+});
+
+// Generate docker-compose file for all profiles
+app.post('/api/admin/docker/generate-compose', async (req, res) => {
+  try {
+    const profilesPath = path.join(__dirname, '..', 'profiles');
+    const directories = fs.readdirSync(profilesPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+    
+    const profiles = [];
+    
+    for (const dir of directories) {
+      const settingsPath = path.join(profilesPath, dir, 'settings.json');
+      if (fs.existsSync(settingsPath)) {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        profiles.push({
+          name: settings.name,
+          directory: `profiles/${dir}`
+        });
+      }
+    }
+    
+    const composePath = await dockerManager.generateComposeFile(profiles);
+    res.json({ success: true, path: composePath, profileCount: profiles.length });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Start all containers with docker-compose
+app.post('/api/admin/docker/start-all', async (req, res) => {
+  try {
+    const result = await dockerManager.startAllWithCompose();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Stop all Docker containers
+app.post('/api/admin/docker/stop-all', async (req, res) => {
+  try {
+    const results = await dockerManager.stopAll();
+    res.json({ success: true, results });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Get VNC info for user's profiles (Docker containers)
+app.get('/api/user/:username/docker-vnc', (req, res) => {
+  const { username } = req.params;
+  
+  if (!userManager.userExists(username)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const profiles = userManager.getUserProfiles(username);
+  const vncInfoList = [];
+  
+  for (const profileName of profiles) {
+    const vncInfo = dockerManager.getVncInfo(profileName);
+    vncInfoList.push({
+      profileName,
+      hasContainer: !!vncInfo,
+      ...vncInfo
+    });
+  }
+  
+  res.json(vncInfoList);
+});
+
+// =============================================
+// USER-SCOPED API ENDPOINTS
+// These endpoints are scoped to a specific user
+// =============================================
+
+// Get user's profiles
+app.get('/api/user/:username/profiles', (req, res) => {
+  const { username } = req.params;
+  
+  if (!userManager.userExists(username)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const profiles = userManager.getUserProfiles(username);
+  const mainProfile = userManager.getUserMainProfile(username);
+  
+  const profilesWithStatus = profiles.map(name => ({
+    name,
+    isRunning: fliffClients.has(name),
+    isMain: name === mainProfile
+  }));
+  
+  res.json({
+    profiles: profilesWithStatus,
+    mainProfile
+  });
+});
+
+// Get user's main profile
+app.get('/api/user/:username/main-profile', (req, res) => {
+  const { username } = req.params;
+  
+  if (!userManager.userExists(username)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const mainProfile = userManager.getUserMainProfile(username);
+  const client = mainProfile ? fliffClients.get(mainProfile) : null;
+  
+  res.json({
+    mainProfile,
+    isRunning: !!client
+  });
+});
+
+// Navigate user's main profile to a game
+app.post('/api/user/:username/navigate-to-game', async (req, res) => {
+  const { username } = req.params;
+  const { conflictFkey, gameId } = req.body;
+  
+  if (!userManager.userExists(username)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const mainProfileName = userManager.getUserMainProfile(username);
+  if (!mainProfileName) {
+    return res.status(400).json({ error: 'No main profile set for this user' });
+  }
+  
+  const client = fliffClients.get(mainProfileName);
+  if (!client) {
+    return res.status(500).json({ error: `Main profile "${mainProfileName}" is not running` });
+  }
+  
+  // Find conflictFkey if not provided
+  let targetFkey = conflictFkey;
+  if (!targetFkey && gameId) {
+    const game = liveGames.get(parseInt(gameId));
+    if (game && game.conflictFkey) {
+      targetFkey = game.conflictFkey;
+    }
+  }
+  
+  if (!targetFkey) {
+    return res.status(400).json({ error: 'conflictFkey or valid gameId is required' });
+  }
+  
+  try {
+    const result = await client.navigateToGameByFkey(targetFkey);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Place bet on user's profiles only
+app.post('/api/user/:username/place-bet', async (req, res) => {
+  const { username } = req.params;
+  const { profileNames, selection, odds, wager, wagerType, param, market, oddId, gameId } = req.body;
+  
+  if (!userManager.userExists(username)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  // Get user's allowed profiles
+  const allowedProfiles = userManager.getUserProfiles(username);
+  
+  // If no specific profiles requested, use all user's profiles
+  let targetProfiles = profileNames && profileNames.length > 0 
+    ? profileNames.filter(p => allowedProfiles.includes(p))
+    : allowedProfiles;
+  
+  if (targetProfiles.length === 0) {
+    return res.status(403).json({ error: 'No valid profiles available for betting' });
+  }
+  
+  // Place bets on target profiles
+  const results = [];
+  
+  for (const profileName of targetProfiles) {
+    const client = fliffClients.get(profileName);
+    
+    if (!client) {
+      results.push({
+        profile: profileName,
+        success: false,
+        error: 'Profile not running'
+      });
+      continue;
+    }
+    
+    try {
+      const betResult = await client.placeBetViaAPI(
+        selection,
+        parseInt(odds),
+        parseFloat(wager),
+        wagerType || 'cash',
+        param,
+        market,
+        oddId,
+        false
+      );
+      
+      results.push({
+        profile: profileName,
+        success: betResult.success,
+        ...betResult
+      });
+    } catch (e) {
+      results.push({
+        profile: profileName,
+        success: false,
+        error: e.message
+      });
+    }
+  }
+  
+  const successCount = results.filter(r => r.success).length;
+  
+  res.json({
+    success: successCount > 0,
+    totalProfiles: targetProfiles.length,
+    successCount,
+    results
+  });
+});
+
+// Lock and load for user's profiles
+app.post('/api/user/:username/lock-and-load', async (req, res) => {
+  const { username } = req.params;
+  const { selection, odds, param, market, oddId, gameId } = req.body;
+  
+  if (!userManager.userExists(username)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const allowedProfiles = userManager.getUserProfiles(username);
+  
+  if (allowedProfiles.length === 0) {
+    return res.status(403).json({ error: 'No profiles assigned to this user' });
+  }
+  
+  // Filter to only running profiles
+  const runningProfiles = allowedProfiles.filter(p => fliffClients.has(p));
+  
+  if (runningProfiles.length === 0) {
+    return res.status(500).json({ error: 'No assigned profiles are currently running' });
+  }
+  
+  // Place $0.20 lock and load bet on each profile
+  const lockWager = 0.20;
+  const results = [];
+  
+  for (const profileName of runningProfiles) {
+    const client = fliffClients.get(profileName);
+    
+    try {
+      // Capture bearer token first
+      await client.captureCurrentBearerToken();
+      
+      // Place lock and load bet
+      const betResult = await client.placeBetViaAPI(
+        selection,
+        parseInt(odds),
+        lockWager,
+        'cash',
+        param,
+        market,
+        oddId,
+        false
+      );
+      
+      results.push({
+        profile: profileName,
+        success: betResult.success,
+        armed: betResult.success,
+        ...betResult
+      });
+    } catch (e) {
+      results.push({
+        profile: profileName,
+        success: false,
+        armed: false,
+        error: e.message
+      });
+    }
+  }
+  
+  const successCount = results.filter(r => r.success).length;
+  const allArmed = successCount === runningProfiles.length;
+  
+  res.json({
+    success: successCount > 0,
+    armed: allArmed,
+    totalProfiles: runningProfiles.length,
+    successCount,
+    results,
+    message: allArmed 
+      ? `🔒 ARMED! All ${runningProfiles.length} profile(s) locked at ${odds}`
+      : `⚠️ ${successCount}/${runningProfiles.length} profiles armed`
+  });
+});
+
+// Get VNC info for user's profiles
+app.get('/api/user/:username/vnc-info', (req, res) => {
+  const { username } = req.params;
+  
+  if (!userManager.userExists(username)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const profiles = userManager.getUserProfiles(username);
+  
+  const vncInfo = profiles.map(profileName => {
+    const client = fliffClients.get(profileName);
+    return {
+      profile: profileName,
+      isRunning: !!client,
+      // VNC port would be configured per profile
+      vncPort: client?.vncPort || null,
+      vncUrl: client?.vncPort ? `/novnc/vnc.html?host=${req.hostname}&port=${client.vncPort}` : null
+    };
+  });
+  
+  res.json(vncInfo);
+});
+
+// Helper to get the main profile FliffClient
+function getMainProfileClient() {
+  return fliffClients.get(mainProfile) || fliffClient;
+}
 
 // Load existing logs
 function loadLogs() {
@@ -175,6 +1169,279 @@ app.post('/api/betting/capture-endpoint', async (req, res) => {
       message: 'Navigate to game page and place a bet manually to capture the endpoint',
       status 
     });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =============================================
+// MAIN PROFILE GAME NAVIGATION API (Fliff Cluster V1 approach)
+// Uses the main profile (Live Event) to browse and capture game data
+// =============================================
+
+// Get/Set main profile configuration
+app.get('/api/main-profile', (req, res) => {
+  res.json({
+    success: true,
+    mainProfile: mainProfile,
+    isConnected: !!getMainProfileClient(),
+    availableProfiles: Array.from(fliffClients.keys())
+  });
+});
+
+app.post('/api/main-profile', (req, res) => {
+  const { profile } = req.body;
+  
+  if (!profile) {
+    return res.status(400).json({ error: 'Profile name is required' });
+  }
+  
+  // Check if profile exists in clients
+  if (!fliffClients.has(profile)) {
+    return res.status(404).json({ 
+      error: `Profile "${profile}" not found or not connected`,
+      availableProfiles: Array.from(fliffClients.keys())
+    });
+  }
+  
+  mainProfile = profile;
+  console.log(`📌 Main profile set to: ${mainProfile}`);
+  
+  res.json({
+    success: true,
+    mainProfile: mainProfile,
+    message: `Main profile set to "${mainProfile}"`
+  });
+});
+
+// Navigate to live events page (main profile)
+app.post('/api/main-profile/go-live', async (req, res) => {
+  const client = getMainProfileClient();
+  
+  if (!client) {
+    return res.status(500).json({ error: 'Main profile not connected' });
+  }
+  
+  try {
+    const result = await client.goToLive();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get visible games from main profile's browser
+app.get('/api/main-profile/visible-games', async (req, res) => {
+  const client = getMainProfileClient();
+  
+  if (!client) {
+    return res.status(500).json({ error: 'Main profile not connected' });
+  }
+  
+  try {
+    const result = await client.getVisibleGames();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Click on a game by index (main profile)
+app.post('/api/main-profile/click-game', async (req, res) => {
+  const client = getMainProfileClient();
+  
+  if (!client) {
+    return res.status(500).json({ error: 'Main profile not connected' });
+  }
+  
+  const { index } = req.body;
+  
+  if (index === undefined || index === null) {
+    return res.status(400).json({ error: 'Game index is required' });
+  }
+  
+  try {
+    const result = await client.clickGameByIndex(parseInt(index));
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Navigate to game using conflict_fkey (main profile)
+app.post('/api/main-profile/navigate-to-game', async (req, res) => {
+  const client = getMainProfileClient();
+  
+  if (!client) {
+    return res.status(500).json({ error: 'Main profile not connected' });
+  }
+  
+  const { conflictFkey, gameId } = req.body;
+  
+  // Try to find conflictFkey from game data if not provided
+  let targetFkey = conflictFkey;
+  if (!targetFkey && gameId) {
+    const game = liveGames.get(parseInt(gameId));
+    if (game && game.conflictFkey) {
+      targetFkey = game.conflictFkey;
+    }
+  }
+  
+  if (!targetFkey) {
+    return res.status(400).json({ error: 'conflictFkey or valid gameId is required' });
+  }
+  
+  try {
+    const result = await client.navigateToGameByFkey(targetFkey);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Go back in browser (main profile)
+app.post('/api/main-profile/go-back', async (req, res) => {
+  const client = getMainProfileClient();
+  
+  if (!client) {
+    return res.status(500).json({ error: 'Main profile not connected' });
+  }
+  
+  try {
+    const result = await client.goBack();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =============================================
+// BEARER TOKEN CAPTURE
+// Actively capture bearer token from browser
+// =============================================
+
+// Capture bearer token from a specific profile
+app.post('/api/profile/:profileName/capture-token', async (req, res) => {
+  const { profileName } = req.params;
+  const client = fliffClients.get(profileName);
+  
+  if (!client) {
+    return res.status(404).json({ error: `Profile "${profileName}" not found or not connected` });
+  }
+  
+  try {
+    console.log(`🔑 Capturing bearer token for profile: ${profileName}`);
+    const result = await client.captureCurrentBearerToken();
+    
+    if (result.success) {
+      console.log(`🔑 [${profileName}] Bearer token captured (source: ${result.source})`);
+      res.json({
+        success: true,
+        profile: profileName,
+        source: result.source,
+        hasToken: !!result.token,
+        tokenPreview: result.token ? '***' + result.token.slice(-10) : null
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        profile: profileName,
+        error: result.error
+      });
+    }
+  } catch (e) {
+    console.error(`❌ Error capturing token for ${profileName}:`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Capture bearer token from all profiles
+app.post('/api/capture-all-tokens', async (req, res) => {
+  const results = [];
+  
+  for (const [profileName, client] of fliffClients) {
+    try {
+      console.log(`🔑 Capturing bearer token for profile: ${profileName}`);
+      const result = await client.captureCurrentBearerToken();
+      
+      results.push({
+        profile: profileName,
+        success: result.success,
+        source: result.source || null,
+        hasToken: !!result.token,
+        error: result.error || null
+      });
+    } catch (e) {
+      results.push({
+        profile: profileName,
+        success: false,
+        error: e.message
+      });
+    }
+  }
+  
+  const successCount = results.filter(r => r.success).length;
+  console.log(`🔑 Token capture complete: ${successCount}/${results.length} profiles`);
+  
+  res.json({
+    totalProfiles: results.length,
+    successCount,
+    results
+  });
+});
+
+// Get token status for all profiles
+app.get('/api/token-status', (req, res) => {
+  const status = [];
+  
+  for (const [profileName, client] of fliffClients) {
+    const apiStatus = client.getBettingAPIStatus();
+    status.push({
+      profile: profileName,
+      hasAuth: apiStatus.hasAuth,
+      hasBearerToken: !!apiStatus.bearerToken,
+      hasAuthToken: !!apiStatus.authToken,
+      bearerPreview: apiStatus.bearerToken,
+      authPreview: apiStatus.authToken
+    });
+  }
+  
+  res.json({
+    profileCount: status.length,
+    profiles: status
+  });
+});
+
+// Navigate any specific profile to game
+app.post('/api/profile/:profileName/navigate-to-game', async (req, res) => {
+  const { profileName } = req.params;
+  const { conflictFkey, gameId } = req.body;
+  
+  const client = fliffClients.get(profileName);
+  
+  if (!client) {
+    return res.status(404).json({ 
+      error: `Profile "${profileName}" not found`,
+      availableProfiles: Array.from(fliffClients.keys())
+    });
+  }
+  
+  // Try to find conflictFkey from game data if not provided
+  let targetFkey = conflictFkey;
+  if (!targetFkey && gameId) {
+    const game = liveGames.get(parseInt(gameId));
+    if (game && game.conflictFkey) {
+      targetFkey = game.conflictFkey;
+    }
+  }
+  
+  if (!targetFkey) {
+    return res.status(400).json({ error: 'conflictFkey or valid gameId is required' });
+  }
+  
+  try {
+    const result = await client.navigateToGameByFkey(targetFkey);
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -920,18 +2187,28 @@ app.post('/api/lock-and-load', async (req, res) => {
       
       const profilePromise = (async () => {
         try {
-          // Refresh bearer token from page before lock & load (tokens can expire/change)
+          // ACTIVELY capture bearer token at lock & load time using multiple methods
+          logBetting(`   [${profileName}] 🔑 Capturing bearer token at lock & load time...`);
           try {
-            const injectedToken = await client.page.evaluate(() => {
-              return window.__fliffBearerToken || null;
-            });
+            const tokenResult = await client.captureCurrentBearerToken();
             
-            if (injectedToken && injectedToken !== client.bearerToken) {
-              client.bearerToken = injectedToken;
-              logBetting(`   [${profileName}] 🔑 Refreshed bearer token from page`);
-              client.saveAPICredentials();
-            } else if (!client.bearerToken && !client.authToken) {
-              logBetting(`   [${profileName}] ⚠️ No bearer token or auth token available - may fail`);
+            if (tokenResult.success) {
+              logBetting(`   [${profileName}] 🔑 Bearer token captured (source: ${tokenResult.source})`);
+            } else {
+              logBetting(`   [${profileName}] ⚠️ Could not capture bearer token: ${tokenResult.error}`);
+              
+              // Fallback: try the old method
+              const injectedToken = await client.page.evaluate(() => {
+                return window.__fliffBearerToken || null;
+              });
+              
+              if (injectedToken && injectedToken !== client.bearerToken) {
+                client.bearerToken = injectedToken;
+                logBetting(`   [${profileName}] 🔑 Refreshed bearer token from page (fallback)`);
+                client.saveAPICredentials();
+              } else if (!client.bearerToken && !client.authToken) {
+                logBetting(`   [${profileName}] ⚠️ No bearer token or auth token available - may fail`);
+              }
             }
           } catch (e) {
             // Ignore if page context not ready, but log warning
@@ -1879,13 +3156,54 @@ wss.on('connection', (ws) => {
         const odds = gameOdds.get(gameId) || new Map();
         const oddsArray = Array.from(odds.values());
         
-        console.log(`📺 Subscribe: game ${gameId}, sending ${oddsArray.length} odds`);
+        console.log(`📺 Subscribe: game ${gameId}, sending ${oddsArray.length} odds${data.priority ? ' (PRIORITY)' : ''}`);
         
+        // Send existing odds immediately
         ws.send(JSON.stringify({
           type: 'odds',
           gameId: gameId,
           odds: oddsArray
         }));
+        
+        // If priority subscription, also set this as the priority game
+        // and request fresh data from main profile
+        if (data.priority) {
+          priorityGameId = gameId;
+          console.log(`🎯 Priority game set: ${gameId}`);
+          
+          // Schedule periodic updates for priority game
+          if (priorityGameUpdateInterval) {
+            clearInterval(priorityGameUpdateInterval);
+          }
+          priorityGameUpdateInterval = setInterval(() => {
+            const freshOdds = gameOdds.get(gameId) || new Map();
+            const freshOddsArray = Array.from(freshOdds.values());
+            
+            // Only send to clients subscribed to this game
+            clients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN && client.gameId === gameId) {
+                client.send(JSON.stringify({
+                  type: 'odds_update',
+                  gameId: gameId,
+                  odds: freshOddsArray,
+                  count: freshOddsArray.length
+                }));
+              }
+            });
+          }, 500); // Send updates every 500ms for priority game
+          
+          // Clear priority after 15 seconds
+          setTimeout(() => {
+            if (priorityGameId === gameId) {
+              priorityGameId = null;
+              if (priorityGameUpdateInterval) {
+                clearInterval(priorityGameUpdateInterval);
+                priorityGameUpdateInterval = null;
+              }
+              console.log(`🔓 Priority cleared for game ${gameId}`);
+            }
+          }, 15000);
+        }
       }
     } catch (e) {
       console.error('WS message error:', e);
@@ -2662,6 +3980,12 @@ async function startFliff() {
         }
         
         fliffClients.set(profile.name, client);
+        
+        // Register profile with user manager
+        userManager.registerProfile(profile.name, {
+          directory: profile.directory,
+          proxy: profile.proxy
+        });
         
         // Set first client as primary for backward compatibility
         if (!fliffClient) {

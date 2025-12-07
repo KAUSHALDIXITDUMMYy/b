@@ -6,7 +6,7 @@
   <title>Fliff Live Betting</title>
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div id="app">
@@ -64,8 +64,10 @@
             <option value="all">All</option>
           </select>
         </div>
-        <a href="/vnc" class="admin-link">🖥️ VNC</a>
-        <a href="/admin" class="admin-link">📊 Admin</a>
+        <!-- User Info Badge -->
+        <span class="user-badge" id="user-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+          👤 <span id="user-display-name">Loading...</span>
+        </span>
       </div>
     </header>
 
@@ -163,6 +165,46 @@
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="app.js"></script>
+  
+  <!-- User-Specific App Script -->
+  <script>
+    // =============================================
+    // USER-SPECIFIC CONFIGURATION
+    // Get username from URL: /user/:username
+    // =============================================
+    const pathParts = window.location.pathname.split('/');
+    const USERNAME = pathParts[pathParts.indexOf('user') + 1];
+    
+    // Override API endpoints to use user-scoped versions
+    window.USER_MODE = true;
+    window.CURRENT_USERNAME = USERNAME;
+    
+    // Load user info
+    async function loadUserInfo() {
+      try {
+        const response = await fetch(`${window.location.origin}/api/user/${USERNAME}/dashboard`);
+        if (!response.ok) throw new Error('User not found');
+        const data = await response.json();
+        document.getElementById('user-display-name').textContent = data.user.displayName;
+        document.title = `Fliff Live - ${data.user.displayName}`;
+        return data;
+      } catch (e) {
+        console.error('Error loading user info:', e);
+        document.getElementById('user-display-name').textContent = USERNAME;
+      }
+    }
+    
+    // Initialize user info before main app loads
+    loadUserInfo();
+  </script>
+  
+  <!-- Main App Script (handles user mode automatically) -->
+  <script src="/app.js"></script>
+  
+  <script>
+    // Log that user mode is active
+    console.log(`👤 User Dashboard Active: ${USERNAME}`);
+    console.log(`📍 API calls will use user-scoped endpoints`);
+  </script>
 </body>
 </html>

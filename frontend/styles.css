@@ -1098,6 +1098,33 @@
       opacity: 0.9;
     }
   }
+
+  /* Suspended Market Card - Gray border and lock icon (market locked on Fliff website) */
+  .odd-card-suspended {
+    border: 2px solid #6b7280 !important;
+    box-shadow: 0 0 10px rgba(107, 114, 128, 0.3) !important;
+    opacity: 0.65;
+    position: relative;
+    background: rgba(107, 114, 128, 0.1) !important;
+  }
+
+  /* Suspended Badge - Shows lock icon */
+  .suspended-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: linear-gradient(135deg, #4b5563, #6b7280) !important;
+    color: white !important;
+    font-weight: 700 !important;
+    font-size: 0.7rem !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(75, 85, 99, 0.5) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
   
   /* Over/Under paired cards */
   .d-flex.gap-2 {
@@ -1522,5 +1549,383 @@
   .toast-notification.show {
     transform: translateY(0);
   }
+}
+
+/* =============================================
+   GAME LOADING OVERLAY
+   ============================================= */
+
+.game-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 10, 18, 0.95);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.game-loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  text-align: center;
+  padding: 40px;
+  max-width: 400px;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid var(--bg-card);
+  border-top: 4px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 25px;
+}
+
+/* Loading Timer Circle */
+.loading-timer-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 25px;
+}
+
+.loading-timer-circle {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.loading-timer-circle svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.loading-timer-circle .timer-bg {
+  fill: none;
+  stroke: var(--bg-card);
+  stroke-width: 8;
+}
+
+.loading-timer-circle .timer-progress {
+  fill: none;
+  stroke: url(#timer-gradient);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 283;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.loading-timer-circle .timer-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--accent), var(--accent-green));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.loading-content h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-green));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.loading-content p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 25px;
+}
+
+.loading-progress {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-card);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.loading-bar {
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-green));
+  border-radius: 3px;
+  animation: loading-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes loading-progress {
+  0% {
+    width: 0%;
+    margin-left: 0%;
+  }
+  50% {
+    width: 60%;
+    margin-left: 20%;
+  }
+  100% {
+    width: 0%;
+    margin-left: 100%;
+  }
+}
+
+/* Progress bar that shows actual data loading progress */
+.loading-progress-container {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+.loading-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-green), var(--accent));
+  background-size: 200% 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.loading-hint {
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+  margin-top: 15px !important;
+  opacity: 0.7;
+}
+
+/* =============================================
+   ODDS TABS (Category Tabs for Game Lines, Props, etc.)
+   ============================================= */
+
+.odds-tabs-container {
+  margin-bottom: 20px;
+}
+
+.odds-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 15px 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.odds-tab {
+  padding: 10px 18px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 25px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.odds-tab:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.odds-tab.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.odds-tab-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.odds-tab.active .odds-tab-count {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.odds-tab-content {
+  display: none;
+}
+
+.odds-tab-content.active {
+  display: block;
+}
+
+/* Market Group within a tab */
+.market-group {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.market-group-header {
+  background: var(--bg-card);
+  padding: 15px 20px;
+  border-bottom: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.market-group-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.market-group-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.market-group-content {
+  padding: 15px;
+}
+
+/* Over/Under Pair Layout */
+.ou-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ou-pair .odd-card {
+  min-height: 100px;
+}
+
+/* =============================================
+   UPCOMING BADGE (For non-live games)
+   ============================================= */
+
+.upcoming-badge {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1px solid var(--border);
+}
+
+/* =============================================
+   EVENT UNAVAILABLE BANNER
+   ============================================= */
+
+.event-unavailable-banner {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+  border: 2px solid var(--accent-red);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: none;
+  animation: unavailableFadeIn 0.3s ease;
+}
+
+@keyframes unavailableFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.event-unavailable-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.event-unavailable-icon {
+  font-size: 32px;
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.event-unavailable-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-red);
+  flex: 1;
+}
+
+/* Game Status Filter Dropdown */
+.game-status-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.game-status-filter label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.game-status-filter select {
+  background: var(--bg-secondary);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
 }
   

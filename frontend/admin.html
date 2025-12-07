@@ -280,6 +280,286 @@
       color: var(--text-secondary);
     }
     
+    /* Tabs Navigation */
+    .tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 20px;
+      background: var(--bg-secondary);
+      padding: 5px;
+      border-radius: 10px;
+    }
+    
+    .tab {
+      padding: 12px 24px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    
+    .tab.active {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* User Management Styles */
+    .management-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .management-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    
+    .management-card h3 {
+      margin-bottom: 15px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .user-list, .profile-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .user-item, .profile-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 15px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .user-item:hover, .profile-item:hover {
+      background: rgba(99, 102, 241, 0.1);
+    }
+    
+    .user-info, .profile-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .user-name, .profile-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .user-meta, .profile-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .item-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .item-actions button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .btn-assign {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .btn-main {
+      background: var(--accent-green);
+      color: white;
+    }
+    
+    .btn-remove {
+      background: var(--accent-red);
+      color: white;
+    }
+    
+    .btn-link {
+      background: var(--bg-card);
+      color: var(--accent);
+      border: 1px solid var(--accent) !important;
+    }
+    
+    /* Forms */
+    .form-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .form-row input, .form-row select {
+      flex: 1;
+      padding: 10px 15px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+    
+    .form-row button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    
+    .btn-add {
+      background: var(--accent-green);
+      color: white;
+    }
+    
+    /* Status indicators */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+    
+    .status-dot.running {
+      background: var(--accent-green);
+    }
+    
+    .status-dot.stopped {
+      background: var(--accent-red);
+    }
+    
+    .status-dot.unassigned {
+      background: var(--accent-yellow);
+    }
+    
+    /* User Dashboard Links */
+    .user-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .user-link:hover {
+      text-decoration: underline;
+    }
+    
+    /* Modal */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal.hidden {
+      display: none;
+    }
+    
+    .modal-content {
+      background: var(--bg-card);
+      padding: 25px;
+      border-radius: 12px;
+      min-width: 400px;
+      max-width: 500px;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+    }
+    
+    .checkbox-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    
+    .checkbox-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+    
+    .checkbox-item label {
+      flex: 1;
+      cursor: pointer;
+    }
+    
+    .checkbox-item .main-tag {
+      font-size: 10px;
+      background: var(--accent-green);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    @media (max-width: 900px) {
+      .management-section {
+        grid-template-columns: 1fr;
+      }
+    }
+    
     /* Mark Result Buttons */
     .result-buttons {
       display: flex;
@@ -324,9 +604,22 @@
   <div class="dashboard">
     <header>
       <div class="logo">📊 Admin Dashboard</div>
-      <a href="index.html" class="back-link">← Back to Betting</a>
+      <div style="display: flex; gap: 10px;">
+        <a href="/" class="back-link">← Back to Betting</a>
+        <a href="/vnc" class="back-link">🖥️ VNC</a>
+      </div>
     </header>
     
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('stats')">📈 Statistics</button>
+      <button class="tab" onclick="switchTab('users')">👥 Users</button>
+      <button class="tab" onclick="switchTab('profiles')">🎰 Profiles</button>
+      <button class="tab" onclick="switchTab('logs')">📋 Bet Logs</button>
+    </div>
+    
+    <!-- Stats Tab -->
+    <div id="tab-stats" class="tab-content active">
     <!-- Stats Grid -->
     <div class="stats-grid">
       <div class="stat-card">
@@ -382,7 +675,123 @@
         </div>
       </div>
     </div>
+    </div><!-- End Stats Tab -->
     
+    <!-- Users Tab -->
+    <div id="tab-users" class="tab-content">
+      <div class="management-section">
+        <div class="management-card">
+          <h3>👥 Users</h3>
+          <div class="form-row">
+            <input type="text" id="new-username" placeholder="Username (lowercase)">
+            <input type="text" id="new-displayname" placeholder="Display Name">
+            <button class="btn-add" onclick="createUser()">+ Add User</button>
+          </div>
+          <div class="user-list" id="user-list">
+            <!-- Users will be rendered here -->
+          </div>
+        </div>
+        
+        <div class="management-card">
+          <h3>📋 Quick Assignment</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 13px;">
+            Click on a user to assign profiles to them.
+          </p>
+          <div id="assignment-info">
+            <p style="text-align: center; padding: 40px; color: var(--text-secondary);">
+              Select a user to manage their profiles
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Profiles Tab -->
+    <div id="tab-profiles" class="tab-content">
+      <!-- Quick Actions -->
+      <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+        <button class="btn-add" onclick="startAllProfiles()" style="padding: 12px 24px;">
+          🚀 Start All Profiles
+        </button>
+        <button class="btn-refresh" onclick="stopAllProfiles()" style="background: var(--accent-red); padding: 12px 24px;">
+          🛑 Stop All Profiles
+        </button>
+        <button class="btn-refresh" onclick="loadAvailableProfiles()" style="padding: 12px 24px;">
+          🔄 Refresh
+        </button>
+      </div>
+      
+      <!-- Docker Controls -->
+      <div class="management-card" style="margin-bottom: 20px; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(99, 102, 241, 0.1) 100%);">
+        <h3>🐳 Docker Container Mode</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 13px;">
+          Run profiles in isolated Docker containers with VNC access for remote viewing.
+        </p>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+          <button class="btn-refresh" onclick="checkDocker()" style="padding: 10px 20px;">
+            🔍 Check Docker
+          </button>
+          <button class="btn-add" onclick="buildDockerImage()" style="padding: 10px 20px;">
+            🔨 Build Image
+          </button>
+          <button class="btn-add" onclick="generateDockerCompose()" style="padding: 10px 20px;">
+            📝 Generate Compose
+          </button>
+          <button class="btn-add" onclick="startAllDocker()" style="padding: 10px 20px; background: var(--accent-green);">
+            🐳 Start All Docker
+          </button>
+          <button class="btn-refresh" onclick="stopAllDocker()" style="padding: 10px 20px; background: var(--accent-red);">
+            🛑 Stop All Docker
+          </button>
+        </div>
+        <div id="docker-status" style="padding: 10px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
+          Click "Check Docker" to verify Docker availability
+        </div>
+        
+        <!-- Docker Containers List -->
+        <div id="docker-containers" style="margin-top: 15px;">
+          <!-- Will be populated by JS -->
+        </div>
+      </div>
+      
+      <!-- Start User Profiles -->
+      <div class="management-card" style="margin-bottom: 20px;">
+        <h3>👤 Start Profiles by User</h3>
+        <div class="form-row">
+          <select id="user-select-profiles" style="flex: 2;">
+            <option value="">Select a user...</option>
+          </select>
+          <button class="btn-add" onclick="startUserProfiles()">🚀 Start User's Profiles</button>
+        </div>
+      </div>
+      
+      <div class="management-section">
+        <!-- Available Profiles -->
+        <div class="management-card">
+          <h3>📁 Available Profiles</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 13px;">
+            Profiles found in the <code>profiles/</code> folder. Click to start.
+          </p>
+          <div class="profile-list" id="available-profiles">
+            <!-- Available profiles will be rendered here -->
+          </div>
+        </div>
+        
+        <!-- Running Profiles -->
+        <div class="management-card">
+          <h3>🟢 Running Profiles</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 13px;">
+            Currently active browser profiles. Click to stop.
+          </p>
+          <div class="profile-list" id="running-profiles">
+            <!-- Running profiles will be rendered here -->
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Logs Tab -->
+    <div id="tab-logs" class="tab-content">
     <!-- Bet Logs -->
     <div class="logs-section">
       <div class="logs-header">
@@ -413,10 +822,724 @@
         </tbody>
       </table>
     </div>
+    </div><!-- End Logs Tab -->
+  </div>
+  
+  <!-- Assignment Modal -->
+  <div id="assign-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-title">Assign Profiles to <span id="modal-username"></span></span>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="checkbox-list" id="modal-profiles">
+        <!-- Profile checkboxes will be rendered here -->
+      </div>
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button class="btn-add" style="flex: 1;" onclick="saveAssignments()">💾 Save Assignments</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    const API_URL = 'http://localhost:3001';
+    const API_URL = window.location.origin;
+    
+    // State
+    let allUsers = [];
+    let allProfiles = [];
+    let selectedUser = null;
+    
+    // =============================================
+    // TAB SWITCHING
+    // =============================================
+    
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      
+      // Load data for specific tabs
+      if (tabName === 'users') loadUsers();
+      if (tabName === 'profiles') {
+        loadUsers(); // For user select dropdown
+        loadAvailableProfiles();
+      }
+    }
+    
+    // =============================================
+    // USER MANAGEMENT
+    // =============================================
+    
+    async function loadUsers() {
+      try {
+        const response = await fetch(`${API_URL}/api/admin/users`);
+        allUsers = await response.json();
+        renderUsers();
+      } catch (e) {
+        console.error('Error loading users:', e);
+      }
+    }
+    
+    function renderUsers() {
+      const container = document.getElementById('user-list');
+      
+      if (allUsers.length === 0) {
+        container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary);">No users yet</p>';
+        return;
+      }
+      
+      container.innerHTML = allUsers.map(user => `
+        <div class="user-item">
+          <div class="user-info">
+            <span class="user-name">${user.displayName} ${user.role === 'admin' ? '👑' : ''}</span>
+            <span class="user-meta">
+              @${user.username} · ${user.assignedProfiles?.length || 0} profiles
+              ${user.mainProfile ? `· Main: ${user.mainProfile}` : ''}
+            </span>
+            <a href="/user/${user.username}" target="_blank" class="user-link">
+              🔗 Open Dashboard
+            </a>
+          </div>
+          <div class="item-actions">
+            <button class="btn-assign" onclick="openAssignModal('${user.username}')">⚙️ Manage</button>
+            ${user.username !== 'admin' ? `
+              <button class="btn-remove" onclick="deleteUser('${user.username}')">🗑️</button>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    async function createUser() {
+      const username = document.getElementById('new-username').value.trim().toLowerCase();
+      const displayName = document.getElementById('new-displayname').value.trim();
+      
+      if (!username) {
+        alert('Please enter a username');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/api/admin/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, displayName: displayName || username })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          document.getElementById('new-username').value = '';
+          document.getElementById('new-displayname').value = '';
+          loadUsers();
+          alert(`✅ User "${username}" created!\\n\\nDashboard URL: ${window.location.origin}/user/${username}`);
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (e) {
+        console.error('Error creating user:', e);
+        alert('Error creating user');
+      }
+    }
+    
+    async function deleteUser(username) {
+      if (!confirm(`Delete user "${username}"? This will unassign all their profiles.`)) {
+        return;
+      }
+      
+      try {
+        await fetch(`${API_URL}/api/admin/users/${username}`, { method: 'DELETE' });
+        loadUsers();
+      } catch (e) {
+        console.error('Error deleting user:', e);
+      }
+    }
+    
+    // =============================================
+    // PROFILE MANAGEMENT & CONTROL
+    // =============================================
+    
+    let availableProfiles = [];
+    
+    async function loadProfiles() {
+      try {
+        const response = await fetch(`${API_URL}/api/admin/profiles`);
+        allProfiles = await response.json();
+        renderRunningProfiles();
+        
+        // Also update user select dropdown
+        updateUserSelect();
+      } catch (e) {
+        console.error('Error loading profiles:', e);
+      }
+    }
+    
+    async function loadAvailableProfiles() {
+      try {
+        const response = await fetch(`${API_URL}/api/admin/available-profiles`);
+        availableProfiles = await response.json();
+        renderAvailableProfiles();
+        renderRunningProfiles();
+        updateUserSelect();
+      } catch (e) {
+        console.error('Error loading available profiles:', e);
+      }
+    }
+    
+    function updateUserSelect() {
+      const select = document.getElementById('user-select-profiles');
+      if (!select) return;
+      
+      select.innerHTML = '<option value="">Select a user...</option>' + 
+        allUsers.map(user => `<option value="${user.username}">${user.displayName} (${user.assignedProfiles?.length || 0} profiles)</option>`).join('');
+    }
+    
+    function renderAvailableProfiles() {
+      const container = document.getElementById('available-profiles');
+      if (!container) return;
+      
+      const notRunning = availableProfiles.filter(p => !p.isRunning);
+      
+      if (notRunning.length === 0) {
+        container.innerHTML = `
+          <p style="text-align: center; padding: 30px; color: var(--text-secondary);">
+            All profiles are running! 🎉
+          </p>
+        `;
+        return;
+      }
+      
+      container.innerHTML = notRunning.map(profile => `
+        <div class="profile-item">
+          <div class="profile-info">
+            <span class="profile-name">
+              <span class="status-dot stopped"></span>
+              ${profile.name}
+            </span>
+            <span class="profile-meta">
+              📁 ${profile.directory}
+              ${profile.isLiveEvent ? ' · 📡 Live Event' : ' · 💰 Betting'}
+              ${profile.hasProxy ? ' · 🌐 Proxy' : ''}
+            </span>
+          </div>
+          <div class="item-actions">
+            <button class="btn-add" onclick="startProfile('${profile.directory}')" style="padding: 6px 12px;">
+              🚀 Start
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function renderRunningProfiles() {
+      const container = document.getElementById('running-profiles');
+      if (!container) return;
+      
+      const running = availableProfiles.filter(p => p.isRunning);
+      
+      if (running.length === 0) {
+        container.innerHTML = `
+          <p style="text-align: center; padding: 30px; color: var(--text-secondary);">
+            No profiles running.<br>Start some from the left panel.
+          </p>
+        `;
+        return;
+      }
+      
+      container.innerHTML = running.map(profile => `
+        <div class="profile-item">
+          <div class="profile-info">
+            <span class="profile-name">
+              <span class="status-dot running"></span>
+              ${profile.name}
+            </span>
+            <span class="profile-meta">
+              📁 ${profile.directory}
+              ${profile.isLiveEvent ? ' · 📡 Live Event' : ' · 💰 Betting'}
+            </span>
+          </div>
+          <div class="item-actions">
+            <button class="btn-remove" onclick="stopProfile('${profile.name}')" style="padding: 6px 12px;">
+              🛑 Stop
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    async function startProfile(directory) {
+      try {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = '⏳ Starting...';
+        
+        const response = await fetch(`${API_URL}/api/admin/start-profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileDirectory: directory })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`✅ ${result.message}`);
+          loadAvailableProfiles();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    async function stopProfile(profileName) {
+      if (!confirm(`Stop profile "${profileName}"?`)) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/api/admin/stop-profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileName })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          loadAvailableProfiles();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    async function startAllProfiles() {
+      if (!confirm('Start ALL profiles? This may take a while.')) return;
+      
+      try {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = '⏳ Starting all...';
+        
+        const response = await fetch(`${API_URL}/api/admin/start-all-profiles`, {
+          method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        btn.disabled = false;
+        btn.textContent = '🚀 Start All Profiles';
+        
+        if (result.success) {
+          alert(`✅ Started ${result.startedCount} profiles\\n⏩ Already running: ${result.alreadyRunningCount}`);
+          loadAvailableProfiles();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    async function stopAllProfiles() {
+      if (!confirm('Stop ALL running profiles?')) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/api/admin/stop-all-profiles`, {
+          method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`✅ Stopped ${result.stoppedCount} profiles`);
+          loadAvailableProfiles();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    async function startUserProfiles() {
+      const select = document.getElementById('user-select-profiles');
+      const username = select.value;
+      
+      if (!username) {
+        alert('Please select a user');
+        return;
+      }
+      
+      try {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = '⏳ Starting...';
+        
+        const response = await fetch(`${API_URL}/api/admin/start-user-profiles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        
+        const result = await response.json();
+        
+        btn.disabled = false;
+        btn.textContent = "🚀 Start User's Profiles";
+        
+        if (result.success) {
+          alert(`✅ Started ${result.startedCount}/${result.totalCount} profiles for ${username}`);
+          loadAvailableProfiles();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    // =============================================
+    // DOCKER MANAGEMENT
+    // =============================================
+    
+    async function checkDocker() {
+      const statusEl = document.getElementById('docker-status');
+      statusEl.textContent = '🔍 Checking Docker...';
+      
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/status`);
+        const result = await response.json();
+        
+        if (result.available) {
+          statusEl.innerHTML = '✅ <strong>Docker is available!</strong> You can run profiles in containers.';
+          statusEl.style.background = 'rgba(34, 197, 94, 0.2)';
+          loadDockerContainers();
+        } else {
+          statusEl.innerHTML = '❌ <strong>Docker not available.</strong> Install Docker Desktop to use container mode.';
+          statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+        }
+      } catch (e) {
+        statusEl.innerHTML = `❌ Error: ${e.message}`;
+        statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+      }
+    }
+    
+    async function buildDockerImage() {
+      const statusEl = document.getElementById('docker-status');
+      statusEl.textContent = '🔨 Building Docker image... This may take a few minutes.';
+      
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/build`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+          statusEl.innerHTML = '✅ Docker image built successfully!';
+          statusEl.style.background = 'rgba(34, 197, 94, 0.2)';
+        } else {
+          statusEl.innerHTML = `❌ Build failed: ${result.error}`;
+          statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+        }
+      } catch (e) {
+        statusEl.innerHTML = `❌ Error: ${e.message}`;
+      }
+    }
+    
+    async function generateDockerCompose() {
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/generate-compose`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`✅ Generated docker-compose.generated.yml with ${result.profileCount} profiles`);
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    async function startAllDocker() {
+      const statusEl = document.getElementById('docker-status');
+      statusEl.textContent = '🐳 Starting all Docker containers...';
+      
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/start-all`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+          statusEl.innerHTML = '✅ All containers started!';
+          loadDockerContainers();
+        } else {
+          statusEl.innerHTML = `❌ Error: ${result.error}`;
+        }
+      } catch (e) {
+        statusEl.innerHTML = `❌ Error: ${e.message}`;
+      }
+    }
+    
+    async function stopAllDocker() {
+      if (!confirm('Stop all Docker containers?')) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/stop-all`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+          alert('✅ All Docker containers stopped');
+          loadDockerContainers();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    async function loadDockerContainers() {
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/containers`);
+        const containers = await response.json();
+        
+        const container = document.getElementById('docker-containers');
+        
+        if (containers.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-secondary); font-size: 13px;">No Docker containers created yet.</p>';
+          return;
+        }
+        
+        container.innerHTML = `
+          <h4 style="margin-bottom: 10px; font-size: 14px;">📦 Docker Containers</h4>
+          ${containers.map(c => `
+            <div class="profile-item" style="margin-bottom: 8px;">
+              <div class="profile-info">
+                <span class="profile-name">
+                  <span class="status-dot ${c.isRunning ? 'running' : 'stopped'}"></span>
+                  ${c.profileName}
+                </span>
+                <span class="profile-meta">
+                  VNC: ${c.vncPort} · noVNC: ${c.noVncPort}
+                  ${c.isRunning ? ' · 🟢 Running' : ' · 🔴 Stopped'}
+                </span>
+              </div>
+              <div class="item-actions">
+                ${c.isRunning ? `
+                  <a href="http://localhost:${c.noVncPort}/vnc.html" target="_blank" class="btn-link" style="padding: 4px 8px; font-size: 11px;">
+                    🖥️ View VNC
+                  </a>
+                ` : ''}
+                <button class="btn-remove" onclick="stopDockerContainer('${c.profileName}')" style="padding: 4px 8px; font-size: 11px;">
+                  🛑 Stop
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        `;
+      } catch (e) {
+        console.error('Error loading Docker containers:', e);
+      }
+    }
+    
+    async function createDockerContainer(profileName, profileDirectory) {
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/create-container`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileName, profileDirectory })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`✅ Container created!\\n\\nnoVNC: ${result.noVncUrl}`);
+          loadDockerContainers();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    async function stopDockerContainer(profileName) {
+      try {
+        const response = await fetch(`${API_URL}/api/admin/docker/stop-container`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileName })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          loadDockerContainers();
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Error: ${e.message}`);
+      }
+    }
+    
+    // Legacy renderProfiles for backwards compatibility
+    function renderProfiles() {
+      const container = document.getElementById('profile-list');
+      if (!container) return;
+      
+      if (allProfiles.length === 0) {
+        container.innerHTML = `
+          <p style="text-align: center; padding: 40px; color: var(--text-secondary);">
+            No browser profiles registered.<br><br>
+            Start browser profiles to see them here.
+          </p>
+        `;
+        return;
+      }
+      
+      container.innerHTML = allProfiles.map(profile => `
+        <div class="profile-item">
+          <div class="profile-info">
+            <span class="profile-name">
+              <span class="status-dot ${profile.isRunning ? 'running' : 'stopped'}"></span>
+              ${profile.name}
+            </span>
+            <span class="profile-meta">
+              ${profile.isRunning ? '🟢 Running' : '🔴 Stopped'}
+              ${profile.assignedTo ? ` · Assigned to: ${profile.assignedTo}` : ' · ⚠️ Unassigned'}
+            </span>
+          </div>
+          <div class="item-actions">
+            ${profile.assignedTo ? `
+              <button class="btn-link" onclick="openUserDashboard('${profile.assignedTo}')">👤 ${profile.assignedTo}</button>
+            ` : `
+              <span style="color: var(--accent-yellow); font-size: 12px;">Not assigned to any user</span>
+            `}
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function openUserDashboard(username) {
+      window.open(`/user/${username}`, '_blank');
+    }
+    
+    // =============================================
+    // ASSIGNMENT MODAL
+    // =============================================
+    
+    async function openAssignModal(username) {
+      selectedUser = username;
+      document.getElementById('modal-username').textContent = username;
+      
+      // Load profiles if not loaded
+      if (allProfiles.length === 0) {
+        await loadProfiles();
+      }
+      
+      // Get user's current assignments
+      const user = allUsers.find(u => u.username === username);
+      const assignedProfiles = user?.assignedProfiles || [];
+      const mainProfile = user?.mainProfile;
+      
+      // Render profile checkboxes
+      const container = document.getElementById('modal-profiles');
+      
+      container.innerHTML = allProfiles.map(profile => `
+        <div class="checkbox-item">
+          <input type="checkbox" id="profile-${profile.name}" value="${profile.name}"
+            ${assignedProfiles.includes(profile.name) ? 'checked' : ''}>
+          <label for="profile-${profile.name}">
+            <span class="status-dot ${profile.isRunning ? 'running' : 'stopped'}"></span>
+            ${profile.name}
+          </label>
+          ${profile.name === mainProfile ? '<span class="main-tag">MAIN</span>' : ''}
+          <button class="btn-main" style="padding: 4px 8px; font-size: 10px;" 
+            onclick="setMainProfile('${username}', '${profile.name}')">
+            Set Main
+          </button>
+        </div>
+      `).join('');
+      
+      document.getElementById('assign-modal').classList.remove('hidden');
+    }
+    
+    function closeModal() {
+      document.getElementById('assign-modal').classList.add('hidden');
+      selectedUser = null;
+    }
+    
+    async function saveAssignments() {
+      if (!selectedUser) return;
+      
+      // Get selected profiles
+      const checkboxes = document.querySelectorAll('#modal-profiles input[type="checkbox"]');
+      const selectedProfiles = [];
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          selectedProfiles.push(cb.value);
+        }
+      });
+      
+      try {
+        // First, unassign all current profiles
+        const user = allUsers.find(u => u.username === selectedUser);
+        const currentProfiles = user?.assignedProfiles || [];
+        
+        for (const profile of currentProfiles) {
+          if (!selectedProfiles.includes(profile)) {
+            await fetch(`${API_URL}/api/admin/unassign-profile`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: selectedUser, profileName: profile })
+            });
+          }
+        }
+        
+        // Then assign new profiles
+        for (const profile of selectedProfiles) {
+          if (!currentProfiles.includes(profile)) {
+            await fetch(`${API_URL}/api/admin/assign-profile`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: selectedUser, profileName: profile })
+            });
+          }
+        }
+        
+        closeModal();
+        loadUsers();
+        loadProfiles();
+        alert('✅ Assignments saved!');
+      } catch (e) {
+        console.error('Error saving assignments:', e);
+        alert('Error saving assignments');
+      }
+    }
+    
+    async function setMainProfile(username, profileName) {
+      try {
+        await fetch(`${API_URL}/api/admin/set-main-profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, profileName })
+        });
+        
+        // Refresh modal
+        await loadUsers();
+        openAssignModal(username);
+      } catch (e) {
+        console.error('Error setting main profile:', e);
+      }
+    }
+    
+    // =============================================
+    // STATS & LOGS
+    // =============================================
     
     async function loadData() {
       try {

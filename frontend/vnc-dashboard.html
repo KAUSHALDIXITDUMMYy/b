@@ -268,15 +268,23 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🖥️ VNC Dashboard</h1>
-            <p>View and connect to all Fliff Bot profiles via VNC</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>🖥️ VNC Dashboard</h1>
+                    <p>View and connect to all Fliff Bot profiles via VNC</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <a href="/" style="background: #667eea; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">← Back to Betting</a>
+                    <a href="/admin" style="background: #6b7280; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">📊 Admin</a>
+                </div>
+            </div>
         </div>
 
         <div class="vnc-info">
             <strong>🌐 VNC Access:</strong> 
             <a href="/novnc-viewer" target="_blank">Open VNC Viewer</a> | 
-            <a href="/novnc/vnc_lite.html" target="_blank">Lite Interface</a> |
-            <a href="/novnc/vnc.html" target="_blank">Full Interface</a>
+            <a href="/vnc-lite" target="_blank">Lite Interface</a> |
+            <a href="/vnc-full" target="_blank">Full Interface</a>
             <br>
             <small>All browser windows from all profiles are visible in the VNC session</small>
         </div>

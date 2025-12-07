@@ -2,8 +2,8 @@
 // FLIFF LIVE BETTING - FRONTEND APP
 // =============================================
 
-const API_URL = 'http://localhost:3001';
-const WS_URL = 'ws://localhost:3001';
+const API_URL = window.location.origin;
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
 // State
 let ws = null;
@@ -17,6 +17,8 @@ let hideUnavailableMarkets = false; // By default, SHOW unavailable markets with
 let lastArmedLockKey = null; // Track last ARMED lock key to avoid duplicate popups
 let lockedOddsMap = {}; // Track locked odds per line (format: "gameId_oddId" -> odds number)
 let activeLeagueFilter = 'all'; // Current league filter for games list ('all' or specific league name)
+let gameStatusFilter = 'live'; // 'live' = only live games, 'all' = all games including upcoming
+let eventUnavailable = false; // Track if current selected event is unavailable
 
 // Betting Settings
 let wagerAmount = 100; // Default $100 for betting
@@ -267,6 +269,22 @@ function handleMessage(data) {
         renderOdds();
       }
       break;
+    
+    case 'odds_update':
+      // Priority game bulk odds update - for faster loading
+      const priorityGameId = parseInt(data.gameId);
+      if (!gameOdds[priorityGameId]) {
+        gameOdds[priorityGameId] = {};
+      }
+      // Update all odds at once
+      data.odds.forEach(odd => {
+        gameOdds[priorityGameId][odd.id] = odd;
+      });
+      console.log(`📊 Priority update: ${data.count || data.odds.length} odds for game ${priorityGameId}`);
+      if (selectedGame && parseInt(selectedGame.id) === priorityGameId) {
+        renderOdds();
+      }
+      break;
       
     case 'prefire_result':
       handlePrefireResult(data);
@@ -351,7 +369,18 @@ async function loadGameOdds(gameId) {
 // =============================================
 
 // Helper function to generate bet buttons HTML
-function getBetButtonsHTML(oddId, isLocked = false, isUnavailable = false) {
+function getBetButtonsHTML(oddId, isLocked = false, isUnavailable = false, isSuspended = false) {
+  // Check if market is suspended (locked on Fliff with lock icon) - show this BEFORE trying to bet
+  if (isSuspended) {
+    return `
+      <div class="d-flex gap-1 mt-2" style="gap: 4px;">
+        <button class="btn btn-sm btn-secondary flex-fill" disabled style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600; opacity: 0.6; cursor: not-allowed; background: #444; border-color: #555;">
+          🔒 Market Suspended
+        </button>
+      </div>
+    `;
+  }
+  
   if (isUnavailable) {
     // Show disabled buttons when market is unavailable
     return `
@@ -411,6 +440,13 @@ async function lockAndLoad(oddId) {
     return;
   }
   
+  // Check if market is suspended (locked on Fliff with lock icon)
+  if (odd.suspended === true) {
+    showPrefireStatus(`🔒 Market Suspended: ${odd.selection}`);
+    showToast(`🔒 Market Suspended<br>This market is currently locked on Fliff and cannot be bet on`, 'warning', 3000);
+    return;
+  }
+  
   isPrefiring = true;
   // Show immediate feedback (optimistic UI)
   showPrefireStatus(`🚀 LOCK & LOAD: ${odd.selection} @ ${odd.odds > 0 ? '+' : ''}${odd.odds} → $0.20 (Fast mode)...`);
@@ -430,7 +466,12 @@ async function lockAndLoad(oddId) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
     
-    const response = await fetch(`${API_URL}/api/lock-and-load`, {
+    // Use user-scoped endpoint if in user mode
+    const lockEndpoint = window.USER_MODE && window.CURRENT_USERNAME
+      ? `${API_URL}/api/user/${window.CURRENT_USERNAME}/lock-and-load`
+      : `${API_URL}/api/lock-and-load`;
+    
+    const response = await fetch(lockEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(betData),
@@ -505,6 +546,12 @@ async function lockAndLoad(oddId) {
           'warning',
           3000
         );
+        
+        // If event not available, show banner on dashboard
+        if (result.eventNotAvailable || unavailableByText && lower.includes('event not available')) {
+          markEventUnavailable('Event Not Available - This event is no longer available for betting');
+        }
+        
         renderOdds();
       } else if (result.anyOddsChanged || oddsChangedByText) {
         // Odds moved while trying to lock – nothing locked, advise user what to do
@@ -566,6 +613,13 @@ async function placeBet(oddId) {
     return;
   }
   
+  // Check if market is suspended (locked on Fliff with lock icon)
+  if (odd.suspended === true) {
+    showPrefireStatus(`🔒 Market Suspended: ${odd.selection}`);
+    showToast(`🔒 Market Suspended<br>This market is currently locked on Fliff and cannot be bet on`, 'warning', 3000);
+    return;
+  }
+  
   isPrefiring = true;
   const lockKey = `${selectedGame.id}_${oddId}`;
   const effectiveOdds =
@@ -587,7 +641,12 @@ async function placeBet(oddId) {
   };
   
   try {
-    const response = await fetch(`${API_URL}/api/place-bet`, {
+    // Use user-scoped endpoint if in user mode
+    const betEndpoint = window.USER_MODE && window.CURRENT_USERNAME
+      ? `${API_URL}/api/user/${window.CURRENT_USERNAME}/place-bet`
+      : `${API_URL}/api/place-bet`;
+    
+    const response = await fetch(betEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(betData)
@@ -634,6 +693,12 @@ async function placeBet(oddId) {
         unavailableMarkets.add(marketKey);
         showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
         showToast(`⚠️ Market / Event Not Available<br>This selection is no longer available for betting`, 'warning', 3000);
+        
+        // If event not available, show banner on dashboard
+        if (result.eventNotAvailable || lower.includes('event not available')) {
+          markEventUnavailable('Event Not Available - This event is no longer available for betting');
+        }
+        
         // Re-render to show the warning label
         renderOdds();
       } else {
@@ -769,6 +834,12 @@ function handlePrefireResult(data) {
         renderOdds();
       }
     }
+    
+    // If entire event is not available, show banner on dashboard
+    if (data.eventNotAvailable) {
+      markEventUnavailable(data.message || 'Event Not Available - This event is no longer available for betting');
+    }
+    
     const unavailableMsg = data.message || 'Market / Event Not Available';
     showPrefireStatus('⚠️ ' + unavailableMsg);
   } else if (data.retry) {
@@ -788,7 +859,33 @@ function handlePrefireResult(data) {
 
 function renderGames() {
   const container = document.getElementById('games-list');
-  const allGames = Object.values(games);
+  let allGames = Object.values(games);
+  
+  // Filter by game status (live or all)
+  if (gameStatusFilter === 'live') {
+    allGames = allGames.filter(game => {
+      const status = (game.status || '').toLowerCase();
+      // Check if game is actually live (has a score, status indicates in progress, etc.)
+      // Games are considered live if:
+      // - status contains time indicators (e.g., "1H 23:45", "2Q", "3rd", "4th", etc.)
+      // - status contains "progress", "live", "playing"
+      // - status is NOT "scheduled", "upcoming", "finished", "final", "ended"
+      const notLiveStatuses = ['scheduled', 'upcoming', 'final', 'finished', 'ended', 'ft', 'postponed', 'cancelled', 'not started'];
+      const isNotLive = notLiveStatuses.some(s => status.includes(s));
+      
+      // Also check if game has scores (indicates it's in play)
+      const hasScores = (game.homeScore !== undefined && game.homeScore !== null && game.homeScore !== '') ||
+                        (game.awayScore !== undefined && game.awayScore !== null && game.awayScore !== '');
+      
+      // If status indicates not live, filter out
+      if (isNotLive) return false;
+      
+      // If has scores or has any status, consider it live
+      return hasScores || status.length > 0;
+    });
+  }
+  
+  // Then filter by league
   const gamesList = activeLeagueFilter === 'all'
     ? allGames
     : allGames.filter(game => {
@@ -806,17 +903,23 @@ function renderGames() {
   if (gamesList.length === 0) {
     const noDataMsg =
       allGames.length === 0
-        ? 'No live games right now'
+        ? (gameStatusFilter === 'live' ? 'No live games right now' : 'No games available')
         : `No games found for league filter: ${activeLeagueFilter}`;
     container.innerHTML = `<div class="no-data">${noDataMsg}</div>`;
     return;
   }
   
-  container.innerHTML = gamesList.map(game => `
+  container.innerHTML = gamesList.map(game => {
+    const status = (game.status || '').toLowerCase();
+    const notLiveStatuses = ['scheduled', 'upcoming', 'final', 'finished', 'ended', 'ft', 'postponed', 'cancelled', 'not started'];
+    const isLive = !notLiveStatuses.some(s => status.includes(s));
+    const liveBadge = isLive ? '<span class="live-badge">🔴 LIVE</span>' : '<span class="upcoming-badge">📅 Upcoming</span>';
+    
+    return `
     <div class="game-card" onclick="selectGame(${game.id})">
       <div class="game-header">
         <span class="game-status">${game.status || 'In Progress'}</span>
-        <span class="live-badge">🔴 LIVE</span>
+        ${liveBadge}
         ${renderGameLeagueBadge(game)}
       </div>
       <div class="teams-display">
@@ -831,7 +934,14 @@ function renderGames() {
         </div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
+}
+
+// Handle game status filter change (Live Only / All Games)
+function handleGameStatusFilterChange(value) {
+  gameStatusFilter = value || 'live';
+  console.log(`🔍 Game status filter: ${gameStatusFilter === 'live' ? 'Live Only' : 'All Games'}`);
+  renderGames();
 }
 
 // Helper: render league badge for a game card (if league info available)
@@ -919,334 +1029,508 @@ function renderScoreCard(game) {
   `;
 }
 
-// Categorize odds by section, subsection, and type
+// Market Class Code to Tab mapping (from Fliff API - like Fliff Cluster V1)
+const MARKET_CLASS_TABS = {
+  // Main tabs
+  55000: 'Popular',
+  55001: 'Game Lines',
+  55010: 'Props',
+  55099: 'Showcase',
+  101: 'Featured',
+  
+  // Period tabs
+  55002: 'Halves',
+  55003: 'Quarters',
+  55007: 'Set',
+  55008: 'Innings',
+  
+  // Props tabs  
+  55004: 'Game Props',
+  55005: 'Team Props',
+  55006: 'Player Props',
+  55009: 'Fast Props',
+  
+  // Soccer specific
+  55021: 'Goals',
+  55022: 'Cards',
+  55023: 'Corners'
+};
+
+// Props tab codes for filtering
+const PROPS_TAB_CODES = [55004, 55005, 55006, 55009, 55010];
+
+// Categorize odds by section, subsection, and type - using market_class_codes like Fliff Cluster V1
 function categorizeOdd(odd) {
   const market = (odd.market || '').toLowerCase();
   const selection = (odd.selection || '').toLowerCase();
   const param = String(odd.param || '').toLowerCase();
   const event = (odd.event || '').toLowerCase();
+  const marketClassCodes = odd.marketClassCodes || [];
+  const groupVisualName = (odd.groupVisualName || '').toLowerCase();
+  const playerFkey = odd.playerFkey || '';
   
   // Combine all text for searching
   const allText = `${market} ${selection} ${param} ${event}`;
   
-  // Determine period/subsection (Game, Quarter, Half, Period)
+  // ==========================================
+  // STEP 1: Determine TAB from market_class_codes (Fliff Cluster V1 approach)
+  // Priority order matches Fliff's tab display order
+  // ==========================================
+  let tab = 'Game Lines'; // Default
+  
+  if (marketClassCodes && marketClassCodes.length > 0) {
+    // Priority order for tab assignment (matches Fliff UI)
+    if (marketClassCodes.includes(55099)) {
+      tab = 'Showcase';
+    } else if (marketClassCodes.includes(101)) {
+      tab = 'Featured';
+    } else if (marketClassCodes.includes(55000)) {
+      tab = 'Popular';
+    } else if (marketClassCodes.includes(55006)) {
+      tab = 'Player Props';
+    } else if (marketClassCodes.includes(55005)) {
+      tab = 'Team Props';
+    } else if (marketClassCodes.includes(55004)) {
+      tab = 'Game Props';
+    } else if (marketClassCodes.includes(55009)) {
+      tab = 'Fast Props';
+    } else if (marketClassCodes.includes(55010)) {
+      tab = 'Props';
+    } else if (marketClassCodes.includes(55002)) {
+      tab = 'Halves';
+    } else if (marketClassCodes.includes(55003)) {
+      tab = 'Quarters';
+    } else if (marketClassCodes.includes(55007)) {
+      tab = 'Set';
+    } else if (marketClassCodes.includes(55008)) {
+      tab = 'Innings';
+    } else if (marketClassCodes.includes(55021)) {
+      tab = 'Goals';
+    } else if (marketClassCodes.includes(55022)) {
+      tab = 'Cards';
+    } else if (marketClassCodes.includes(55023)) {
+      tab = 'Corners';
+    } else if (marketClassCodes.includes(55001)) {
+      tab = 'Game Lines';
+    }
+  }
+  
+  // ==========================================
+  // STEP 2: Fallback detection from market name if no market_class_codes
+  // ==========================================
+  
+  // Detect player props from market name patterns
+  // Include soccer-specific player props like "Goals", "Assists", "Shots"
+  const isPlayerPropFromName = (
+    market.includes('player prop') ||
+    market.includes('player points') ||
+    market.includes('player rebounds') ||
+    market.includes('player assists') ||
+    market.includes('player steals') ||
+    market.includes('player blocks') ||
+    market.includes('player threes') ||
+    market.includes('player turnovers') ||
+    market.includes('anytime scorer') ||
+    market.includes('first scorer') ||
+    market.includes('last scorer') ||
+    market.includes('to score') ||
+    market.includes('pts+') || 
+    market.includes('reb+') ||
+    market.includes('ast+') ||
+    // Soccer player props - "Goals", "Assists", "Shots" etc with player name
+    market === 'goals' ||
+    market === 'assists' ||
+    market === 'shots' ||
+    market === 'shots on target' ||
+    market === 'tackles' ||
+    market === 'passes' ||
+    market === 'fouls' ||
+    market === 'cards' ||
+    market.includes('anytime goal') ||
+    market.includes('first goal') ||
+    market.includes('last goal') ||
+    market.includes('to score first') ||
+    market.includes('to score last') ||
+    market.includes('to score anytime') ||
+    (playerFkey && playerFkey.length > 0) || // Has player fkey
+    (groupVisualName && /^[a-z]+\s+[a-z]+$/i.test(groupVisualName)) // Group looks like player name
+  );
+  
+  // Check if selection looks like a player name (for player props without explicit market indicator)
+  // Also check if selection contains a player name with Over/Under pattern
+  const hasPlayerNamePattern = selection && (
+    /^[A-Z][a-z]+\s+[A-Z][a-z]+/i.test(selection) ||  // "LeBron James"
+    /^[A-Z]\.\s*[A-Z][a-z]+/i.test(selection) ||       // "L. James"
+    /^[A-Z][a-z]+\s+[A-Z]\./i.test(selection) ||       // "LeBron J."
+    // Player name + Over/Under pattern: "Lionel Messi Over 0.5" or "Over 0.5 - Lionel Messi"
+    /[A-Z][a-z]+\s+[A-Z][a-z]+.*\s+(over|under)\s*/i.test(selection) ||
+    /(over|under)\s+[\d.]+\s*[-–]\s*[A-Z][a-z]+/i.test(selection)
+  );
+  
+  // Detect if this is a player prop by checking for player-specific patterns in selection
+  // E.g., "Lionel Messi Over 0.5", "C. Ronaldo Under 1.5"
+  const selectionHasPlayerOverUnder = selection && (
+    /[A-Z][a-z]+\s+[A-Z][a-z]+.*\s+(over|under)/i.test(selection) ||
+    /[A-Z]\.\s*[A-Z][a-z]+.*\s+(over|under)/i.test(selection) ||
+    /(over|under)\s+[\d.]+\s*[-–—:]\s*[A-Z]/i.test(selection)
+  );
+  
+  // Detect team props from market name patterns
+  const isTeamPropFromName = (
+    market.includes('team prop') ||
+    market.includes('team points') ||
+    market.includes('team rebounds') ||
+    market.includes('team total') ||
+    market.includes('team to score') ||
+    (market.includes('prop') && (market.includes('team') || market.includes('home') || market.includes('away')))
+  );
+  
+  // Update tab if we detected props but didn't get from market_class_codes
+  if (tab === 'Game Lines') {
+    if (isPlayerPropFromName || selectionHasPlayerOverUnder || (hasPlayerNamePattern && !selection.includes('team'))) {
+      tab = 'Player Props';
+    } else if (isTeamPropFromName) {
+      tab = 'Team Props';
+    }
+  }
+  
+  // ==========================================
+  // STEP 3: Determine subsection (period info) from market name
+  // ==========================================
   let subsection = 'Game';
   
-  // Check for quarters - very aggressive matching including "1H" style
-  // Check for "1H", "2H" format first (common abbreviation) - check anywhere in text
-  if (allText.match(/1h/i) || market.match(/1h/i) || selection.match(/1h/i) || param.match(/1h/i)) {
-    subsection = '1st Half';
-  } else if (allText.match(/2h/i) || market.match(/2h/i) || selection.match(/2h/i) || param.match(/2h/i)) {
-    subsection = '2nd Half';
-  }
-  // Check for quarters - Q1, Q2, Q3, Q4 - check anywhere
-  else if (allText.match(/q1/i) || market.match(/q1/i) || selection.match(/q1/i) || param.match(/q1/i)) {
+  // Check for quarters
+  if (allText.match(/\b(q1|1st\s*quarter|first\s*quarter|quarter\s*1)\b/i)) {
     subsection = '1st Quarter';
-  } else if (allText.match(/q2/i) || market.match(/q2/i) || selection.match(/q2/i) || param.match(/q2/i)) {
+  } else if (allText.match(/\b(q2|2nd\s*quarter|second\s*quarter|quarter\s*2)\b/i)) {
     subsection = '2nd Quarter';
-  } else if (allText.match(/q3/i) || market.match(/q3/i) || selection.match(/q3/i) || param.match(/q3/i)) {
+  } else if (allText.match(/\b(q3|3rd\s*quarter|third\s*quarter|quarter\s*3)\b/i)) {
     subsection = '3rd Quarter';
-  } else if (allText.match(/q4/i) || market.match(/q4/i) || selection.match(/q4/i) || param.match(/q4/i)) {
+  } else if (allText.match(/\b(q4|4th\s*quarter|fourth\s*quarter|quarter\s*4)\b/i)) {
     subsection = '4th Quarter';
   }
-  // Check for quarters - more patterns (including variations)
-  else if (allText.match(/\b(q1|1st\s*quarter|first\s*quarter|quarter\s*1|q\s*1|1\s*q)\b/i)) {
-    subsection = '1st Quarter';
-  } else if (allText.match(/\b(q2|2nd\s*quarter|second\s*quarter|quarter\s*2|q\s*2|2\s*q)\b/i)) {
-    subsection = '2nd Quarter';
-  } else if (allText.match(/\b(q3|3rd\s*quarter|third\s*quarter|quarter\s*3|q\s*3|3\s*q)\b/i)) {
-    subsection = '3rd Quarter';
-  } else if (allText.match(/\b(q4|4th\s*quarter|fourth\s*quarter|quarter\s*4|q\s*4|4\s*q)\b/i)) {
-    subsection = '4th Quarter';
-  }
-  // Check for halves - H1, H2 format
-  else if (allText.match(/\b(h1|1st\s*half|first\s*half|half\s*1|h\s*1|1\s*h)\b/i)) {
+  // Check for halves
+  else if (allText.match(/\b(1h|h1|1st\s*half|first\s*half|half\s*1)\b/i)) {
     subsection = '1st Half';
-  } else if (allText.match(/\b(h2|2nd\s*half|second\s*half|half\s*2|h\s*2|2\s*h)\b/i)) {
+  } else if (allText.match(/\b(2h|h2|2nd\s*half|second\s*half|half\s*2)\b/i)) {
     subsection = '2nd Half';
   }
-  // Check for periods (hockey/other sports)
-  else if (allText.match(/\b(p1|1st\s*period|first\s*period|period\s*1|p\s*1|1\s*p)\b/i)) {
+  // Check for periods (hockey)
+  else if (allText.match(/\b(p1|1st\s*period|first\s*period|period\s*1)\b/i)) {
     subsection = '1st Period';
-  } else if (allText.match(/\b(p2|2nd\s*period|second\s*period|period\s*2|p\s*2|2\s*p)\b/i)) {
+  } else if (allText.match(/\b(p2|2nd\s*period|second\s*period|period\s*2)\b/i)) {
     subsection = '2nd Period';
-  } else if (allText.match(/\b(p3|3rd\s*period|third\s*period|period\s*3|p\s*3|3\s*p)\b/i)) {
+  } else if (allText.match(/\b(p3|3rd\s*period|third\s*period|period\s*3)\b/i)) {
     subsection = '3rd Period';
   }
-  // Also check for just numbers followed by quarter/half/period
-  else if (allText.match(/\b1\s*(quarter|q)\b/i)) {
-    subsection = '1st Quarter';
-  } else if (allText.match(/\b2\s*(quarter|q)\b/i)) {
-    subsection = '2nd Quarter';
-  } else if (allText.match(/\b3\s*(quarter|q)\b/i)) {
-    subsection = '3rd Quarter';
-  } else if (allText.match(/\b4\s*(quarter|q)\b/i)) {
-    subsection = '4th Quarter';
-  } else if (allText.match(/\b1\s*(half|h)\b/i)) {
-    subsection = '1st Half';
-  } else if (allText.match(/\b2\s*(half|h)\b/i)) {
-    subsection = '2nd Half';
+  // Check for innings (baseball)
+  else if (allText.match(/\b(1st\s*inning|inning\s*1)\b/i)) {
+    subsection = '1st Inning';
+  } else if (allText.match(/\b(first\s*5|f5|1st\s*5)\b/i)) {
+    subsection = 'First 5 Innings';
+  }
+  // Check for sets (tennis)
+  else if (allText.match(/\b(set\s*1|1st\s*set|first\s*set)\b/i)) {
+    subsection = '1st Set';
+  } else if (allText.match(/\b(set\s*2|2nd\s*set|second\s*set)\b/i)) {
+    subsection = '2nd Set';
   }
   
-  // Check for props first (before determining section)
-  // Player props: market contains "player prop" or "player", or selection looks like a player name
-  // More robust detection for player props
-  const hasPlayerPropMarket = market.includes('player prop') || 
-                              (market.includes('prop') && market.includes('player')) ||
-                              market.includes('player points') ||
-                              market.includes('player rebounds') ||
-                              market.includes('player assists') ||
-                              market.includes('player steals') ||
-                              market.includes('player blocks');
+  // ==========================================
+  // STEP 4: Determine section from tab and period info
+  // ==========================================
+  let section = tab;
   
-  const hasPlayerNamePattern = selection && (
-    selection.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) || // "LeBron James"
-    selection.match(/^[A-Z]\.\s*[A-Z][a-z]+/) ||    // "L. James"
-    selection.match(/^[A-Z][a-z]+\s+[A-Z]\./)        // "LeBron J."
-  );
-  
-  const isPlayerProp = hasPlayerPropMarket || 
-                       (hasPlayerNamePattern && !selection.includes('team') && !selection.includes('home') && !selection.includes('away')) ||
-                       (market.includes('prop') && selection && !selection.includes('team') && !selection.includes('home') && !selection.includes('away') && 
-                        hasPlayerNamePattern);
-  
-  // Team props: market contains "team prop" or selection contains team/home/away
-  // More robust detection for team props
-  const hasTeamPropMarket = market.includes('team prop') || 
-                           (market.includes('prop') && market.includes('team')) ||
-                           market.includes('team points') ||
-                           market.includes('team rebounds') ||
-                           market.includes('team assists') ||
-                           market.includes('team total');
-  
-  const hasTeamKeywords = selection && (
-    selection.includes('team') || 
-    selection.includes('home') || 
-    selection.includes('away') ||
-    selection.includes('Team') || 
-    selection.includes('Home') || 
-    selection.includes('Away') ||
-    selection.toLowerCase().includes('team') ||
-    selection.toLowerCase().includes('home') ||
-    selection.toLowerCase().includes('away')
-  );
-  
-  const isTeamProp = hasTeamPropMarket || 
-                     (market.includes('prop') && !isPlayerProp && hasTeamKeywords) ||
-                     (market.includes('prop') && !isPlayerProp && 
-                      (market.includes('team') || market.includes('home') || market.includes('away')));
-  
-  // General props: market contains "prop" but not clearly player or team
-  // Also check for common prop indicators even if "prop" isn't in market
-  const isGeneralProp = (market.includes('prop') && !isPlayerProp && !isTeamProp) ||
-                       (market && !market.includes('spread') && !market.includes('moneyline') && !market.includes('total') && 
-                        !market.includes('ml') && !market.includes('over') && !market.includes('under') &&
-                        (market.includes('first') || market.includes('last') || market.includes('most') || 
-                         market.includes('least') || market.includes('assist') || market.includes('rebound') || 
-                         market.includes('point') || market.includes('steal') || market.includes('block')));
-  
-  // Determine section from subsection and props
-  let section = 'Gameline';
-  
-  if (isPlayerProp) {
+  // Add period info to section if applicable
+  if (subsection !== 'Game') {
     if (subsection.includes('Quarter')) {
-      section = 'Player Props - Quarters';
+      if (tab === 'Player Props') {
+        section = 'Player Props - Quarters';
+      } else if (tab === 'Team Props') {
+        section = 'Team Props - Quarters';
+      } else if (tab !== 'Quarters') {
+        section = `${tab} - Quarters`;
+      }
     } else if (subsection.includes('Half')) {
-      section = 'Player Props - Halves';
+      if (tab === 'Player Props') {
+        section = 'Player Props - Halves';
+      } else if (tab === 'Team Props') {
+        section = 'Team Props - Halves';
+      } else if (tab !== 'Halves') {
+        section = `${tab} - Halves`;
+      }
     } else if (subsection.includes('Period')) {
-      section = 'Player Props - Periods';
-    } else {
-      section = 'Player Props';
+      if (tab === 'Player Props') {
+        section = 'Player Props - Periods';
+      } else if (tab === 'Team Props') {
+        section = 'Team Props - Periods';
+      } else {
+        section = `${tab} - Periods`;
+      }
+    } else if (subsection.includes('Inning')) {
+      if (tab !== 'Innings') {
+        section = `${tab} - Innings`;
+      }
+    } else if (subsection.includes('Set')) {
+      if (tab !== 'Set') {
+        section = `${tab} - Sets`;
+      }
     }
-  } else if (isTeamProp) {
-    if (subsection.includes('Quarter')) {
-      section = 'Team Props - Quarters';
-    } else if (subsection.includes('Half')) {
-      section = 'Team Props - Halves';
-    } else if (subsection.includes('Period')) {
-      section = 'Team Props - Periods';
-    } else {
-      section = 'Team Props';
-    }
-  } else if (subsection.includes('Quarter')) {
-    section = 'Quarters';
-  } else if (subsection.includes('Half')) {
-    section = 'Halves';
-  } else if (subsection.includes('Period')) {
-    section = 'Periods';
-  } else if (subsection === 'Game') {
-    section = 'Gameline';
-  } else {
-    section = 'Other';
   }
   
-  // Determine bet type - improved detection with separation of variants
+  // ==========================================
+  // STEP 5: Determine bet type from market name
+  // IMPORTANT: Check main game lines FIRST, then props
+  // This prevents moneyline/spread/totals from being misclassified as props
+  // ==========================================
   let type = 'Other';
   
-  // Check for 3-way moneyline first (before regular moneyline)
-  const is3WayMoneyline = market.includes('3-way') || 
-                          market.includes('3 way') || 
-                          market.includes('three way') ||
-                          (market.includes('moneyline') && (market.includes('3') || selection.includes('draw'))) ||
-                          (market.includes('ml') && (market.includes('3') || selection.includes('draw'))) ||
-                          (selection && (selection.includes('draw') || selection.includes('tie')));
+  // Alternative/Alternate checks - comprehensive detection
+  const isAlternative = (
+    market.includes('alternative') || 
+    market.includes('alternate') || 
+    market.includes('alt ') || 
+    market.includes('alt.') ||
+    market.includes('alt-') ||
+    market.startsWith('alt ') ||
+    /\balt\b/i.test(market) ||  // Word boundary match for "alt"
+    /\balternate\b/i.test(market) ||
+    /\balternative\b/i.test(market)
+  );
   
-  // Check for alternative point spread - Match exact Fliff naming: "Alternative Point Spread"
-  const isAlternativeSpread = market.includes('alternative point spread') ||
-                              market.includes('alternate point spread') ||
-                              market.includes('alt point spread') ||
-                              market.includes('alternative spread') || 
-                              market.includes('alternate spread') || 
-                              market.includes('alt spread') ||
-                              market.includes('alt. spread') ||
-                              (market.includes('alternative') && market.includes('point spread')) ||
-                              (market.includes('alternate') && market.includes('point spread')) ||
-                              (param.includes('alternative') && (market.includes('spread') || param.includes('spread'))) ||
-                              (param.includes('alternate') && (market.includes('spread') || param.includes('spread'))) ||
-                              (param.includes('alt') && (market.includes('spread') || param.includes('spread'))) ||
-                              ((market.includes('alternative') || market.includes('alternate') || market.includes('alt')) && 
-                               (market.includes('spread') || param.includes('spread')));
+  // FIRST: Check if this is a prop based on tab (from market_class_codes) or detection
+  const isDefinitelyPlayerProp = tab === 'Player Props' || isPlayerPropFromName || selectionHasPlayerOverUnder;
+  const isDefinitelyTeamProp = tab === 'Team Props' || isTeamPropFromName;
+  const isDefinitelyGameProp = tab === 'Game Props' || tab === 'Props' || tab === 'Fast Props';
   
-  // Check for alternative total score - Match exact Fliff naming: "Alternative Total Score"
-  const isAlternativeTotalScore = market.includes('alternative total score') ||
-                                  market.includes('alternate total score') || 
-                                  market.includes('alt total score') ||
-                                  market.includes('alt. total score') ||
-                                  (market.includes('alternative') && market.includes('total score')) ||
-                                  (market.includes('alternate') && market.includes('total score')) ||
-                                  (market.includes('alt') && market.includes('total score')) ||
-                                  (param.includes('alternative') && (market.includes('total score') || param.includes('total score'))) ||
-                                  (param.includes('alternate') && (market.includes('total score') || param.includes('total score'))) ||
-                                  (param.includes('alt') && (market.includes('total score') || param.includes('total score')));
+  // Check if this is a main game line type (moneyline, spread, totals)
+  // These should NOT be classified as props even if they appear in prop tabs
+  const isMoneylineMarket = market.includes('moneyline') || market.includes('money line') || market.includes(' ml') || market === 'ml' || market.includes('to win');
+  const isSpreadMarket = market.includes('point spread') || market.includes('spread') || market.includes('handicap');
+  const isTotalMarket = market.includes('total score') || market.includes('total points') || (market.includes('total') && !market.includes('team total') && !isDefinitelyPlayerProp);
+  const isMainGameLine = isMoneylineMarket || isSpreadMarket || isTotalMarket;
   
-  // Check for total score - must include "total score" but NOT alternative (check market and param)
-  const isTotalScore = (market.includes('total score') || param.includes('total score')) && 
-                      !isAlternativeTotalScore &&
-                      !param.includes('alternative') && 
-                      !param.includes('alternate') && 
-                      !param.includes('alt');
+  // ==========================================
+  // MAIN GAME LINES FIRST (prevent misclassification)
+  // ==========================================
   
-  // Check for alternative totals - MUST include "total" (but not "total score") AND alternative indicator (check market and param)
-  const isAlternativeTotal = (market.includes('total') || param.includes('total')) && 
-                             !market.includes('total score') && // Exclude total score
-                             !param.includes('total score') && // Exclude total score in param
-                             !market.includes('spread') && // Exclude spreads
-                             !param.includes('spread') && // Exclude spreads in param
-                             (market.includes('alternative total') || 
-                              market.includes('alternate total') || 
-                              market.includes('alt total') ||
-                              market.includes('alt. total') ||
-                              param.includes('alternative') ||
-                              param.includes('alternate') ||
-                              param.includes('alt') ||
-                              (market.includes('alternative') && market.includes('total')) ||
-                              (market.includes('alternate') && market.includes('total')) ||
-                              (market.includes('alt') && market.includes('total')));
-  
-  // Check for team totals (separate from game totals)
-  const isTeamTotal = market.includes('team total') || 
-                     market.includes('tt') ||
-                     (market.includes('total') && (selection.includes('home') || selection.includes('away')) && !market.includes('score'));
-  
-  // Props - use the same detection logic as section determination
-  // (isPlayerProp, isTeamProp, isGeneralProp already defined above)
-  if (isPlayerProp) {
-    type = 'Player Props';
-  } else if (isTeamProp) {
-    type = 'Team Props';
-  } else if (isGeneralProp || 
-             market.includes('game prop') ||
-             selection.includes('prop') ||
-             (market && !market.includes('spread') && !market.includes('moneyline') && !market.includes('total') && 
-              !market.includes('ml') && !market.includes('over') && !market.includes('under') &&
-              (market.includes('first') || market.includes('last') || market.includes('most') || 
-               market.includes('least') || market.includes('score') ||
-               market.includes('assist') || market.includes('rebound') || market.includes('point')))) {
-    type = 'Props';
+  // Moneyline detection - check FIRST (before props)
+  if (isMoneylineMarket) {
+    if (market.includes('3-way') || market.includes('3 way') || selection.includes('draw') || selection.includes('tie')) {
+      type = '3-Way Moneyline';
+    } else if (isAlternative) {
+      type = 'Alternative Moneyline';
+    } else {
+      type = 'Moneyline';
+    }
   }
-  // Alternative Point Spread - check FIRST (before regular spread) - Match Fliff naming
-  else if (isAlternativeSpread) {
-    type = 'Alternative Point Spread';  // Changed to match Fliff exact naming
-  }
-  // Point Spread - Match Fliff naming: "Point Spread" (but NOT alternative point spread)
-  // Check for exact "point spread" first, then fallback to just "spread"
-  else if ((market.includes('point spread') || market.includes('spread')) && !isAlternativeSpread) {
-    // Double-check it's not alternative
-    if (!market.includes('alternative') && !market.includes('alternate') && !market.includes('alt') &&
-        !param.includes('alternative') && !param.includes('alternate') && !param.includes('alt')) {
+  // Spread detection - check before props
+  else if (isSpreadMarket) {
+    if (isAlternative) {
+      type = 'Alternative Point Spread';
+    } else {
       type = 'Point Spread';
     }
   }
-  // Also check for spread patterns in selection (but not alternative - check both market and param)
-  else if (!isAlternativeSpread && 
-           !market.includes('alternative') && !market.includes('alternate') && !market.includes('alt') &&
-           !param.includes('alternative') && !param.includes('alternate') && !param.includes('alt') &&
-           ((selection.match(/[+-]\d+\.?\d*/) && !selection.includes('over') && !selection.includes('under') && !selection.includes('total')) || 
-            (selection.includes('spread') && !selection.includes('alternative')) ||
-            ((selection.includes('+') || selection.includes('-')) && selection.match(/\d/) && !selection.includes('over') && !selection.includes('under') && !selection.includes('total')))) {
-    type = 'Point Spread';
+  // Total Score detection - check before props
+  else if (market.includes('total score')) {
+    if (isAlternative) {
+      type = 'Alternative Total Score';
+    } else {
+      type = 'Total Score';
+    }
   }
-  // 3-Way Moneyline - check before regular moneyline
-  else if (is3WayMoneyline) {
-    type = '3-Way Moneyline';
+  // Team Total detection
+  else if (market.includes('team total') || (market.includes('total') && (selection.includes('home') || selection.includes('away')))) {
+    if (isAlternative) {
+      type = 'Alternative Team Totals';
+    } else {
+      type = 'Team Totals';
+    }
   }
-  // Moneyline - look for "moneyline", "ml", "win", or just team names without numbers (but not 3-way)
-  else if ((market.includes('moneyline') && !is3WayMoneyline) || 
-           (market.includes('ml') && !is3WayMoneyline) || 
-           (market.includes('win') && !is3WayMoneyline) ||
-           (selection.includes(' w') && !selection.includes('draw')) ||
-           (selection.includes('win') && !selection.includes('draw')) ||
-           (selection && !selection.match(/[+-]\d/) && !selection.includes('over') && !selection.includes('under') && !selection.includes('prop') && !selection.includes('draw') && !selection.includes('tie'))) {
-    type = 'Moneyline';
+  // General Total detection (only for game-level totals, not player props)
+  else if (isTotalMarket || market.includes('over/under') || market.includes('o/u')) {
+    if (isAlternative) {
+      type = 'Alternative Totals';
+    } else {
+      type = 'Totals';
+    }
   }
-  // Alternative Total Score - check FIRST (before total score and other totals)
-  else if (isAlternativeTotalScore) {
-    type = 'Alternative Total Score';
+  // ==========================================
+  // PROPS (only if not a main game line)
+  // ==========================================
+  else if (isDefinitelyPlayerProp && !isMainGameLine) {
+    type = 'Player Props';
+  } else if (isDefinitelyTeamProp && !isMainGameLine) {
+    type = 'Team Props';
+  } else if (isDefinitelyGameProp && !isMainGameLine) {
+    type = 'Game Props';
   }
-  // Total Score - check before regular totals (must be exact "total score" in market, not alternative)
-  else if (isTotalScore) {
-    type = 'Total Score';
+  // ==========================================
+  // FALLBACK DETECTION from selection patterns
+  // ==========================================
+  // Over/Under from selection (only if not already detected as prop and not a main game line)
+  else if ((selection.includes('over') || selection.includes('under') || selection.match(/^[ou]\s*\d+/i)) && !isDefinitelyPlayerProp) {
+    if (isAlternative) {
+      type = 'Alternative Totals';
+    } else {
+      type = 'Totals';
+    }
   }
-  // Team Totals - check before regular totals
-  else if (isTeamTotal) {
-    type = 'Team Totals';
+  // Win/Draw from selection (likely moneyline)
+  else if (selection.includes('win') || selection.includes('victory')) {
+    if (isAlternative) {
+      type = 'Alternative Moneyline';
+    } else {
+      type = 'Moneyline';
+    }
   }
-  // Alternative Totals - check before regular totals
-  else if (isAlternativeTotal) {
-    type = 'Alternative Totals';
-  }
-  // Totals - look for "total", "over", "under", "o/u" (but not alternative, team totals, or total score)
-  else if ((market.includes('total') && !isAlternativeTotal && !isTeamTotal && !isTotalScore && !isAlternativeTotalScore) || 
-           (market.includes('over') && !isTotalScore && !isAlternativeTotalScore) || 
-           (market.includes('under') && !isTotalScore && !isAlternativeTotalScore) ||
-           market.includes('o/u') ||
-           ((selection.includes('over') || selection.includes('under')) && !isTeamTotal && !isTotalScore && !isAlternativeTotalScore) ||
-           (selection.match(/^o\s*\d+/i) && !isTotalScore && !isAlternativeTotalScore) ||
-           (selection.match(/^u\s*\d+/i) && !isTotalScore && !isAlternativeTotalScore)) {
-    type = 'Totals';
+  // Spread pattern in selection (e.g., "+7.5", "-3")
+  else if (selection.match(/[+-]\d+\.?\d*/) && !selection.includes('over') && !selection.includes('under')) {
+    if (isAlternative) {
+      type = 'Alternative Point Spread';
+    } else {
+      type = 'Point Spread';
+    }
   }
   
-  return { section, subsection, type, category: `${section}::${subsection}::${type}` };
+  // ==========================================
+  // STEP 6: OVERRIDE section for main game lines that were wrongly assigned to Props tabs
+  // If it's a Moneyline/Spread/Totals type but was assigned to Player Props/Team Props/Game Props,
+  // move it to Game Lines section instead
+  // ==========================================
+  const isMainGameLineType = (
+    type === 'Moneyline' || 
+    type === 'Alternative Moneyline' ||
+    type === '3-Way Moneyline' ||
+    type === 'Point Spread' || 
+    type === 'Alternative Point Spread' ||
+    type === 'Total Score' || 
+    type === 'Alternative Total Score' ||
+    type === 'Totals' || 
+    type === 'Alternative Totals' ||
+    type === 'Team Totals' ||
+    type === 'Alternative Team Totals'
+  );
+  
+  const isPropsSection = (
+    section === 'Player Props' || 
+    section === 'Team Props' || 
+    section === 'Game Props' || 
+    section === 'Props' ||
+    section === 'Fast Props' ||
+    section.includes('Player Props -') ||
+    section.includes('Team Props -')
+  );
+  
+  // Override: Move main game lines from Props sections to Game Lines
+  if (isMainGameLineType && isPropsSection) {
+    // Preserve the period/quarter/half info if present
+    if (subsection !== 'Game') {
+      if (subsection.includes('Quarter')) {
+        section = 'Game Lines - Quarters';
+      } else if (subsection.includes('Half')) {
+        section = 'Game Lines - Halves';
+      } else if (subsection.includes('Period')) {
+        section = 'Game Lines - Periods';
+      } else if (subsection.includes('Inning')) {
+        section = 'Game Lines - Innings';
+      } else if (subsection.includes('Set')) {
+        section = 'Game Lines - Sets';
+      } else {
+        section = 'Game Lines';
+      }
+    } else {
+      section = 'Game Lines';
+    }
+    // Also update tab for consistency
+    tab = 'Game Lines';
+  }
+  
+  return { 
+    section, 
+    subsection, 
+    type, 
+    tab, // Include raw tab for debugging
+    marketClassCodes, // Include for debugging
+    category: `${section}::${subsection}::${type}`,
+    isAlternate: isAlternative, // Flag for alternate markets
+    // Debug info
+    _debug: {
+      isPlayerProp: isDefinitelyPlayerProp,
+      isTeamProp: isDefinitelyTeamProp,
+      isGameProp: isDefinitelyGameProp,
+      isAlternative,
+      isMainGameLine,
+      isMainGameLineType,
+      isPropsSection,
+      wasMovedToGameLines: isMainGameLineType && isPropsSection,
+      isMoneylineMarket,
+      isSpreadMarket,
+      isTotalMarket,
+      selectionHasPlayerOverUnder,
+      hasPlayerNamePattern,
+      isPlayerPropFromName
+    }
+  };
 }
 
-// Get section display order
+// Get section display order (matches Fliff tab order)
 function getSectionOrder(section) {
   const order = {
-    'Gameline': 1,
-    'Player Props': 2,
-    'Team Props': 3,
-    'Quarters': 4,
-    'Player Props - Quarters': 5,
-    'Team Props - Quarters': 6,
-    'Halves': 7,
-    'Player Props - Halves': 8,
-    'Team Props - Halves': 9,
-    'Periods': 10,
-    'Player Props - Periods': 11,
-    'Team Props - Periods': 12,
+    // Featured/Popular first
+    'Showcase': 1,
+    'Featured': 2,
+    'Popular': 3,
+    
+    // Main game lines
+    'Game Lines': 10,
+    'Gameline': 10, // Legacy alias
+    
+    // Quarters
+    'Quarters': 20,
+    'Game Lines - Quarters': 21,
+    
+    // Halves
+    'Halves': 30,
+    'Game Lines - Halves': 31,
+    
+    // Props
+    'Props': 40,
+    'Game Props': 41,
+    'Fast Props': 42,
+    'Player Props': 50,
+    'Team Props': 60,
+    
+    // Props with periods
+    'Player Props - Quarters': 51,
+    'Player Props - Halves': 52,
+    'Player Props - Periods': 53,
+    'Team Props - Quarters': 61,
+    'Team Props - Halves': 62,
+    'Team Props - Periods': 63,
+    
+    // Periods (hockey)
+    'Periods': 70,
+    'Game Lines - Periods': 71,
+    
+    // Baseball
+    'Innings': 80,
+    'Game Lines - Innings': 81,
+    
+    // Tennis
+    'Set': 90,
+    'Game Lines - Sets': 91,
+    
+    // Soccer specific
+    'Goals': 100,
+    'Cards': 101,
+    'Corners': 102,
+    
+    // Other
     'Other': 999
   };
-  return order[section] || 999;
+  return order[section] || 500; // Unknown sections go in middle
 }
 
 // Get subsection display order within a section
@@ -1266,24 +1550,61 @@ function getSubsectionOrder(subsection) {
   return order[subsection] || 999;
 }
 
-// Get type display order - User requested order
+// Get type display order - Main markets first, then alternates, then props
 function getTypeOrder(type) {
   const order = {
-    'Moneyline': 1,  // First
-    'Point Spread': 2,  // Second
-    'Alternative Point Spread': 3,  // Third
-    'Total Score': 4,  // Fourth (Total)
-    'Alternative Total Score': 5,  // Fifth (Alternative Total)
-    '3-Way Moneyline': 6,
-    'Totals': 7,
-    'Alternative Totals': 8,
-    'Team Totals': 9,
-    'Player Props': 10,
-    'Team Props': 11,
-    'Props': 12,  // General props fallback
+    // === MAIN GAME LINES (FIRST) ===
+    'Moneyline': 1,           // Primary moneyline
+    'Point Spread': 2,        // Primary spread
+    'Total Score': 3,         // Primary total score
+    'Totals': 4,              // Primary totals (over/under)
+    '3-Way Moneyline': 5,     // 3-way (soccer)
+    'Team Totals': 6,         // Team-specific totals
+    
+    // === ALTERNATE LINES (GROUPED TOGETHER) ===
+    'Alternative Moneyline': 20,       // Alt moneyline
+    'Alternative Point Spread': 21,    // Alt spread
+    'Alternative Total Score': 22,     // Alt total score
+    'Alternative Totals': 23,          // Alt totals
+    'Alternative Team Totals': 24,     // Alt team totals
+    
+    // === PROPS (AFTER ALTERNATES) ===
+    'Game Props': 30,
+    'Player Props': 31,
+    'Team Props': 32,
+    'Props': 33,              // General props fallback
+    
+    // === OTHER ===
     'Other': 999
   };
-  return order[type] || 999;
+  return order[type] || 500;
+}
+
+// Get display name for type - adds "Regulation" to main lines to distinguish from alternatives
+function getTypeDisplayName(type) {
+  const displayNames = {
+    // Main game lines - add "Regulation" prefix
+    'Moneyline': 'Regulation Moneyline',
+    'Point Spread': 'Regulation Point Spread',
+    'Total Score': 'Regulation Total Score',
+    'Totals': 'Regulation Totals',
+    'Team Totals': 'Regulation Team Totals',
+    '3-Way Moneyline': '3-Way Regulation Moneyline',
+    
+    // Alternates - keep as is (already clear they're alternatives)
+    'Alternative Moneyline': 'Alternative Moneyline',
+    'Alternative Point Spread': 'Alternative Point Spread',
+    'Alternative Total Score': 'Alternative Total Score',
+    'Alternative Totals': 'Alternative Totals',
+    'Alternative Team Totals': 'Alternative Team Totals',
+    
+    // Props - keep as is
+    'Player Props': 'Player Props',
+    'Team Props': 'Team Props',
+    'Game Props': 'Game Props',
+    'Props': 'Props'
+  };
+  return displayNames[type] || type;
 }
 
 // Build vertical odds layout like Fliff "Game Lines" UI:
@@ -1417,16 +1738,20 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
           const lockKey = `${gameId}_${odd.id}`;
           const isLockedCheck = lockedLines.has(lockKey);
           const isUnavailableCheck = unavailableMarkets.has(lockKey);
+          const isSuspendedCheck = odd.suspended === true;
           const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
           const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+          const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
           const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
           const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+          const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
 
           return `
             <div class="flex-fill">
-              <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}" style="border-color: var(--border);">
+              <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}" style="border-color: var(--border);">
                 ${lockedBadge}
                 ${unavailableBadge}
+                ${suspendedBadge}
                 <div class="card-body p-3">
                   <div class="d-flex justify-content-between align-items-start mb-2">
                     <small style="font-size: 0.75rem; font-weight: 600; color: white;">${label}</small>
@@ -1437,7 +1762,7 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
                   <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                     ${odd.odds > 0 ? '+' : ''}${odd.odds}
                   </div>
-                  ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                  ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                 </div>
               </div>
             </div>
@@ -1501,13 +1826,18 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
           const oddClass = odd.odds > 0 ? 'text-success' : 'text-danger';
           const lockKey = `${gameId}_${odd.id}`;
           const isLockedCheck = lockedLines.has(lockKey);
+          const isUnavailableCheck = unavailableMarkets.has(lockKey);
+          const isSuspendedCheck = odd.suspended === true;
           const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+          const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
           const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+          const suspendedBadge = isSuspendedCheck && !isLockedCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
 
           return `
             <div class="flex-fill">
-              <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+              <div class="card h-100 odd-card ${lockedClass} ${suspendedClass}" style="border-color: var(--border);">
                 ${lockedBadge}
+                ${suspendedBadge}
                 <div class="card-body p-3">
                   <div class="d-flex justify-content-between align-items-start mb-2">
                     <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
@@ -1518,7 +1848,7 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
                   <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                     ${odd.odds > 0 ? '+' : ''}${odd.odds}
                   </div>
-                  ${getBetButtonsHTML(odd.id, isLockedCheck)}
+                  ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                 </div>
               </div>
             </div>
@@ -1555,16 +1885,20 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
         const lockKey = `${gameId}_${odd.id}`;
         const isLockedCheck = lockedLines.has(lockKey);
         const isUnavailableCheck = unavailableMarkets.has(lockKey);
+        const isSuspendedCheck = odd.suspended === true;
         const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
         const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+        const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
         const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
         const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+        const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
 
         h += `
           <div class="col-6">
-            <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
+            <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}">
               ${lockedBadge}
               ${unavailableBadge}
+              ${suspendedBadge}
               <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
@@ -1575,7 +1909,7 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
                 <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
                   ${odd.odds > 0 ? '+' : ''}${odd.odds}
                 </div>
-                ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
               </div>
             </div>
           </div>
@@ -1616,7 +1950,7 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
                        onclick="toggleSubsection('${typeId}')">
                     <div class="d-flex align-items-center">
                       <span style="font-size: 0.8rem; margin-right: 6px;">★</span>
-                      <span style="font-weight: 700; text-transform: uppercase;">${type}</span>
+                      <span style="font-weight: 700; text-transform: uppercase;">${getTypeDisplayName(type)}</span>
                     </div>
                     <div>
                       <span class="badge bg-secondary me-2">${group.total}</span>
@@ -1640,8 +1974,10 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
           type === 'Total Score' ||
           type === 'Alternative Total Score' ||
           type === 'Alternative Totals' ||
-          type === 'Team Totals';
+          type === 'Team Totals' ||
+          type === 'Alternative Team Totals';
         const isSpreadType = type === 'Point Spread' || type === 'Alternative Point Spread';
+        const isMoneylineType = type === 'Moneyline' || type === 'Alternative Moneyline' || type === '3-Way Moneyline';
 
         if (isTotalsType) {
           html += renderTotalsGroup(typeOdds, subsectionLabel);
@@ -1814,13 +2150,36 @@ function renderOdds() {
     alternativeTotalScores: new Set()
   };
   
+  // Debug: Track all sections found
+  const sectionsFound = new Set();
+  const tabsFromClassCodes = new Map();
+  
   oddsList.forEach(odd => {
-    const { section, subsection, type } = categorizeOdd(odd);
+    const result = categorizeOdd(odd);
+    const { section, subsection, type, tab, marketClassCodes } = result;
+    
+    sectionsFound.add(section);
+    
+    // Track market_class_codes usage
+    if (marketClassCodes && marketClassCodes.length > 0) {
+      const key = marketClassCodes.sort().join(',');
+      if (!tabsFromClassCodes.has(key)) {
+        tabsFromClassCodes.set(key, { tab, count: 0, sample: odd.market });
+      }
+      tabsFromClassCodes.get(key).count++;
+    }
     
     // Debug: Log props categorization for debugging
     const market = (odd.market || '').toLowerCase();
-    if (type === 'Player Props' || type === 'Team Props' || type === 'Props') {
-      console.log(`🎯 Prop detected: ${type} | Section: ${section} | Market: ${odd.market} | Selection: ${odd.selection?.substring(0, 50)}`);
+    const debugInfo = result._debug || {};
+    
+    // Log all "Goals" markets to debug categorization
+    if (market.includes('goal') || market === 'goals') {
+      console.log(`⚽ Goals market: Tab=${tab} | Section=${section} | Type=${type} | Codes=${marketClassCodes?.join(',')} | Market: ${odd.market} | Selection: ${odd.selection?.substring(0, 60)} | isPlayerProp=${debugInfo.isPlayerProp} | selectionHasPlayer=${debugInfo.selectionHasPlayerOverUnder}`);
+    }
+    
+    if (section.includes('Props') || type.includes('Props') || tab === 'Player Props' || tab === 'Team Props') {
+      console.log(`🎯 Prop detected: Tab=${tab} | Section=${section} | Type=${type} | Codes=${marketClassCodes?.join(',')} | Market: ${odd.market} | Selection: ${odd.selection?.substring(0, 50)}`);
     }
     
     // Debug: Track market names
@@ -1879,7 +2238,11 @@ function renderOdds() {
   
   // Debug logging
   console.log('📊 Total odds:', oddsList.length);
-  console.log('📊 Organized by sections:', Object.keys(organizedOdds));
+  console.log('📊 Organized by sections:', Array.from(sectionsFound));
+  console.log('📊 Tabs from market_class_codes:');
+  tabsFromClassCodes.forEach((info, codes) => {
+    console.log(`  [${codes}] → ${info.tab} (${info.count} odds, sample: ${info.sample})`);
+  });
   
   // Sort sections
   const sortedSections = Object.keys(organizedOdds).sort((a, b) => {
@@ -1892,20 +2255,89 @@ function renderOdds() {
 
   const activeSectionData = organizedOdds[activeSection];
 
-  // Build section tabs (Showcase / Game Lines / etc style)
+  // Build section tabs (Fliff Cluster V1 style - Showcase / Game Lines / Props / etc)
+  const tabIcons = {
+    // Featured/Popular
+    'Showcase': '🔥',
+    'Featured': '⚡',
+    'Popular': '⭐',
+    
+    // Main game lines
+    'Game Lines': '🎯',
+    'Gameline': '🎯',
+    
+    // Quarters
+    'Quarters': '⏱️',
+    'Game Lines - Quarters': '⏱️',
+    
+    // Halves
+    'Halves': '⏰',
+    'Game Lines - Halves': '⏰',
+    
+    // Props
+    'Props': '📊',
+    'Game Props': '🎲',
+    'Fast Props': '⚡',
+    'Player Props': '👤',
+    'Team Props': '🏀',
+    
+    // Props with periods
+    'Player Props - Quarters': '👤',
+    'Player Props - Halves': '👤',
+    'Player Props - Periods': '👤',
+    'Team Props - Quarters': '🏀',
+    'Team Props - Halves': '🏀',
+    'Team Props - Periods': '🏀',
+    
+    // Periods (hockey)
+    'Periods': '🕐',
+    'Game Lines - Periods': '🕐',
+    
+    // Baseball
+    'Innings': '⚾',
+    'Game Lines - Innings': '⚾',
+    
+    // Tennis
+    'Set': '🎾',
+    'Game Lines - Sets': '🎾',
+    
+    // Soccer specific
+    'Goals': '⚽',
+    'Cards': '🟨',
+    'Corners': '📐',
+    
+    // Other
+    'Specials': '⭐',
+    'Other': '📋'
+  };
+  
+  // Count odds in each section for badges
+  const sectionCounts = {};
+  sortedSections.forEach(section => {
+    let count = 0;
+    const sectionData = organizedOdds[section];
+    Object.keys(sectionData).forEach(subsection => {
+      Object.keys(sectionData[subsection]).forEach(type => {
+        count += sectionData[subsection][type].length;
+      });
+    });
+    sectionCounts[section] = count;
+  });
+  
   const tabsHtml = `
-    <ul class="nav nav-pills mb-3 odds-section-tabs">
-      ${sortedSections.map(section => `
-        <li class="nav-item">
-          <button 
-            class="nav-link ${section === activeSection ? 'active' : ''}" 
+    <div class="odds-tabs-container">
+      <div class="odds-tabs">
+        ${sortedSections.map(section => `
+          <div 
+            class="odds-tab ${section === activeSection ? 'active' : ''}" 
             onclick="setActiveSection('${section.replace(/'/g, "\\'")}')"
           >
-            ${section}
-          </button>
-        </li>
-      `).join('')}
-    </ul>
+            <span>${tabIcons[section] || '📋'} ${section}</span>
+            <span class="odds-tab-count">${sectionCounts[section]}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
   `;
 
   // Render only the active section (to avoid long scrolling)
@@ -1928,13 +2360,12 @@ function renderOdds() {
     });
 
     html += `
-      <div class="card mb-3">
-        <div class="card-header bg-primary text-white">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">${activeSection} <span class="badge bg-light text-dark ms-2">${sectionTotal}</span></h5>
-          </div>
+      <div class="market-group">
+        <div class="market-group-header">
+          <span class="market-group-title">${tabIcons[activeSection] || '📋'} ${activeSection}</span>
+          <span class="market-group-count">${sectionTotal} markets</span>
         </div>
-        <div class="card-body" id="${sectionId}" style="display: block;">
+        <div class="market-group-content" id="${sectionId}">
     `;
 
     // Render each subsection within active section
@@ -1970,13 +2401,13 @@ function renderOdds() {
         if (typeOdds.length === 0) return;
 
         // Check if this is a Totals type (Over/Under)
-        const isTotalsType = type === 'Totals' || type === 'Total Score' || type === 'Alternative Total Score' || 
-                            type === 'Alternative Totals' || type === 'Team Totals';
+        const isTotalsType = type === 'Totals' || type === 'Total Score' || type === 'Alternative Total Score' ||
+                            type === 'Alternative Totals' || type === 'Team Totals' || type === 'Alternative Team Totals';
 
         html += `
           <div class="mb-3 odds-type-column" style="display: inline-block; vertical-align: top; width: 420px; max-width: 520px; margin-right: 24px; white-space: normal; border: 1px solid var(--border); border-radius: 12px; padding: 8px 8px 12px 8px; background: rgba(0,0,0,0.25);">
             <h6 class="text-muted mb-2" style="font-size: 0.95rem; font-weight: 600;">
-              ${type} <span class="badge bg-secondary" style="font-size: 0.8rem;">${typeOdds.length}</span>
+              ${getTypeDisplayName(type)} <span class="badge bg-secondary" style="font-size: 0.8rem;">${typeOdds.length}</span>
             </h6>
         `;
 
@@ -2047,16 +2478,20 @@ function renderOdds() {
               const lockKey = `${gameId}_${over.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
               const isUnavailableCheck = unavailableMarkets.has(lockKey);
+              const isSuspendedCheck = over.suspended === true;
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+              const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
+              const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
               
               html += `
                 <div class="flex-fill">
-                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}" style="border-color: var(--border);">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}" style="border-color: var(--border);">
                     ${lockedBadge}
                     ${unavailableBadge}
+                    ${suspendedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">OVER</small>
@@ -2067,7 +2502,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${over.odds > 0 ? '+' : ''}${over.odds}
                       </div>
-                      ${getBetButtonsHTML(over.id, isLockedCheck, isUnavailableCheck)}
+                      ${getBetButtonsHTML(over.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                     </div>
                   </div>
                 </div>
@@ -2085,16 +2520,20 @@ function renderOdds() {
               const lockKey = `${gameId}_${under.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
               const isUnavailableCheck = unavailableMarkets.has(lockKey);
+              const isSuspendedCheck = under.suspended === true;
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+              const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
+              const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
               
               html += `
                 <div class="flex-fill">
-                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}" style="border-color: var(--border);">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}" style="border-color: var(--border);">
                     ${lockedBadge}
                     ${unavailableBadge}
+                    ${suspendedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">UNDER</small>
@@ -2105,7 +2544,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${under.odds > 0 ? '+' : ''}${under.odds}
                       </div>
-                      ${getBetButtonsHTML(under.id, isLockedCheck, isUnavailableCheck)}
+                      ${getBetButtonsHTML(under.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                     </div>
                   </div>
                 </div>
@@ -2154,16 +2593,20 @@ function renderOdds() {
               const lockKey = `${gameId}_${odd.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
               const isUnavailableCheck = unavailableMarkets.has(lockKey);
+              const isSuspendedCheck = odd.suspended === true;
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+              const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
+              const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
               
               html += `
                 <div class="col-6">
-                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}">
                     ${lockedBadge}
                     ${unavailableBadge}
+                    ${suspendedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
@@ -2174,7 +2617,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                         ${odd.odds > 0 ? '+' : ''}${odd.odds}
                       </div>
-                      ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                      ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                     </div>
                   </div>
                 </div>
@@ -2237,13 +2680,18 @@ function renderOdds() {
                 const oddClass = positive.odds > 0 ? 'text-success' : 'text-danger';
                 const lockKey = `${gameId}_${positive.id}`;
                 const isLockedCheck = lockedLines.has(lockKey);
+                const isUnavailableCheck = unavailableMarkets.has(lockKey);
+                const isSuspendedCheck = positive.suspended === true;
                 const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+                const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
                 const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+                const suspendedBadge = isSuspendedCheck && !isLockedCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
                 
                 html += `
                   <div class="flex-fill">
-                    <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                    <div class="card h-100 odd-card ${lockedClass} ${suspendedClass}" style="border-color: var(--border);">
                       ${lockedBadge}
+                      ${suspendedBadge}
                       <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                           <small style="font-size: 0.75rem; font-weight: 600; color: white;">${positive.market || 'Line'}</small>
@@ -2254,7 +2702,7 @@ function renderOdds() {
                         <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                           ${positive.odds > 0 ? '+' : ''}${positive.odds}
                         </div>
-                        ${getBetButtonsHTML(positive.id, isLockedCheck)}
+                        ${getBetButtonsHTML(positive.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                       </div>
                     </div>
                   </div>
@@ -2271,13 +2719,18 @@ function renderOdds() {
                 const oddClass = negative.odds > 0 ? 'text-success' : 'text-danger';
                 const lockKey = `${gameId}_${negative.id}`;
                 const isLockedCheck = lockedLines.has(lockKey);
+                const isUnavailableCheck = unavailableMarkets.has(lockKey);
+                const isSuspendedCheck = negative.suspended === true;
                 const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
+                const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
                 const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
+                const suspendedBadge = isSuspendedCheck && !isLockedCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
                 
                 html += `
                   <div class="flex-fill">
-                    <div class="card h-100 odd-card ${lockedClass}" style="border-color: var(--border);">
+                    <div class="card h-100 odd-card ${lockedClass} ${suspendedClass}" style="border-color: var(--border);">
                       ${lockedBadge}
+                      ${suspendedBadge}
                       <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                           <small style="font-size: 0.75rem; font-weight: 600; color: white;">${negative.market || 'Line'}</small>
@@ -2288,7 +2741,7 @@ function renderOdds() {
                         <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                           ${negative.odds > 0 ? '+' : ''}${negative.odds}
                         </div>
-                        ${getBetButtonsHTML(negative.id, isLockedCheck)}
+                        ${getBetButtonsHTML(negative.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                       </div>
                     </div>
                   </div>
@@ -2334,16 +2787,20 @@ function renderOdds() {
                 const lockKey = `${gameId}_${odd.id}`;
                 const isLockedCheck = lockedLines.has(lockKey);
                 const isUnavailableCheck = unavailableMarkets.has(lockKey);
+                const isSuspendedCheck = odd.suspended === true;
                 const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
                 const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+                const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
                 const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
                 const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ MARKET UNAVAILABLE</div>' : '';
+                const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
                 
                 html += `
                   <div class="col-6">
-                    <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
+                    <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}">
                       ${lockedBadge}
                       ${unavailableBadge}
+                      ${suspendedBadge}
                       <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                           <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
@@ -2354,7 +2811,7 @@ function renderOdds() {
                         <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                           ${odd.odds > 0 ? '+' : ''}${odd.odds}
                         </div>
-                        ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                        ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                       </div>
                     </div>
                   </div>
@@ -2378,16 +2835,20 @@ function renderOdds() {
               const lockKey = `${gameId}_${odd.id}`;
               const isLockedCheck = lockedLines.has(lockKey);
               const isUnavailableCheck = unavailableMarkets.has(lockKey);
+              const isSuspendedCheck = odd.suspended === true;
               const lockedClass = isLockedCheck ? 'odd-card-locked' : '';
               const unavailableClass = isUnavailableCheck ? 'odd-card-unavailable' : '';
+              const suspendedClass = isSuspendedCheck ? 'odd-card-suspended' : '';
               const lockedBadge = isLockedCheck ? '<div class="locked-badge">🔒 LOCKED</div>' : '';
               const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
+              const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
               
               html += `
                 <div class="col-6">
-                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass}">
+                  <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}">
                     ${lockedBadge}
                     ${unavailableBadge}
+                    ${suspendedBadge}
                     <div class="card-body p-3">
                       <div class="d-flex justify-content-between align-items-start mb-2">
                         <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
@@ -2398,7 +2859,7 @@ function renderOdds() {
                       <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
                         ${odd.odds > 0 ? '+' : ''}${odd.odds}
                       </div>
-                      ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck)}
+                      ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
                     </div>
                   </div>
                 </div>
@@ -2420,35 +2881,27 @@ function renderOdds() {
       `;
     });
 
+    // Close market-group-content and market-group
     html += `
         </div>
       </div>
     `;
   }
   
-  // Add summary at top
-  const summaryHtml = `
-    <div class="alert alert-info mb-3">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <strong>📊 Total Odds: ${oddsList.length}</strong>
-          <span class="ms-2 text-muted">Sections: ${sortedSections.length}</span>
-        </div>
-        <div>
-          <small class="text-muted">Game ID: ${gameId}</small>
-        </div>
-      </div>
-    </div>
-  ` + tabsHtml;
-  
-  container.innerHTML = summaryHtml + html;
+  // Add tabs and then content
+  container.innerHTML = tabsHtml + html;
 }
 
 // =============================================
 // GAME SELECTION
 // =============================================
 
-function selectGame(gameId) {
+// Track game data loading state
+let pendingGameLoad = null;
+let pendingGameLoadStartTime = null;
+let pendingGameLoadCheckInterval = null;
+
+async function selectGame(gameId) {
   // Ensure gameId is a number
   const gameIdInt = parseInt(gameId);
   
@@ -2460,6 +2913,24 @@ function selectGame(gameId) {
     return;
   }
   
+  // Reset event unavailable state for new game
+  eventUnavailable = false;
+  hideEventUnavailableBanner();
+  
+  // Clear any previous pending load
+  if (pendingGameLoadCheckInterval) {
+    clearInterval(pendingGameLoadCheckInterval);
+    pendingGameLoadCheckInterval = null;
+  }
+  
+  // Set pending game load state
+  pendingGameLoad = gameIdInt;
+  pendingGameLoadStartTime = Date.now();
+  
+  // Show loading overlay
+  showGameLoadingOverlay(selectedGame);
+  
+  // Update panel title and show game panel
   document.getElementById('panel-title').textContent = 
     `${selectedGame.home} vs ${selectedGame.away}`;
   
@@ -2469,22 +2940,272 @@ function selectGame(gameId) {
   document.getElementById('game-panel').classList.remove('hidden');
   document.querySelector('.games-section').classList.add('hidden');
   
-  // Load odds for this game
-  loadGameOdds(gameIdInt);
-  
-  // Subscribe to game updates
+  // Subscribe to game updates via WebSocket FIRST (to receive data ASAP)
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'subscribe', gameId }));
-    console.log('Subscribed to game:', gameId);
+    ws.send(JSON.stringify({ type: 'subscribe', gameId: gameIdInt, priority: true }));
+    console.log('Subscribed to game (priority):', gameIdInt);
   }
   
-  loadGameOdds(gameId);
+  // Load existing odds for this game from backend
+  loadGameOdds(gameIdInt);
+  
+  // Navigate main profile browser to game (this will trigger fresh data)
+  const navResult = await navigateMainProfileToGame(gameIdInt);
+  
+  // Start checking for data arrival - keep overlay until we have good data
+  pendingGameLoadCheckInterval = setInterval(() => {
+    const oddsCount = Object.keys(gameOdds[gameIdInt] || {}).length;
+    const elapsed = Date.now() - pendingGameLoadStartTime;
+    
+    // Update loading progress
+    updateLoadingProgress(oddsCount, elapsed);
+    
+    // Check if we have enough data (at least 10 odds OR 8 seconds elapsed)
+    if (oddsCount >= 10) {
+      console.log(`✅ Game data loaded: ${oddsCount} odds in ${elapsed}ms`);
+      clearInterval(pendingGameLoadCheckInterval);
+      pendingGameLoadCheckInterval = null;
+      pendingGameLoad = null;
+      hideGameLoadingOverlay();
+      renderOdds(); // Force re-render with loaded data
+    } else if (elapsed > 8000) {
+      // Timeout after 8 seconds
+      console.log(`⏱️ Game data timeout: ${oddsCount} odds after ${elapsed}ms`);
+      clearInterval(pendingGameLoadCheckInterval);
+      pendingGameLoadCheckInterval = null;
+      pendingGameLoad = null;
+      hideGameLoadingOverlay();
+      
+      // If no odds after 8 seconds, the event might be unavailable
+      if (oddsCount === 0) {
+        markEventUnavailable('No markets available - event may have ended or is not available');
+      }
+      
+      renderOdds();
+    }
+  }, 200); // Check every 200ms
+}
+
+// Update loading progress on overlay
+function updateLoadingProgress(oddsCount, elapsed) {
+  const subtitle = document.getElementById('loading-subtitle');
+  const progressEl = document.getElementById('loading-progress');
+  
+  if (subtitle) {
+    if (oddsCount > 0) {
+      subtitle.textContent = `Loading markets... (${oddsCount} found)`;
+    } else if (elapsed > 2000) {
+      subtitle.textContent = 'Waiting for market data...';
+    } else {
+      subtitle.textContent = 'Navigating to game...';
+    }
+  }
+  
+  if (progressEl) {
+    const progress = Math.min(100, (oddsCount / 50) * 100 + (elapsed / 8000) * 20);
+    progressEl.style.width = `${progress}%`;
+  }
+}
+
+// Timer variables
+let loadingTimerInterval = null;
+let loadingTimerSeconds = 15;
+
+// Show game loading overlay with 15-second countdown
+function showGameLoadingOverlay(game) {
+  const overlay = document.getElementById('game-loading-overlay');
+  const title = document.getElementById('loading-title');
+  const subtitle = document.getElementById('loading-subtitle');
+  const timerText = document.getElementById('timer-text');
+  const timerCircle = document.getElementById('timer-circle');
+  
+  if (overlay) {
+    title.textContent = `${game.home} vs ${game.away}`;
+    subtitle.textContent = 'Opening game on main profile browser...';
+    overlay.classList.remove('hidden');
+    
+    // Start countdown timer
+    loadingTimerSeconds = 15;
+    if (timerText) timerText.textContent = loadingTimerSeconds;
+    if (timerCircle) {
+      timerCircle.style.strokeDashoffset = '0';
+      timerCircle.style.stroke = '#00d4ff';
+    }
+    
+    // Clear any existing timer
+    if (loadingTimerInterval) {
+      clearInterval(loadingTimerInterval);
+    }
+    
+    // Start countdown
+    loadingTimerInterval = setInterval(() => {
+      loadingTimerSeconds--;
+      
+      if (timerText) {
+        timerText.textContent = Math.max(0, loadingTimerSeconds);
+      }
+      
+      if (timerCircle) {
+        // Circle circumference = 2 * PI * r = 2 * 3.14159 * 45 ≈ 283
+        const circumference = 283;
+        const offset = circumference * (1 - loadingTimerSeconds / 15);
+        timerCircle.style.strokeDashoffset = offset;
+        
+        // Change color as time runs out
+        if (loadingTimerSeconds <= 5) {
+          timerCircle.style.stroke = '#ff6b6b';
+        } else if (loadingTimerSeconds <= 10) {
+          timerCircle.style.stroke = '#ffd93d';
+        }
+      }
+      
+      // Update subtitle based on progress
+      if (subtitle) {
+        if (loadingTimerSeconds > 12) {
+          subtitle.textContent = 'Navigating to game...';
+        } else if (loadingTimerSeconds > 8) {
+          subtitle.textContent = 'Loading markets...';
+        } else if (loadingTimerSeconds > 4) {
+          subtitle.textContent = 'Fetching odds data...';
+        } else {
+          subtitle.textContent = 'Almost ready...';
+        }
+      }
+      
+      if (loadingTimerSeconds <= 0) {
+        clearInterval(loadingTimerInterval);
+        loadingTimerInterval = null;
+        hideGameLoadingOverlay();
+      }
+    }, 1000);
+  }
+}
+
+// Hide game loading overlay
+function hideGameLoadingOverlay() {
+  const overlay = document.getElementById('game-loading-overlay');
+  
+  // Clear timer
+  if (loadingTimerInterval) {
+    clearInterval(loadingTimerInterval);
+    loadingTimerInterval = null;
+  }
+  
+  if (overlay) {
+    overlay.classList.add('hidden');
+  }
+}
+
+// Navigate main profile browser to selected game
+async function navigateMainProfileToGame(gameId) {
+  const game = games[gameId];
+  if (!game) {
+    console.log('⚠️ Game not found for navigation:', gameId);
+    return false;
+  }
+  
+  console.log(`🎯 Auto-navigating main profile to: ${game.home} vs ${game.away}`);
+  
+  // Update loading subtitle
+  const subtitle = document.getElementById('loading-subtitle');
+  if (subtitle) {
+    subtitle.textContent = 'Navigating browser to game...';
+  }
+  
+  try {
+    // Use conflictFkey if available, otherwise use gameId
+    const requestBody = game.conflictFkey 
+      ? { conflictFkey: game.conflictFkey }
+      : { gameId: gameId };
+    
+    // Use user-scoped endpoint if in user mode
+    const navEndpoint = window.USER_MODE && window.CURRENT_USERNAME
+      ? `${API_URL}/api/user/${window.CURRENT_USERNAME}/navigate-to-game`
+      : `${API_URL}/api/main-profile/navigate-to-game`;
+    
+    const response = await fetch(navEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Main profile navigated to game: ${game.conflictFkey || gameId}`);
+      
+      // Update loading subtitle
+      if (subtitle) {
+        subtitle.textContent = 'Loading markets and odds...';
+      }
+      
+      showToast(`🎯 Browser synced<br>${game.home} vs ${game.away}`, 'success', 2000);
+      return true;
+    } else {
+      console.log(`⚠️ Navigation failed: ${result.error}`);
+      if (subtitle) {
+        subtitle.textContent = 'Loading from cache...';
+      }
+      return false;
+    }
+  } catch (e) {
+    console.log(`⚠️ Could not navigate main profile: ${e.message}`);
+    if (subtitle) {
+      subtitle.textContent = 'Loading from cache...';
+    }
+    return false;
+  }
 }
 
 function closeGamePanel() {
   selectedGame = null;
+  eventUnavailable = false;
+  hideEventUnavailableBanner();
   document.getElementById('game-panel').classList.add('hidden');
   document.querySelector('.games-section').classList.remove('hidden');
+}
+
+// Mark entire event as unavailable (show banner on dashboard)
+function markEventUnavailable(message) {
+  eventUnavailable = true;
+  showEventUnavailableBanner(message);
+  console.log(`⚠️ Event marked unavailable: ${message}`);
+}
+
+// Show event unavailable banner on dashboard
+function showEventUnavailableBanner(message) {
+  let banner = document.getElementById('event-unavailable-banner');
+  if (!banner) {
+    // Create banner if it doesn't exist
+    banner = document.createElement('div');
+    banner.id = 'event-unavailable-banner';
+    banner.className = 'event-unavailable-banner';
+    banner.innerHTML = `
+      <div class="event-unavailable-content">
+        <span class="event-unavailable-icon">⚠️</span>
+        <span class="event-unavailable-text"></span>
+      </div>
+    `;
+    // Insert at the top of odds-section
+    const oddsSection = document.querySelector('.odds-section');
+    if (oddsSection) {
+      oddsSection.insertBefore(banner, oddsSection.firstChild);
+    }
+  }
+  
+  const textEl = banner.querySelector('.event-unavailable-text');
+  if (textEl) {
+    textEl.textContent = message || 'Event Not Available';
+  }
+  banner.style.display = 'block';
+}
+
+// Hide event unavailable banner
+function hideEventUnavailableBanner() {
+  const banner = document.getElementById('event-unavailable-banner');
+  if (banner) {
+    banner.style.display = 'none';
+  }
 }
 
 // =============================================
@@ -2557,5 +3278,7 @@ window.FliffApp = {
   toggleSection,
   toggleSubsection,
   setActiveSection,
-  handleLeagueFilterChange
+  handleLeagueFilterChange,
+  handleGameStatusFilterChange,
+  markEventUnavailable
 };

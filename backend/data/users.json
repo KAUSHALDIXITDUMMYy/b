@@ -1,0 +1,49 @@
+{
+  "users": {
+    "admin": {
+      "displayName": "Administrator",
+      "role": "admin",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "isActive": true
+    },
+    "jake": {
+      "displayName": "jake",
+      "role": "user",
+      "createdAt": "2025-12-07T08:43:08.851Z",
+      "isActive": true
+    }
+  },
+  "profiles": {
+    "ll": {
+      "directory": "profiles\\Live Event",
+      "registeredAt": "2025-12-07T14:32:18.688Z",
+      "isRunning": true
+    },
+    "Justin voneck ": {
+      "directory": "profiles\\justin-voneck",
+      "registeredAt": "2025-12-07T14:32:37.129Z",
+      "isRunning": true
+    },
+    "Morgan Williamson": {
+      "directory": "profiles\\morgan-williamson",
+      "registeredAt": "2025-12-07T14:32:53.282Z",
+      "isRunning": true
+    },
+    "Sean stackpoole ": {
+      "directory": "profiles\\sean-stackpoole",
+      "registeredAt": "2025-12-07T14:33:11.219Z",
+      "isRunning": true
+    }
+  },
+  "assignments": {
+    "jake": {
+      "profiles": [
+        "ll",
+        "Justin voneck ",
+        "Morgan Williamson",
+        "Sean stackpoole "
+      ],
+      "mainProfile": "ll"
+    }
+  }
+}

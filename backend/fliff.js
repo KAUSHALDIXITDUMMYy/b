@@ -616,7 +616,13 @@ class FliffClient {
           status: g.live_state_desc,
           channel: channelId,
           sport: this.getSport(g.conflict_class_code),
-          markets: g.estimated_markets_count
+          markets: g.estimated_markets_count,
+          // Add conflict_fkey for direct navigation (Fliff Cluster V1 approach)
+          conflictFkey: g.conflict_fkey || `${gameId}_c_p_${g.conflict_class_code || 0}_inplay`,
+          leagueName: g.league_name,
+          leagueId: g.league_id,
+          homeTeamId: g.home_team_id,
+          awayTeamId: g.away_team_id
         };
         
         this.onGame(game);
@@ -667,7 +673,17 @@ class FliffClient {
       }
       
       sf.market_updates?.forEach(m => {
+        // Get market_class_codes from market level (determines which tab this market belongs to)
+        const marketClassCodes = m.market_class_codes || [];
+        const marketFkey = m.market_fkey || '';
+        const marketVisualName = m.visual_name || m.market_name || '';
+        
         m.groups?.forEach(g => {
+          // Get group-level data (for player props, the player name is often in group)
+          const groupVisualName = g.visual_name || '';
+          const groupTag = g.group_tag || '';
+          const playerFkey = g.player_fkey || '';
+          
           g.proposals?.forEach(p => {
             if (!p.coeff) return;
 
@@ -857,6 +873,10 @@ class FliffClient {
             // This helps ensure we can identify the exact odd even if proposal_fkey is not unique
             const uniqueId = `${p.proposal_fkey}_${p.coeff}_${(p.t_141_selection_name || '').substring(0, 20)}_${(p.t_142_selection_param_1 || '').substring(0, 10)}`;
             
+            // Check if market is suspended/locked (tradable = 0 means locked, shown with lock icon on Fliff)
+            // Fliff uses tradable field: 1 = active, 0 = suspended/locked
+            const isSuspended = p.tradable === 0 || p.tradable === false || p.is_tradable === 0 || p.is_tradable === false;
+            
             const odd = {
               id: p.proposal_fkey, // Keep original ID for compatibility
               uniqueId: uniqueId, // More unique identifier
@@ -867,10 +887,23 @@ class FliffClient {
               odds: p.coeff,
               decimal: p.eu_coeff,
               prevOdds: p.prev_coeff,
+              suspended: isSuspended, // Market is locked/suspended (lock icon shown on Fliff)
               channelId: channelId, // Store channel for debugging
               gameId: targetGameId, // Store verified game ID
               verifiedGame: verifiedGameInfo.fullName, // Store game name for verification
               updated: Date.now(),
+              // Market classification codes from Fliff (determines tab placement)
+              // 55000=Popular, 55001=Game Lines, 55002=Halves, 55003=Quarters
+              // 55004=Game Props, 55005=Team Props, 55006=Player Props
+              // 55007=Set, 55008=Innings, 55009=Fast Props, 55010=Props
+              // 55021=Goals, 55022=Cards, 55023=Corners
+              // 55099=Showcase, 101=Featured
+              marketClassCodes: marketClassCodes,
+              marketFkey: marketFkey,
+              marketVisualName: marketVisualName,
+              groupVisualName: groupVisualName,
+              groupTag: groupTag,
+              playerFkey: playerFkey,
               // Store full proposal data for debugging
               _debug: {
                 proposal_fkey: p.proposal_fkey,
@@ -880,7 +913,13 @@ class FliffClient {
                 market_name: p.t_131_market_name,
                 selection_name: p.t_141_selection_name,
                 param: p.t_142_selection_param_1,
-                verified_game: verifiedGameInfo.fullName
+                verified_game: verifiedGameInfo.fullName,
+                market_class_codes: marketClassCodes,
+                market_visual_name: marketVisualName,
+                group_visual_name: groupVisualName,
+                tradable: p.tradable,
+                is_tradable: p.is_tradable,
+                suspended: isSuspended
               }
             };
             
@@ -3330,6 +3369,191 @@ class FliffClient {
     return this.bearerToken;
   }
   
+  // Actively capture bearer token from the page
+  // This triggers token capture at the exact moment it's called (e.g., when lock and load is clicked)
+  async captureCurrentBearerToken() {
+    if (!this.page) {
+      console.log('⚠️ Cannot capture bearer token: page not available');
+      return { success: false, error: 'Page not available' };
+    }
+    
+    try {
+      console.log('🔑 Actively capturing bearer token...');
+      
+      // Method 1: Check window.__fliffBearerToken (from our injection)
+      let token = await this.page.evaluate(() => {
+        return window.__fliffBearerToken || null;
+      });
+      
+      if (token) {
+        console.log('🔑 Found token from injection: present');
+        this.bearerToken = token;
+        this.saveAPICredentials();
+        return { success: true, source: 'injection', token: token };
+      }
+      
+      // Method 2: Check localStorage for auth tokens
+      const localStorageToken = await this.page.evaluate(() => {
+        try {
+          // Common places Fliff might store auth token
+          const keys = ['access_token', 'auth_token', 'bearer_token', 'token', 'fliff_token', 'user_token'];
+          for (const key of keys) {
+            const value = localStorage.getItem(key);
+            if (value) {
+              // Check if it's a JWT or bearer token
+              if (value.startsWith('Bearer ') || value.includes('.')) {
+                return value.startsWith('Bearer ') ? value : `Bearer ${value}`;
+              }
+            }
+          }
+          
+          // Check for any key containing 'auth' or 'token'
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.toLowerCase().includes('auth') || key.toLowerCase().includes('token'))) {
+              const value = localStorage.getItem(key);
+              if (value && (value.startsWith('Bearer ') || (value.length > 20 && value.includes('.')))) {
+                return value.startsWith('Bearer ') ? value : `Bearer ${value}`;
+              }
+            }
+          }
+          
+          // Check for Fliff-specific storage patterns
+          const fliffAuth = localStorage.getItem('fliff-auth');
+          if (fliffAuth) {
+            try {
+              const parsed = JSON.parse(fliffAuth);
+              if (parsed.accessToken) return `Bearer ${parsed.accessToken}`;
+              if (parsed.token) return `Bearer ${parsed.token}`;
+              if (parsed.bearerToken) return parsed.bearerToken;
+            } catch (e) {}
+          }
+          
+          return null;
+        } catch (e) {
+          return null;
+        }
+      });
+      
+      if (localStorageToken) {
+        console.log('🔑 Found token in localStorage');
+        this.bearerToken = localStorageToken;
+        this.saveAPICredentials();
+        return { success: true, source: 'localStorage', token: localStorageToken };
+      }
+      
+      // Method 3: Check sessionStorage
+      const sessionStorageToken = await this.page.evaluate(() => {
+        try {
+          const keys = ['access_token', 'auth_token', 'bearer_token', 'token'];
+          for (const key of keys) {
+            const value = sessionStorage.getItem(key);
+            if (value) {
+              return value.startsWith('Bearer ') ? value : `Bearer ${value}`;
+            }
+          }
+          return null;
+        } catch (e) {
+          return null;
+        }
+      });
+      
+      if (sessionStorageToken) {
+        console.log('🔑 Found token in sessionStorage');
+        this.bearerToken = sessionStorageToken;
+        this.saveAPICredentials();
+        return { success: true, source: 'sessionStorage', token: sessionStorageToken };
+      }
+      
+      // Method 4: Check React/Redux state (Fliff likely uses React)
+      const reduxToken = await this.page.evaluate(() => {
+        try {
+          // Check for Redux store
+          if (window.__REDUX_DEVTOOLS_EXTENSION__) {
+            // Redux DevTools might expose state
+          }
+          
+          // Check for React root state
+          const reactRoot = document.getElementById('root');
+          if (reactRoot && reactRoot._reactRootContainer) {
+            // React 16/17 pattern
+            const fiber = reactRoot._reactRootContainer._internalRoot?.current;
+            // Navigate fiber tree to find auth state (complex, may not work)
+          }
+          
+          // Check window for any exposed auth state
+          const windowKeys = Object.keys(window);
+          for (const key of windowKeys) {
+            if (key.includes('fliff') || key.includes('auth') || key.includes('token')) {
+              const value = window[key];
+              if (typeof value === 'string' && (value.startsWith('Bearer ') || (value.length > 20 && value.includes('.')))) {
+                return value.startsWith('Bearer ') ? value : `Bearer ${value}`;
+              }
+            }
+          }
+          
+          return null;
+        } catch (e) {
+          return null;
+        }
+      });
+      
+      if (reduxToken) {
+        console.log('🔑 Found token in app state');
+        this.bearerToken = reduxToken;
+        this.saveAPICredentials();
+        return { success: true, source: 'appState', token: reduxToken };
+      }
+      
+      // Method 5: Trigger a lightweight API call to force token capture
+      console.log('🔑 Triggering API call to capture token...');
+      const apiToken = await this.page.evaluate(async () => {
+        try {
+          // Make a lightweight API call that requires auth
+          // The fetch interceptor should capture the token
+          const response = await fetch('https://api.getfliff.com/api/user/balance', {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          // Wait a moment for interceptor to capture
+          await new Promise(r => setTimeout(r, 100));
+          
+          return window.__fliffBearerToken || null;
+        } catch (e) {
+          // Even if the call fails, the token might be captured
+          return window.__fliffBearerToken || null;
+        }
+      });
+      
+      if (apiToken) {
+        console.log('🔑 Captured token from API call');
+        this.bearerToken = apiToken;
+        this.saveAPICredentials();
+        return { success: true, source: 'apiCall', token: apiToken };
+      }
+      
+      // If we still don't have a token, use existing one if available
+      if (this.bearerToken) {
+        console.log('🔑 Using existing bearer token');
+        return { success: true, source: 'existing', token: this.bearerToken };
+      }
+      
+      if (this.authToken) {
+        const authBearer = `Bearer ${this.authToken}`;
+        console.log('🔑 Constructing bearer from auth token');
+        return { success: true, source: 'authToken', token: authBearer };
+      }
+      
+      console.log('❌ Could not capture bearer token from any source');
+      return { success: false, error: 'No token found in any source' };
+      
+    } catch (e) {
+      console.error('❌ Error capturing bearer token:', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+  
   // Get betting API status
   getBettingAPIStatus() {
     return {
@@ -3356,6 +3580,176 @@ class FliffClient {
       return { success: true };
     } catch (e) {
       console.error('❌ Navigation error:', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  // =============================================
+  // MAIN PROFILE GAME NAVIGATION (Fliff Cluster V1 approach)
+  // Uses conflict_fkey for direct navigation to game markets
+  // =============================================
+
+  // Navigate to game using conflict_fkey (e.g., "350445_c_p_304_inplay")
+  // This is the preferred method from Fliff Cluster V1
+  async navigateToGameByFkey(conflictFkey) {
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      // URL format: https://sports.getfliff.com/markets/{conflict_fkey}
+      const gameUrl = `https://sports.getfliff.com/markets/${conflictFkey}`;
+      console.log(`🎯 Navigating to game markets: ${gameUrl}`);
+      
+      await this.page.goto(gameUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      
+      // Wait for WebSocket subscription to activate
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log(`✅ Now receiving REAL-TIME updates for game ${conflictFkey}`);
+      return { success: true, conflictFkey, url: gameUrl };
+    } catch (e) {
+      console.error('❌ Navigation error:', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  // Navigate to live events page
+  async goToLive() {
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      const liveUrl = 'https://sports.getfliff.com/sports?channelId=-333';
+      console.log('🔴 Navigating to Live events...');
+      
+      await this.page.goto(liveUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await new Promise(r => setTimeout(r, 3000));
+      
+      console.log('✅ On Live events page');
+      return { success: true, message: 'Navigated to Live events' };
+    } catch (e) {
+      console.error('❌ Go to live error:', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  // Get list of visible games from the page (for clicking)
+  async getVisibleGames() {
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      console.log('🎮 Getting visible games from page...');
+      
+      const games = await this.page.evaluate(() => {
+        // Try multiple selectors for games (Fliff-specific)
+        let gameCards = [];
+        
+        // Method 1: .events-list.no-scroll-bars > .card-shared-container
+        const eventsList = document.querySelector('.events-list.no-scroll-bars') || 
+                          document.querySelector('.events-list');
+        
+        if (eventsList) {
+          gameCards = eventsList.querySelectorAll('.card-shared-container');
+        }
+        
+        // Method 2: Try direct selector if method 1 fails
+        if (gameCards.length === 0) {
+          gameCards = document.querySelectorAll('.card-shared-container');
+        }
+        
+        // Method 3: Try card-info-container directly
+        if (gameCards.length === 0) {
+          gameCards = document.querySelectorAll('.card-info-container');
+        }
+        
+        return Array.from(gameCards).map((el, idx) => {
+          // Get team names from card-info-container or the element itself
+          const infoContainer = el.querySelector('.card-info-container') || el;
+          // Check if it has the clickable footer (shows more markets)
+          const hasFooter = !!el.querySelector('.card-regular-footer');
+          
+          const text = infoContainer.textContent?.replace(/\s+/g, ' ').trim().substring(0, 100) || `Game ${idx}`;
+          
+          return {
+            index: idx,
+            text: text,
+            hasFooter: hasFooter
+          };
+        });
+      });
+      
+      console.log(`✅ Found ${games.length} visible games`);
+      return { success: true, games, count: games.length };
+    } catch (e) {
+      console.error('❌ Get games error:', e.message);
+      return { success: false, error: e.message, games: [] };
+    }
+  }
+
+  // Click on a specific game by index
+  // Uses .card-regular-footer which shows all markets for the game
+  async clickGameByIndex(gameIndex) {
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      console.log(`🎮 Clicking game at index ${gameIndex}...`);
+      
+      const clicked = await this.page.evaluate((idx) => {
+        // Find the events list
+        const eventsList = document.querySelector('.events-list.no-scroll-bars') ||
+                          document.querySelector('.events-list');
+        if (!eventsList) return { success: false, error: 'No events list found' };
+        
+        // Get all game cards
+        const gameCards = eventsList.querySelectorAll('.card-shared-container');
+        if (!gameCards[idx]) return { success: false, error: `No game at index ${idx}, found ${gameCards.length} games` };
+        
+        const card = gameCards[idx];
+        
+        // The clickable element that shows all markets is .card-regular-footer
+        const footer = card.querySelector('.card-regular-footer');
+        if (footer) {
+          footer.click();
+          const text = card.textContent?.replace(/\s+/g, ' ').trim().substring(0, 80);
+          return { success: true, text: text, clicked: 'footer' };
+        }
+        
+        // Fallback: try clicking the card-info-container
+        const infoContainer = card.querySelector('.card-info-container');
+        if (infoContainer) {
+          infoContainer.click();
+          const text = card.textContent?.replace(/\s+/g, ' ').trim().substring(0, 80);
+          return { success: true, text: text, clicked: 'info-container' };
+        }
+        
+        // Last resort: click the card itself
+        card.click();
+        const text = card.textContent?.replace(/\s+/g, ' ').trim().substring(0, 80);
+        return { success: true, text: text, clicked: 'card' };
+      }, gameIndex);
+
+      if (!clicked.success) {
+        console.log(`❌ Game click failed: ${clicked.error}`);
+        return { success: false, error: clicked.error || 'Game not found' };
+      }
+
+      // Wait for game page/markets to load
+      await new Promise(r => setTimeout(r, 3000));
+      
+      console.log(`✅ Game clicked (${clicked.clicked}): ${clicked.text}`);
+      return { success: true, message: 'Game clicked', text: clicked.text, method: clicked.clicked };
+    } catch (e) {
+      console.error(`❌ Click game error:`, e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  // Go back in browser history
+  async goBack() {
+    if (!this.page) throw new Error('Browser not connected');
+    
+    try {
+      await this.page.goBack({ waitUntil: 'networkidle2', timeout: 10000 });
+      return { success: true, message: 'Navigated back' };
+    } catch (e) {
       return { success: false, error: e.message };
     }
   }

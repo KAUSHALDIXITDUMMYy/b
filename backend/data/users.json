@@ -16,22 +16,22 @@
   "profiles": {
     "ll": {
       "directory": "profiles\\Live Event",
-      "registeredAt": "2025-12-07T14:32:18.688Z",
+      "registeredAt": "2025-12-07T18:16:25.731Z",
       "isRunning": true
     },
     "Justin voneck ": {
       "directory": "profiles\\justin-voneck",
-      "registeredAt": "2025-12-07T14:32:37.129Z",
+      "registeredAt": "2025-12-07T18:16:42.108Z",
       "isRunning": true
     },
     "Morgan Williamson": {
       "directory": "profiles\\morgan-williamson",
-      "registeredAt": "2025-12-07T14:32:53.282Z",
+      "registeredAt": "2025-12-07T18:17:01.102Z",
       "isRunning": true
     },
     "Sean stackpoole ": {
       "directory": "profiles\\sean-stackpoole",
-      "registeredAt": "2025-12-07T14:33:11.219Z",
+      "registeredAt": "2025-12-07T18:17:21.019Z",
       "isRunning": true
     }
   },

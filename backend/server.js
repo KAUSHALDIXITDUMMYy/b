@@ -193,6 +193,125 @@ let priorityGameId = null;
 let priorityGameUpdateInterval = null;
 
 // =============================================
+// PERFORMANCE OPTIMIZATION: Selected Game Only
+// When a game is selected, ONLY process odds for that game
+// This prevents lag when there are many live games
+// =============================================
+let selectedGameId = null; // The game user clicked on - ONLY this game gets odds processed
+
+// =============================================
+// LOG LEVEL CONTROLS - Separate odds/betting logging
+// Main console (port 3001): BETTING ONLY
+// Secondary console (port 3002): Odds & Live events
+// =============================================
+const LOG_CONFIG = {
+  ODDS_VERBOSE: false,      // Detailed odds verification logs (OFF - causes lag)
+  ODDS_SUMMARY: false,      // Summary odds logs (OFF on main console)
+  BETTING: true,            // Betting action logs (MAIN CONSOLE)
+  LIVE: false,              // Live game/score logs (OFF on main console)
+  PERFORMANCE: false        // Performance warnings (OFF on main console)
+};
+
+// =============================================
+// SECONDARY LOGGING SERVER (Port 3002)
+// Handles: Odds fetching, Live events, Performance
+// =============================================
+const LOGGING_PORT = 3002;
+const loggingApp = express();
+const loggingServer = http.createServer(loggingApp);
+const loggingClients = new Set();
+const loggingWss = new WebSocket.Server({ server: loggingServer });
+
+// Buffer for log messages (sent to logging clients)
+const logBuffer = [];
+const MAX_LOG_BUFFER = 500;
+
+// Send log to logging server clients
+function sendToLoggingClients(type, message) {
+  const logEntry = {
+    type,
+    message,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Add to buffer
+  logBuffer.push(logEntry);
+  if (logBuffer.length > MAX_LOG_BUFFER) {
+    logBuffer.shift();
+  }
+  
+  // Send to connected logging clients
+  const msg = JSON.stringify(logEntry);
+  loggingClients.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(msg);
+    }
+  });
+  
+  // Also log to console on the logging server
+  console.log(`[${type.toUpperCase()}] ${message}`);
+}
+
+loggingWss.on('connection', (ws) => {
+  loggingClients.add(ws);
+  console.log('📊 Logging client connected');
+  
+  // Send recent logs
+  ws.send(JSON.stringify({ type: 'history', logs: logBuffer.slice(-100) }));
+  
+  ws.on('close', () => {
+    loggingClients.delete(ws);
+  });
+});
+
+loggingApp.use(cors());
+loggingApp.get('/', (req, res) => {
+  res.send(`
+    <html>
+    <head><title>Fliff Logging Console</title>
+    <style>
+      body { background: #0a0a1a; color: #00ff00; font-family: monospace; padding: 20px; }
+      .log { margin: 2px 0; padding: 5px; border-radius: 4px; }
+      .odds { background: #1a1a2e; color: #00d4ff; }
+      .live { background: #1a2e1a; color: #00ff00; }
+      .perf { background: #2e2e1a; color: #ffff00; }
+      h1 { color: #00d4ff; }
+      #logs { max-height: 80vh; overflow-y: auto; }
+    </style>
+    </head>
+    <body>
+      <h1>📊 Fliff Logging Console (Port ${LOGGING_PORT})</h1>
+      <p>Odds fetching & Live events are logged here. Betting is on main console (3001).</p>
+      <div id="logs"></div>
+      <script>
+        const ws = new WebSocket('ws://localhost:${LOGGING_PORT}');
+        const logsDiv = document.getElementById('logs');
+        ws.onmessage = (e) => {
+          const data = JSON.parse(e.data);
+          if (data.type === 'history') {
+            data.logs.forEach(log => addLog(log));
+          } else {
+            addLog(data);
+          }
+        };
+        function addLog(log) {
+          const div = document.createElement('div');
+          div.className = 'log ' + log.type;
+          div.textContent = new Date(log.timestamp).toLocaleTimeString() + ' [' + log.type.toUpperCase() + '] ' + log.message;
+          logsDiv.appendChild(div);
+          logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+      </script>
+    </body>
+    </html>
+  `);
+});
+
+loggingApp.get('/api/logs', (req, res) => {
+  res.json(logBuffer.slice(-100));
+});
+
+// =============================================
 // ADMIN API - USER MANAGEMENT
 // =============================================
 
@@ -1095,35 +1214,24 @@ function getMainProfileClient() {
   return fliffClients.get(mainProfile) || fliffClient;
 }
 
-// Load existing logs
+// =============================================
+// LOGGING DISABLED - No JSON saving (performance)
+// =============================================
+// betLogs array is kept in memory only for API access
+// No file I/O = better performance
+
 function loadLogs() {
-  try {
-    const logsPath = path.join(__dirname, 'bet_logs.json');
-    if (fs.existsSync(logsPath)) {
-      const data = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
-      betLogs.push(...data.logs);
-      Object.assign(accountStats, data.stats);
-    }
-  } catch (e) {
-    console.log('No existing logs found');
-  }
+  // DISABLED - no JSON loading
+  // Logs are kept in memory only during session
 }
 
-// Save logs
 function saveLogs() {
-  try {
-    const logsPath = path.join(__dirname, 'bet_logs.json');
-    // Use writeFileSync with a small delay to batch writes and reduce nodemon restarts
-    fs.writeFileSync(logsPath, JSON.stringify({
-      logs: betLogs.slice(-1000), // Keep last 1000
-      stats: accountStats
-    }, null, 2));
-  } catch (e) {
-    console.error('Error saving logs:', e);
-  }
+  // DISABLED - no JSON saving for performance
+  // Logs stay in memory only
 }
 
-loadLogs();
+// Don't load from file
+// loadLogs();
 
 // =============================================
 // API ENDPOINTS - GAMES
@@ -1602,12 +1710,71 @@ app.get('/api/status', (req, res) => {
     liveGames: liveGames.size,
     totalOdds: Array.from(gameOdds.values()).reduce((sum, m) => sum + m.size, 0),
     accountStats,
+    selectedGameId: selectedGameId, // Currently selected game (for performance)
     profiles: {
       total: fliffClients.size,
       ready: profileStatuses.filter(p => p.ready).length,
       statuses: profileStatuses
     }
   });
+});
+
+// =============================================
+// API ENDPOINTS - PERFORMANCE CONTROLS
+// =============================================
+
+// Get current performance settings
+app.get('/api/performance', (req, res) => {
+  res.json({
+    selectedGameId,
+    priorityGameId,
+    logConfig: LOG_CONFIG,
+    liveGamesCount: liveGames.size,
+    message: selectedGameId 
+      ? `Only processing odds for game ${selectedGameId}` 
+      : 'Processing odds for ALL games (may cause lag)'
+  });
+});
+
+// Set selected game (only process odds for this game)
+app.post('/api/performance/select-game', (req, res) => {
+  const { gameId } = req.body;
+  
+  if (gameId === null || gameId === undefined) {
+    selectedGameId = null;
+    console.log('🔓 Selected game cleared - processing ALL games (may lag)');
+    return res.json({ success: true, selectedGameId: null, message: 'Processing all games' });
+  }
+  
+  const gid = parseInt(gameId);
+  if (isNaN(gid)) {
+    return res.status(400).json({ error: 'Invalid gameId' });
+  }
+  
+  selectedGameId = gid;
+  console.log(`🎯 Selected game set to ${gid} - ONLY processing odds for this game`);
+  res.json({ success: true, selectedGameId: gid, message: `Only processing odds for game ${gid}` });
+});
+
+// Clear selected game (process all games - may cause lag)
+app.post('/api/performance/clear-selection', (req, res) => {
+  selectedGameId = null;
+  console.log('🔓 Selected game cleared - processing ALL games');
+  res.json({ success: true, message: 'Processing all games now' });
+});
+
+// Update log configuration
+app.post('/api/performance/logging', (req, res) => {
+  const { oddsVerbose, oddsSummary, betting, live, performance } = req.body;
+  
+  if (typeof oddsVerbose === 'boolean') LOG_CONFIG.ODDS_VERBOSE = oddsVerbose;
+  if (typeof oddsSummary === 'boolean') LOG_CONFIG.ODDS_SUMMARY = oddsSummary;
+  if (typeof betting === 'boolean') LOG_CONFIG.BETTING = betting;
+  if (typeof live === 'boolean') LOG_CONFIG.LIVE = live;
+  if (typeof performance === 'boolean') LOG_CONFIG.PERFORMANCE = performance;
+  
+  console.log('📝 Log config updated:', LOG_CONFIG);
+  res.json({ success: true, logConfig: LOG_CONFIG });
 });
 
 // =============================================
@@ -3107,28 +3274,42 @@ function logBet(bet) {
   }
 }
 
-// Odds fetching logs (separate from betting)
+// =============================================
+// SEPARATE CONSOLE LOGGING
+// Main console (3001): Betting ONLY
+// Logging console (3002): Odds, Live, Performance
+// =============================================
+
+// Odds fetching logs -> LOGGING SERVER (port 3002)
 function logOdds(message, data = {}) {
-  const timestamp = new Date().toLocaleTimeString();
+  let logMsg = message;
   if (data.gameId && data.count !== undefined) {
-    console.log(`📊 [ODDS ${timestamp}] Game ${data.gameId}: ${message} (${data.count} odds)`);
+    logMsg = `Game ${data.gameId}: ${message} (${data.count} odds)`;
   } else if (data.gameId) {
-    console.log(`📊 [ODDS ${timestamp}] Game ${data.gameId}: ${message}`);
-  } else {
-    console.log(`📊 [ODDS ${timestamp}] ${message}`);
+    logMsg = `Game ${data.gameId}: ${message}`;
   }
+  sendToLoggingClients('odds', logMsg);
 }
 
-// Betting action logs
+// Summary-only odds log -> LOGGING SERVER
+function logOddsSummary(message) {
+  sendToLoggingClients('odds', message);
+}
+
+// Betting action logs -> MAIN CONSOLE (port 3001) ONLY
 function logBetting(message) {
   const timestamp = new Date().toLocaleTimeString();
   console.log(`💰 [BET ${timestamp}] ${message}`);
 }
 
-// Live game/score logs
+// Live game/score logs -> LOGGING SERVER (port 3002)
 function logLive(message) {
-  const timestamp = new Date().toLocaleTimeString();
-  console.log(`🎮 [LIVE ${timestamp}] ${message}`);
+  sendToLoggingClients('live', message);
+}
+
+// Performance warnings -> LOGGING SERVER (port 3002)
+function logPerf(message) {
+  sendToLoggingClients('perf', message);
 }
 
 // =============================================
@@ -3153,6 +3334,14 @@ wss.on('connection', (ws) => {
         const gameId = parseInt(data.gameId);
         ws.gameId = gameId;
         
+        // =============================================
+        // PERFORMANCE: Set selectedGameId
+        // This tells handleOddsUpdate to ONLY process this game
+        // All other game odds are SKIPPED to prevent lag
+        // =============================================
+        selectedGameId = gameId;
+        console.log(`🎯 SELECTED GAME: ${gameId} - Only processing odds for this game now`);
+        
         const odds = gameOdds.get(gameId) || new Map();
         const oddsArray = Array.from(odds.values());
         
@@ -3166,12 +3355,10 @@ wss.on('connection', (ws) => {
         }));
         
         // If priority subscription, also set this as the priority game
-        // and request fresh data from main profile
         if (data.priority) {
           priorityGameId = gameId;
-          console.log(`🎯 Priority game set: ${gameId}`);
           
-          // Schedule periodic updates for priority game
+          // Schedule periodic updates for priority game (reduced frequency for performance)
           if (priorityGameUpdateInterval) {
             clearInterval(priorityGameUpdateInterval);
           }
@@ -3190,9 +3377,9 @@ wss.on('connection', (ws) => {
                 }));
               }
             });
-          }, 500); // Send updates every 500ms for priority game
+          }, 1000); // Reduced from 500ms to 1000ms for performance
           
-          // Clear priority after 15 seconds
+          // Clear priority after 30 seconds (extended for better user experience)
           setTimeout(() => {
             if (priorityGameId === gameId) {
               priorityGameId = null;
@@ -3202,8 +3389,17 @@ wss.on('connection', (ws) => {
               }
               console.log(`🔓 Priority cleared for game ${gameId}`);
             }
-          }, 15000);
+          }, 30000);
         }
+      }
+      
+      // Handle unsubscribe - clear selected game when user leaves game view
+      if (data.type === 'unsubscribe') {
+        if (selectedGameId === ws.gameId) {
+          console.log(`🔓 SELECTED GAME CLEARED - will process all odds again`);
+          selectedGameId = null;
+        }
+        ws.gameId = null;
       }
     } catch (e) {
       console.error('WS message error:', e);
@@ -3242,6 +3438,7 @@ function broadcastToGame(gameId, data) {
 function handleGameUpdate(game) {
   const existing = liveGames.get(game.id);
   
+  // Only log score changes and new games (reduces noise)
   if (existing && (existing.homeScore !== game.homeScore || existing.awayScore !== game.awayScore)) {
     logLive(`⚽ SCORE: ${game.home} ${game.homeScore} - ${game.awayScore} ${game.away}`);
     broadcast({ type: 'score', game });
@@ -3255,80 +3452,58 @@ function handleGameUpdate(game) {
     gameOdds.set(game.id, new Map());
   }
   
+  // Only broadcast game updates (not all odds) - this is lightweight
   broadcast({ type: 'game', game });
 }
 
 function handleOddsUpdate(gameId, odd) {
   const gid = parseInt(gameId);
   
+  // =============================================
+  // PERFORMANCE OPTIMIZATION: Only process selected game
+  // Skip ALL odds processing for non-selected games
+  // This is the main fix for lag with many live games
+  // =============================================
+  if (selectedGameId !== null && gid !== selectedGameId) {
+    // Silently skip - don't even log (causes lag)
+    return;
+  }
+  
   // VERIFICATION: Ensure odd belongs to this game
   const game = liveGames.get(gid);
   if (!game) {
-    logOdds(`Game ${gid} not found, skipping odd: ${odd.selection || 'N/A'}`);
+    // Don't log this - causes noise
     return;
   }
   
-  // Verify odd's gameId matches (if stored in odd)
+  // Quick gameId mismatch check (no logging for performance)
   if (odd.gameId && parseInt(odd.gameId) !== gid) {
-    logOdds(`❌ MISMATCH: Odd gameId ${odd.gameId} doesn't match target ${gid}`, { gameId: gid });
-    logOdds(`   Odd: ${odd.selection} @ ${odd.odds} | Event: ${odd.event || 'N/A'}`, { gameId: gid });
-    logOdds(`   Target: ${game.home} vs ${game.away}`, { gameId: gid });
-    return; // Don't store mismatched odds
-  }
-  
-  // STRICT VERIFICATION: event_info MUST match game teams
-  if (!odd.event) {
-    // No event_info - can't verify, skip it
-    logOdds(`❌ NO EVENT INFO: Skipping odd ${odd.selection} @ ${odd.odds}`, { gameId: gid });
     return;
   }
   
+  // Skip odds without event info silently
+  if (!odd.event) {
+    return;
+  }
+  
+  // =============================================
+  // SIMPLIFIED VERIFICATION (for selected game only)
+  // Only do expensive team matching for selected game
+  // =============================================
   const eventInfo = (odd.event || '').toLowerCase().trim();
   const homeName = (game.home || '').toLowerCase().trim();
   const awayName = (game.away || '').toLowerCase().trim();
   
-  // Extract key words from team names
-  const extractKeyWords = (name) => {
-    return name
-      .replace(/\b(state|university|univ|college|tech|tech|st|u|of|the)\b/gi, '')
-      .split(/\s+/)
-      .filter(w => w.length > 2)
-      .join(' ')
-      .trim();
-  };
-  
-  const homeKeyWords = extractKeyWords(homeName);
-  const awayKeyWords = extractKeyWords(awayName);
-  
-  // Check for matches
-  const hasHomeFull = eventInfo.includes(homeName);
-  const hasAwayFull = eventInfo.includes(awayName);
-  const hasHomeKey = homeKeyWords && eventInfo.includes(homeKeyWords);
-  const hasAwayKey = awayKeyWords && eventInfo.includes(awayKeyWords);
-  
-  // Check for individual significant words (at least 3 chars)
+  // Quick check: does event contain at least one team name word?
   const homeWords = homeName.split(/\s+/).filter(w => w.length > 2);
   const awayWords = awayName.split(/\s+/).filter(w => w.length > 2);
   const hasHomeWord = homeWords.some(word => eventInfo.includes(word));
   const hasAwayWord = awayWords.some(word => eventInfo.includes(word));
   
-  // Check for full game name pattern
-  const hasFullGame = eventInfo.includes(`${homeName} vs ${awayName}`) ||
-                     eventInfo.includes(`${awayName} vs ${homeName}`) ||
-                     eventInfo.includes(`${homeName} ${awayName}`) ||
-                     eventInfo.includes(`${awayName} ${homeName}`);
-  
-  // Require STRONG match - at least one full team name OR both key words OR full game pattern
-  const hasStrongMatch = hasHomeFull || hasAwayFull || hasFullGame || 
-                        (hasHomeKey && hasAwayKey) ||
-                        (hasHomeFull && hasAwayWord) ||
-                        (hasAwayFull && hasHomeWord);
-  
-  if (!hasStrongMatch) {
-    logOdds(`❌ VERIFICATION FAILED: Event "${odd.event}" doesn't match game ${gid}`, { gameId: gid });
-    logOdds(`   Game: ${game.home} vs ${game.away}`, { gameId: gid });
-    logOdds(`   Odd: ${odd.selection} @ ${odd.odds} | Market: ${odd.market}`, { gameId: gid });
-    return; // Don't store mismatched odds
+  // Simple match: at least one significant word from either team
+  if (!hasHomeWord && !hasAwayWord) {
+    // Skip silently - no verbose logging
+    return;
   }
   
   let odds = gameOdds.get(gid);
@@ -3339,26 +3514,26 @@ function handleOddsUpdate(gameId, odd) {
   
   const existing = odds.get(odd.id);
   
-  // Only log significant odds changes (reduce noise)
+  // Only log BIG odds changes (reduce console noise for performance)
   if (existing && existing.odds !== odd.odds) {
-    const dir = odd.odds > existing.odds ? '📈' : '📉';
-    // Only log if odds changed by more than 5
-    if (Math.abs(odd.odds - existing.odds) >= 5) {
+    // Only log if odds changed by more than 10 (was 5)
+    if (Math.abs(odd.odds - existing.odds) >= 10) {
+      const dir = odd.odds > existing.odds ? '📈' : '📉';
       logLive(`${dir} ${odd.selection}: ${existing.odds} → ${odd.odds}`);
     }
   }
   
   odds.set(odd.id, odd);
   
-  // Broadcast to all clients watching this game
+  // =============================================
+  // PERFORMANCE: Only broadcast to game subscribers
+  // REMOVED: broadcast to ALL clients (was causing lag)
+  // =============================================
   try {
     broadcastToGame(gid, { type: 'odd', gameId: gid, odd });
-    
-    // Also broadcast to all clients for live feed
-    broadcast({ type: 'odd_update', gameId: gid, odd });
+    // REMOVED: broadcast({ type: 'odd_update', gameId: gid, odd }); - caused lag with many games
   } catch (e) {
-    // Log but don't fail - odds updates should continue even if broadcast fails
-    console.error(`⚠️ Error broadcasting odds update for game ${gid}:`, e.message);
+    // Silently fail - don't spam console
   }
 }
 
@@ -4051,23 +4226,30 @@ async function startFliff() {
 
 const PORT = process.env.PORT || 3001;
 
+// Start logging server first
+loggingServer.listen(LOGGING_PORT, () => {
+  console.log(`\n📊 LOGGING SERVER started on port ${LOGGING_PORT}`);
+  console.log(`   View logs at: http://localhost:${LOGGING_PORT}`);
+});
+
 server.listen(PORT, () => {
-  console.log('\n🚀 FLIFF BACKEND SERVER');
+  console.log('\n🚀 FLIFF BACKEND SERVER (OPTIMIZED)');
   console.log('═'.repeat(50));
-  console.log(`📡 API:       http://localhost:${PORT}/api`);
-  console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
+  console.log(`📡 MAIN API:      http://localhost:${PORT}/api`);
+  console.log(`🔌 WebSocket:     ws://localhost:${PORT}`);
+  console.log(`📊 LOGGING:       http://localhost:${LOGGING_PORT}`);
   console.log('═'.repeat(50));
-  console.log('\nEndpoints:');
-  console.log('  GET  /api/games          - All live games');
-  console.log('  GET  /api/games/:id/odds - Game odds');
-  console.log('  POST /api/prefire        - Place bet (all profiles)');
-  console.log('  POST /api/place-bet      - Place bet (all profiles)');
-  console.log('  POST /api/burn-prefire   - Burn prefire (fast bet, all profiles)');
-  console.log('  POST /api/lock-and-load  - Lock & Load (all profiles)');
-  console.log('  POST /api/reload-page    - Reload page (all profiles or specific)');
-  console.log('  GET  /api/status         - Server & profile status');
-  console.log('  GET  /api/admin/logs     - Bet logs');
-  console.log('  GET  /api/admin/stats    - Account stats');
+  
+  console.log('\n⚡ PERFORMANCE MODE:');
+  console.log('  - This console: BETTING LOGS ONLY');
+  console.log('  - Odds/Live logs: Port 3002 (separate console)');
+  console.log('  - No JSON file saving (memory only)');
+  console.log('  - Odds processed ONLY for clicked game');
+  
+  console.log('\n💰 Betting Endpoints:');
+  console.log('  POST /api/prefire        - Place bet');
+  console.log('  POST /api/lock-and-load  - Lock & Load');
+  console.log('  POST /api/burn-prefire   - Burn prefire');
   console.log('─'.repeat(50));
   
   startFliff();
@@ -4075,7 +4257,8 @@ server.listen(PORT, () => {
 
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down...');
-  saveLogs();
+  // No saveLogs() - we don't save to JSON anymore
+  
   // Stop all profile clients
   for (const [profileName, client] of fliffClients.entries()) {
     try {
@@ -4093,5 +4276,9 @@ process.on('SIGINT', () => {
       // Ignore
     }
   }
+  
+  // Close logging server
+  loggingServer.close();
+  
   process.exit(0);
 });

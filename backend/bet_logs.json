@@ -3222,14 +3222,36 @@
       "result": "accepted",
       "timestamp": 1765087769238,
       "id": "mivbon868him8"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Anthony Black Under 15.5",
+      "odds": -115,
+      "wager": 0.2,
+      "coinType": "cash",
+      "profile": "Justin voneck ",
+      "result": "locked",
+      "timestamp": 1765131441582,
+      "id": "miw1op0uly1qx"
+    },
+    {
+      "type": "lock_and_load",
+      "selection": "Anthony Black Under 15.5",
+      "odds": -115,
+      "wager": 0.2,
+      "coinType": "cash",
+      "profile": "Morgan Williamson",
+      "result": "locked",
+      "timestamp": 1765131441582,
+      "id": "miw1op0uoii6b"
     }
   ],
   "stats": {
-    "totalBets": 156,
+    "totalBets": 158,
     "wins": 0,
     "losses": 0,
     "pending": 49,
-    "totalWagered": 42.200000000000045,
+    "totalWagered": 42.600000000000044,
     "totalWon": 0,
     "prefireAttempts": 0,
     "prefireSuccess": 0

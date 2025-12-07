@@ -3165,6 +3165,9 @@ function closeGamePanel() {
   document.querySelector('.games-section').classList.remove('hidden');
 }
 
+// Track banner auto-hide timeout
+let eventBannerTimeout = null;
+
 // Mark entire event as unavailable (show banner on dashboard)
 function markEventUnavailable(message) {
   eventUnavailable = true;
@@ -3172,8 +3175,14 @@ function markEventUnavailable(message) {
   console.log(`⚠️ Event marked unavailable: ${message}`);
 }
 
-// Show event unavailable banner on dashboard
+// Show event unavailable banner on dashboard - AUTO-HIDES AFTER 10 SECONDS
 function showEventUnavailableBanner(message) {
+  // Clear any existing timeout
+  if (eventBannerTimeout) {
+    clearTimeout(eventBannerTimeout);
+    eventBannerTimeout = null;
+  }
+  
   let banner = document.getElementById('event-unavailable-banner');
   if (!banner) {
     // Create banner if it doesn't exist
@@ -3184,6 +3193,7 @@ function showEventUnavailableBanner(message) {
       <div class="event-unavailable-content">
         <span class="event-unavailable-icon">⚠️</span>
         <span class="event-unavailable-text"></span>
+        <button class="banner-close" onclick="hideEventUnavailableBanner()" style="margin-left: auto; background: none; border: none; color: white; cursor: pointer; font-size: 18px;">×</button>
       </div>
     `;
     // Insert at the top of odds-section
@@ -3198,10 +3208,22 @@ function showEventUnavailableBanner(message) {
     textEl.textContent = message || 'Event Not Available';
   }
   banner.style.display = 'block';
+  
+  // AUTO-HIDE AFTER 10 SECONDS
+  eventBannerTimeout = setTimeout(() => {
+    hideEventUnavailableBanner();
+    eventUnavailable = false; // Also clear the flag
+  }, 10000);
 }
 
 // Hide event unavailable banner
 function hideEventUnavailableBanner() {
+  // Clear timeout if manually closed
+  if (eventBannerTimeout) {
+    clearTimeout(eventBannerTimeout);
+    eventBannerTimeout = null;
+  }
+  
   const banner = document.getElementById('event-unavailable-banner');
   if (banner) {
     banner.style.display = 'none';

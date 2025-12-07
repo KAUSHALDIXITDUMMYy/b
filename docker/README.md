@@ -152,3 +152,5 @@ Port assignments:
 - Restrict network access to VNC ports
 - Consider using SSH tunnels for VNC access
 
+
+

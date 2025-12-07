@@ -86,3 +86,5 @@ EXPOSE 5900 6080 3001
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
+
+

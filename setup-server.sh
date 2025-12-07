@@ -310,3 +310,5 @@ echo "  - Firewall is enabled (ports 22, 80, 443, 3001 open)"
 echo "  - Fail2ban is protecting SSH"
 echo "  - Remember to setup SSL for production!"
 echo ""
+
+

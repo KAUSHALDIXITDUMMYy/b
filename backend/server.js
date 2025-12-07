@@ -201,115 +201,15 @@ let selectedGameId = null; // The game user clicked on - ONLY this game gets odd
 
 // =============================================
 // LOG LEVEL CONTROLS - Separate odds/betting logging
-// Main console (port 3001): BETTING ONLY
-// Secondary console (port 3002): Odds & Live events
+// Set to false to disable verbose logging
 // =============================================
 const LOG_CONFIG = {
-  ODDS_VERBOSE: false,      // Detailed odds verification logs (OFF - causes lag)
-  ODDS_SUMMARY: false,      // Summary odds logs (OFF on main console)
-  BETTING: true,            // Betting action logs (MAIN CONSOLE)
-  LIVE: false,              // Live game/score logs (OFF on main console)
-  PERFORMANCE: false        // Performance warnings (OFF on main console)
+  ODDS_VERBOSE: false,      // Detailed odds verification logs (causes lag)
+  ODDS_SUMMARY: true,       // Summary odds logs only
+  BETTING: true,            // Betting action logs
+  LIVE: true,               // Live game/score logs
+  PERFORMANCE: true         // Performance warnings
 };
-
-// =============================================
-// SECONDARY LOGGING SERVER (Port 3002)
-// Handles: Odds fetching, Live events, Performance
-// =============================================
-const LOGGING_PORT = 3002;
-const loggingApp = express();
-const loggingServer = http.createServer(loggingApp);
-const loggingClients = new Set();
-const loggingWss = new WebSocket.Server({ server: loggingServer });
-
-// Buffer for log messages (sent to logging clients)
-const logBuffer = [];
-const MAX_LOG_BUFFER = 500;
-
-// Send log to logging server clients
-function sendToLoggingClients(type, message) {
-  const logEntry = {
-    type,
-    message,
-    timestamp: new Date().toISOString()
-  };
-  
-  // Add to buffer
-  logBuffer.push(logEntry);
-  if (logBuffer.length > MAX_LOG_BUFFER) {
-    logBuffer.shift();
-  }
-  
-  // Send to connected logging clients
-  const msg = JSON.stringify(logEntry);
-  loggingClients.forEach(ws => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(msg);
-    }
-  });
-  
-  // Also log to console on the logging server
-  console.log(`[${type.toUpperCase()}] ${message}`);
-}
-
-loggingWss.on('connection', (ws) => {
-  loggingClients.add(ws);
-  console.log('📊 Logging client connected');
-  
-  // Send recent logs
-  ws.send(JSON.stringify({ type: 'history', logs: logBuffer.slice(-100) }));
-  
-  ws.on('close', () => {
-    loggingClients.delete(ws);
-  });
-});
-
-loggingApp.use(cors());
-loggingApp.get('/', (req, res) => {
-  res.send(`
-    <html>
-    <head><title>Fliff Logging Console</title>
-    <style>
-      body { background: #0a0a1a; color: #00ff00; font-family: monospace; padding: 20px; }
-      .log { margin: 2px 0; padding: 5px; border-radius: 4px; }
-      .odds { background: #1a1a2e; color: #00d4ff; }
-      .live { background: #1a2e1a; color: #00ff00; }
-      .perf { background: #2e2e1a; color: #ffff00; }
-      h1 { color: #00d4ff; }
-      #logs { max-height: 80vh; overflow-y: auto; }
-    </style>
-    </head>
-    <body>
-      <h1>📊 Fliff Logging Console (Port ${LOGGING_PORT})</h1>
-      <p>Odds fetching & Live events are logged here. Betting is on main console (3001).</p>
-      <div id="logs"></div>
-      <script>
-        const ws = new WebSocket('ws://localhost:${LOGGING_PORT}');
-        const logsDiv = document.getElementById('logs');
-        ws.onmessage = (e) => {
-          const data = JSON.parse(e.data);
-          if (data.type === 'history') {
-            data.logs.forEach(log => addLog(log));
-          } else {
-            addLog(data);
-          }
-        };
-        function addLog(log) {
-          const div = document.createElement('div');
-          div.className = 'log ' + log.type;
-          div.textContent = new Date(log.timestamp).toLocaleTimeString() + ' [' + log.type.toUpperCase() + '] ' + log.message;
-          logsDiv.appendChild(div);
-          logsDiv.scrollTop = logsDiv.scrollHeight;
-        }
-      </script>
-    </body>
-    </html>
-  `);
-});
-
-loggingApp.get('/api/logs', (req, res) => {
-  res.json(logBuffer.slice(-100));
-});
 
 // =============================================
 // ADMIN API - USER MANAGEMENT
@@ -1214,24 +1114,35 @@ function getMainProfileClient() {
   return fliffClients.get(mainProfile) || fliffClient;
 }
 
-// =============================================
-// LOGGING DISABLED - No JSON saving (performance)
-// =============================================
-// betLogs array is kept in memory only for API access
-// No file I/O = better performance
-
+// Load existing logs
 function loadLogs() {
-  // DISABLED - no JSON loading
-  // Logs are kept in memory only during session
+  try {
+    const logsPath = path.join(__dirname, 'bet_logs.json');
+    if (fs.existsSync(logsPath)) {
+      const data = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
+      betLogs.push(...data.logs);
+      Object.assign(accountStats, data.stats);
+    }
+  } catch (e) {
+    console.log('No existing logs found');
+  }
 }
 
+// Save logs
 function saveLogs() {
-  // DISABLED - no JSON saving for performance
-  // Logs stay in memory only
+  try {
+    const logsPath = path.join(__dirname, 'bet_logs.json');
+    // Use writeFileSync with a small delay to batch writes and reduce nodemon restarts
+    fs.writeFileSync(logsPath, JSON.stringify({
+      logs: betLogs.slice(-1000), // Keep last 1000
+      stats: accountStats
+    }, null, 2));
+  } catch (e) {
+    console.error('Error saving logs:', e);
+  }
 }
 
-// Don't load from file
-// loadLogs();
+loadLogs();
 
 // =============================================
 // API ENDPOINTS - GAMES
@@ -3275,41 +3186,53 @@ function logBet(bet) {
 }
 
 // =============================================
-// SEPARATE CONSOLE LOGGING
-// Main console (3001): Betting ONLY
-// Logging console (3002): Odds, Live, Performance
+// SEPARATE CONSOLE LOGGING - Reduced noise
 // =============================================
 
-// Odds fetching logs -> LOGGING SERVER (port 3002)
+// Odds fetching logs (SEPARATE from betting) - Only logs if enabled
 function logOdds(message, data = {}) {
-  let logMsg = message;
+  // Skip verbose odds logs if disabled
+  if (!LOG_CONFIG.ODDS_VERBOSE && !LOG_CONFIG.ODDS_SUMMARY) return;
+  
+  // Skip detailed logs unless ODDS_VERBOSE is true
+  if (!LOG_CONFIG.ODDS_VERBOSE && !data.summary) return;
+  
+  const timestamp = new Date().toLocaleTimeString();
   if (data.gameId && data.count !== undefined) {
-    logMsg = `Game ${data.gameId}: ${message} (${data.count} odds)`;
+    console.log(`📊 [ODDS ${timestamp}] Game ${data.gameId}: ${message} (${data.count} odds)`);
   } else if (data.gameId) {
-    logMsg = `Game ${data.gameId}: ${message}`;
+    console.log(`📊 [ODDS ${timestamp}] Game ${data.gameId}: ${message}`);
+  } else {
+    console.log(`📊 [ODDS ${timestamp}] ${message}`);
   }
-  sendToLoggingClients('odds', logMsg);
 }
 
-// Summary-only odds log -> LOGGING SERVER
+// Summary-only odds log (always shows if ODDS_SUMMARY is true)
 function logOddsSummary(message) {
-  sendToLoggingClients('odds', message);
+  if (!LOG_CONFIG.ODDS_SUMMARY) return;
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`📊 [ODDS ${timestamp}] ${message}`);
 }
 
-// Betting action logs -> MAIN CONSOLE (port 3001) ONLY
+// Betting action logs (SEPARATE CONSOLE for betting)
 function logBetting(message) {
+  if (!LOG_CONFIG.BETTING) return;
   const timestamp = new Date().toLocaleTimeString();
   console.log(`💰 [BET ${timestamp}] ${message}`);
 }
 
-// Live game/score logs -> LOGGING SERVER (port 3002)
+// Live game/score logs
 function logLive(message) {
-  sendToLoggingClients('live', message);
+  if (!LOG_CONFIG.LIVE) return;
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`🎮 [LIVE ${timestamp}] ${message}`);
 }
 
-// Performance warnings -> LOGGING SERVER (port 3002)
+// Performance warnings (always important)
 function logPerf(message) {
-  sendToLoggingClients('perf', message);
+  if (!LOG_CONFIG.PERFORMANCE) return;
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`⚡ [PERF ${timestamp}] ${message}`);
 }
 
 // =============================================
@@ -4226,30 +4149,34 @@ async function startFliff() {
 
 const PORT = process.env.PORT || 3001;
 
-// Start logging server first
-loggingServer.listen(LOGGING_PORT, () => {
-  console.log(`\n📊 LOGGING SERVER started on port ${LOGGING_PORT}`);
-  console.log(`   View logs at: http://localhost:${LOGGING_PORT}`);
-});
-
 server.listen(PORT, () => {
   console.log('\n🚀 FLIFF BACKEND SERVER (OPTIMIZED)');
   console.log('═'.repeat(50));
-  console.log(`📡 MAIN API:      http://localhost:${PORT}/api`);
-  console.log(`🔌 WebSocket:     ws://localhost:${PORT}`);
-  console.log(`📊 LOGGING:       http://localhost:${LOGGING_PORT}`);
+  console.log(`📡 API:       http://localhost:${PORT}/api`);
+  console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
   console.log('═'.repeat(50));
   
-  console.log('\n⚡ PERFORMANCE MODE:');
-  console.log('  - This console: BETTING LOGS ONLY');
-  console.log('  - Odds/Live logs: Port 3002 (separate console)');
-  console.log('  - No JSON file saving (memory only)');
+  console.log('\n⚡ PERFORMANCE MODE ENABLED:');
   console.log('  - Odds processed ONLY for clicked game');
+  console.log('  - Verbose logging disabled by default');
+  console.log('  - Broadcast optimized (game subscribers only)');
   
-  console.log('\n💰 Betting Endpoints:');
-  console.log('  POST /api/prefire        - Place bet');
+  console.log('\nBetting Endpoints:');
+  console.log('  POST /api/prefire        - Place bet (all profiles)');
+  console.log('  POST /api/place-bet      - Place bet (all profiles)');
+  console.log('  POST /api/burn-prefire   - Burn prefire (fast bet)');
   console.log('  POST /api/lock-and-load  - Lock & Load');
-  console.log('  POST /api/burn-prefire   - Burn prefire');
+  console.log('  POST /api/reload-page    - Reload page');
+  
+  console.log('\nData Endpoints:');
+  console.log('  GET  /api/games          - All live games');
+  console.log('  GET  /api/games/:id/odds - Game odds');
+  console.log('  GET  /api/status         - Server & profile status');
+  
+  console.log('\nPerformance Endpoints:');
+  console.log('  GET  /api/performance              - Current settings');
+  console.log('  POST /api/performance/select-game  - Set game to process');
+  console.log('  POST /api/performance/logging      - Toggle log levels');
   console.log('─'.repeat(50));
   
   startFliff();
@@ -4257,8 +4184,7 @@ server.listen(PORT, () => {
 
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down...');
-  // No saveLogs() - we don't save to JSON anymore
-  
+  saveLogs();
   // Stop all profile clients
   for (const [profileName, client] of fliffClients.entries()) {
     try {
@@ -4276,9 +4202,5 @@ process.on('SIGINT', () => {
       // Ignore
     }
   }
-  
-  // Close logging server
-  loggingServer.close();
-  
   process.exit(0);
 });

@@ -20,6 +20,10 @@ let activeLeagueFilter = 'all'; // Current league filter for games list ('all' o
 let gameStatusFilter = 'live'; // 'live' = only live games, 'all' = all games including upcoming
 let eventUnavailable = false; // Track if current selected event is unavailable
 
+// Performance optimization: Debounce renderOdds to prevent flickering
+let renderOddsTimeout = null;
+let pendingRenderOdds = false;
+
 // Betting Settings
 let wagerAmount = 100; // Default $100 for betting
 let isPrefiring = false;
@@ -160,7 +164,6 @@ function setWager(value, isCustom = false) {
 function toggleUnavailableFilter() {
   const checkbox = document.getElementById('hide-unavailable');
   hideUnavailableMarkets = checkbox ? checkbox.checked : true;
-  console.log(`🔍 Hide unavailable markets: ${hideUnavailableMarkets ? 'ON' : 'OFF'}`);
   // Re-render odds to apply filter
   if (selectedGame) {
     renderOdds();
@@ -184,7 +187,6 @@ function connectWebSocket() {
   ws = new WebSocket(WS_URL);
   
   ws.onopen = () => {
-    console.log('✅ Connected to backend');
     updateStatus(true);
   };
   
@@ -194,13 +196,12 @@ function connectWebSocket() {
   };
   
   ws.onclose = () => {
-    console.log('❌ Disconnected from backend');
     updateStatus(false);
     setTimeout(connectWebSocket, 3000);
   };
   
   ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
+    // Silent error handling for production
   };
 }
 
@@ -238,9 +239,8 @@ function handleMessage(data) {
       data.odds.forEach(odd => {
         gameOdds[oddsGameId][odd.id] = odd;
       });
-      console.log(`📊 Received ${data.odds.length} odds for game ${oddsGameId}`);
       if (selectedGame && parseInt(selectedGame.id) === oddsGameId) {
-        renderOdds();
+        scheduleRenderOdds();
       }
       break;
       
@@ -251,9 +251,8 @@ function handleMessage(data) {
         gameOdds[oddGameId] = {};
       }
       gameOdds[oddGameId][data.odd.id] = data.odd;
-      console.log(`📊 Updated odd ${data.odd.id} for game ${oddGameId}`);
       if (selectedGame && parseInt(selectedGame.id) === oddGameId) {
-        renderOdds();
+        scheduleRenderOdds();
       }
       break;
     
@@ -262,11 +261,10 @@ function handleMessage(data) {
       const updateGameId = parseInt(data.gameId);
       if (!gameOdds[updateGameId]) {
         gameOdds[updateGameId] = {};
-        console.log(`📊 Created new odds map for game ${updateGameId}`);
       }
       gameOdds[updateGameId][data.odd.id] = data.odd;
       if (selectedGame && parseInt(selectedGame.id) === updateGameId) {
-        renderOdds();
+        scheduleRenderOdds();
       }
       break;
     
@@ -280,9 +278,8 @@ function handleMessage(data) {
       data.odds.forEach(odd => {
         gameOdds[priorityGameId][odd.id] = odd;
       });
-      console.log(`📊 Priority update: ${data.count || data.odds.length} odds for game ${priorityGameId}`);
       if (selectedGame && parseInt(selectedGame.id) === priorityGameId) {
-        renderOdds();
+        scheduleRenderOdds();
       }
       break;
       
@@ -321,46 +318,23 @@ async function loadGames() {
 async function loadGameOdds(gameId) {
   // Ensure gameId is integer
   const gameIdInt = parseInt(gameId);
-  console.log('📥 Loading odds for game:', gameIdInt);
   try {
     const response = await fetch(`${API_URL}/api/games/${gameIdInt}/odds`);
     const data = await response.json();
-    console.log(`✅ Received ${data.length} odds for game ${gameIdInt}`);
     
     // Initialize if needed - use integer key
     if (!gameOdds[gameIdInt]) {
       gameOdds[gameIdInt] = {};
-      console.log(`📊 Created new odds map for game ${gameIdInt}`);
     }
     
     // Merge new odds with existing (don't overwrite, just update)
-    let newCount = 0;
-    let updateCount = 0;
     data.forEach(odd => {
-      if (!gameOdds[gameIdInt][odd.id]) {
-        newCount++;
-      } else {
-        updateCount++;
-      }
       gameOdds[gameIdInt][odd.id] = odd;
     });
     
-    console.log(`📊 Game ${gameIdInt} odds: ${newCount} new, ${updateCount} updated, ${Object.keys(gameOdds[gameIdInt]).length} total`);
-    
-    // Log sample of what we received
-    if (data.length > 0) {
-      console.log('📋 Sample odds received:', data.slice(0, 3).map(o => ({
-        id: o.id,
-        market: o.market,
-        selection: o.selection?.substring(0, 30),
-        param: o.param,
-        event: o.event?.substring(0, 30)
-      })));
-    }
-    
     renderOdds();
   } catch (error) {
-    console.error('❌ Error loading odds:', error);
+    // Silent error handling
   }
 }
 
@@ -417,18 +391,15 @@ function getBetButtonsHTML(oddId, isLocked = false, isUnavailable = false, isSus
 // Lock and Load - Selects bet (clicks on it) and reloads page to lock odds
 async function lockAndLoad(oddId) {
   if (isPrefiring) {
-    console.log('⏳ Already processing...');
     return;
   }
   
   if (!selectedGame || !selectedGame.id) {
-    console.log('❌ No game selected');
     return;
   }
   
   const odd = gameOdds[selectedGame.id]?.[oddId];
   if (!odd || !odd.selection || odd.odds === undefined) {
-    console.log('❌ Invalid odds data');
     return;
   }
   
@@ -462,9 +433,9 @@ async function lockAndLoad(oddId) {
   };
   
   try {
-    // Use AbortController for timeout (3 second max)
+    // Use AbortController for timeout (1.5 second max for faster response)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
     
     // Use user-scoped endpoint if in user mode
     const lockEndpoint = window.USER_MODE && window.CURRENT_USERNAME
@@ -488,10 +459,10 @@ async function lockAndLoad(oddId) {
       unavailableMarkets.add(marketKey);
       showPrefireStatus(`⚠️ Market Not Available: ${odd.selection}`);
       showToast(`⚠️ Market / Event Not Available<br>This selection is no longer available for betting`, 'warning', 3000);
-      renderOdds();
+      scheduleRenderOdds();
       setTimeout(hidePrefireStatus, 2000);
-    } else if (result.armed || (result.success && result.allOddsLocked)) {
-      // Lock & Load successful and ARMED - mark this line as locked
+    } else if (result.armed || result.success) {
+      // Lock & Load successful (even if partial) - mark this line as locked
       const lockKey = `${selectedGame.id}_${oddId}`;
       lockedLines.add(lockKey);
       lastArmedLockKey = lockKey;
@@ -500,17 +471,33 @@ async function lockAndLoad(oddId) {
       const lockedOdds = typeof result.lockedOdds === 'number' ? result.lockedOdds : odd.odds;
       lockedOddsMap[lockKey] = lockedOdds;
       
-      const statusMsg = `✅ ARMED: ${odd.selection} @ ${lockedOdds > 0 ? '+' : ''}${lockedOdds} - Ready to bet!`;
+      // Get success/failure counts
+      const successCount = result.successCount || (result.profileResults ? result.profileResults.filter(r => r.success && r.oddsLocked).length : 0);
+      const failedCount = result.failedCount || (result.profileResults ? result.profileResults.filter(r => !r.success || !r.betPlaced).length : 0);
+      const totalProfiles = result.totalProfiles || (result.profileResults ? result.profileResults.length : 0);
+      const isPartialSuccess = result.isPartialSuccess || (successCount > 0 && successCount < totalProfiles);
+      
+      // Build status message
+      let statusMsg;
+      if (isPartialSuccess) {
+        statusMsg = `✅ ARMED (${successCount}/${totalProfiles}): ${odd.selection} @ ${lockedOdds > 0 ? '+' : ''}${lockedOdds} - Partial success, ready to bet!`;
+      } else {
+        statusMsg = `✅ ARMED: ${odd.selection} @ ${lockedOdds > 0 ? '+' : ''}${lockedOdds} - Ready to bet!`;
+      }
       showPrefireStatus(statusMsg);
       
-      // Show clear success popup with proper message
-      const profileCount = result.profileResults ? result.profileResults.length : 0;
-      const successCount = result.profileResults ? result.profileResults.filter(r => r.success && r.oddsLocked).length : 0;
-      const toastMsg = `🔒 LOCK & LOAD SUCCESSFUL!<br><br><strong>${odd.selection}</strong><br>@ ${lockedOdds > 0 ? '+' : ''}${lockedOdds}<br><br>✅ $0.20 bet placed on ${successCount}/${profileCount} profile(s)<br>✅ Odds locked and verified<br>✅ Ready to place your bet!`;
-      showToast(toastMsg, 'lock', 5000);
+      // Show clear success popup with detailed counts
+      let toastMsg;
+      if (isPartialSuccess) {
+        toastMsg = `🔒 LOCK & LOAD PARTIAL SUCCESS!<br><br><strong>${odd.selection}</strong><br>@ ${lockedOdds > 0 ? '+' : ''}${lockedOdds}<br><br>✅ $0.20 bet placed on ${successCount}/${totalProfiles} profile(s)<br>⚠️ ${failedCount} profile(s) failed<br>✅ Ready to place your bet on ${successCount} account(s)!`;
+        showToast(toastMsg, 'warning', 6000);
+      } else {
+        toastMsg = `🔒 LOCK & LOAD SUCCESSFUL!<br><br><strong>${odd.selection}</strong><br>@ ${lockedOdds > 0 ? '+' : ''}${lockedOdds}<br><br>✅ $0.20 bet placed on ${successCount}/${totalProfiles} profile(s)<br>✅ Odds locked and verified<br>✅ Ready to place your bet!`;
+        showToast(toastMsg, 'lock', 5000);
+      }
       
       // Re-render odds immediately to show locked status
-      renderOdds();
+      scheduleRenderOdds();
       
       setTimeout(hidePrefireStatus, 3000);
     } else if (result.betPlaced) {
@@ -552,7 +539,7 @@ async function lockAndLoad(oddId) {
           markEventUnavailable('Event Not Available - This event is no longer available for betting');
         }
         
-        renderOdds();
+        scheduleRenderOdds();
       } else if (result.anyOddsChanged || oddsChangedByText) {
         // Odds moved while trying to lock – nothing locked, advise user what to do
         showPrefireStatus(
@@ -590,18 +577,15 @@ async function lockAndLoad(oddId) {
 // Place Bet - Places bet with Fliff Cash
 async function placeBet(oddId) {
   if (isPrefiring) {
-    console.log('⏳ Already processing...');
     return;
   }
   
   if (!selectedGame || !selectedGame.id) {
-    console.log('❌ No game selected');
     return;
   }
   
   const odd = gameOdds[selectedGame.id]?.[oddId];
   if (!odd || !odd.selection || odd.odds === undefined) {
-    console.log('❌ Invalid odds data');
     return;
   }
   
@@ -700,7 +684,7 @@ async function placeBet(oddId) {
         }
         
         // Re-render to show the warning label
-        renderOdds();
+        scheduleRenderOdds();
       } else {
         showPrefireStatus(`❌ ${errorMsg}`);
         showToast(`❌ Bet Failed: ${errorMsg}`, 'error', 4000);
@@ -784,22 +768,27 @@ function handlePrefireResult(data) {
   // This is especially important when the HTTP request times out but the
   // backend still finishes and ARMS the bet.
 
-  // If this selection is armed/locked, mark the line as locked in the UI
-  if (data.armed || (data.success && data.allOddsLocked)) {
+  // If this selection is armed/locked (even if partial), mark the line as locked in the UI
+  if (data.armed || data.success) {
     if (data.gameId && data.oddId) {
       const gameIdInt = parseInt(data.gameId);
       const lockKey = `${gameIdInt}_${data.oddId}`;
       lockedLines.add(lockKey);
-      console.log('✅ PrefireResult ARMED - marking locked line:', lockKey);
       // Re-render odds so the card shows the LOCKED badge and "Ready to Bet"
       if (selectedGame && parseInt(selectedGame.id) === gameIdInt) {
-        renderOdds();
+        scheduleRenderOdds();
       }
 
       // Update locked odds map from backend, if provided
       if (typeof data.lockedOdds === 'number') {
         lockedOddsMap[lockKey] = data.lockedOdds;
       }
+
+      // Get success/failure counts
+      const successCount = data.successCount || 0;
+      const failedCount = data.failedCount || 0;
+      const totalProfiles = data.totalProfiles || 0;
+      const isPartialSuccess = data.isPartialSuccess || (successCount > 0 && successCount < totalProfiles);
 
       // Show a Lock & Load ARMED popup if we didn't already show it for this line
       if (!lastArmedLockKey || lastArmedLockKey !== lockKey) {
@@ -814,8 +803,15 @@ function handlePrefireResult(data) {
           typeof oddsSource === 'number'
             ? (oddsSource > 0 ? `+${oddsSource}` : `${oddsSource}`)
             : '';
-        const toastMsg = `🔒 LOCK & LOAD ARMED!<br><br><strong>${sel}</strong>${oddsVal ? `<br>@ ${oddsVal}` : ''}<br><br>✅ Ready to place your real bet.`;
-        showToast(toastMsg, 'lock', 5000);
+        
+        let toastMsg;
+        if (isPartialSuccess && totalProfiles > 0) {
+          toastMsg = `🔒 LOCK & LOAD ARMED (Partial)!<br><br><strong>${sel}</strong>${oddsVal ? `<br>@ ${oddsVal}` : ''}<br><br>✅ ${successCount}/${totalProfiles} account(s) locked<br>⚠️ ${failedCount} account(s) failed<br>✅ Ready to place bet on ${successCount} account(s)!`;
+          showToast(toastMsg, 'warning', 6000);
+        } else {
+          toastMsg = `🔒 LOCK & LOAD ARMED!<br><br><strong>${sel}</strong>${oddsVal ? `<br>@ ${oddsVal}` : ''}<br><br>✅ Ready to place your real bet.`;
+          showToast(toastMsg, 'lock', 5000);
+        }
       }
 
       // Remember last armed key so we don't double-pop the same ARMED toast
@@ -829,9 +825,8 @@ function handlePrefireResult(data) {
       const gameIdInt = parseInt(data.gameId);
       const marketKey = `${gameIdInt}_${data.oddId}`;
       unavailableMarkets.add(marketKey);
-      console.log('⚠️ PrefireResult UNAVAILABLE - marking market:', marketKey);
       if (selectedGame && parseInt(selectedGame.id) === gameIdInt) {
-        renderOdds();
+        scheduleRenderOdds();
       }
     }
     
@@ -940,7 +935,6 @@ function renderGames() {
 // Handle game status filter change (Live Only / All Games)
 function handleGameStatusFilterChange(value) {
   gameStatusFilter = value || 'live';
-  console.log(`🔍 Game status filter: ${gameStatusFilter === 'live' ? 'Live Only' : 'All Games'}`);
   renderGames();
 }
 
@@ -1345,7 +1339,7 @@ function categorizeOdd(odd) {
     if (isAlternative) {
       type = 'Alternative Team Totals';
     } else {
-      type = 'Team Totals';
+    type = 'Team Totals';
     }
   }
   // General Total detection (only for game-level totals, not player props)
@@ -1374,23 +1368,23 @@ function categorizeOdd(odd) {
     if (isAlternative) {
       type = 'Alternative Totals';
     } else {
-      type = 'Totals';
-    }
+    type = 'Totals';
+  }
   }
   // Win/Draw from selection (likely moneyline)
   else if (selection.includes('win') || selection.includes('victory')) {
     if (isAlternative) {
       type = 'Alternative Moneyline';
     } else {
-      type = 'Moneyline';
-    }
+    type = 'Moneyline';
+  }
   }
   // Spread pattern in selection (e.g., "+7.5", "-3")
   else if (selection.match(/[+-]\d+\.?\d*/) && !selection.includes('over') && !selection.includes('under')) {
     if (isAlternative) {
       type = 'Alternative Point Spread';
     } else {
-      type = 'Point Spread';
+    type = 'Point Spread';
     }
   }
   
@@ -2022,6 +2016,33 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
   return summaryHtml + tabsHtml + html;
 }
 
+// Debounced render function to prevent flickering
+// Increased debounce time for better performance on low-end servers
+let lastRenderTime = 0;
+function scheduleRenderOdds() {
+  if (renderOddsTimeout) {
+    clearTimeout(renderOddsTimeout);
+  }
+  pendingRenderOdds = true;
+  
+  // Throttle to max 2 renders per second (500ms minimum between renders)
+  const now = Date.now();
+  const timeSinceLastRender = now - lastRenderTime;
+  const minInterval = 500; // 500ms minimum between renders
+  
+  const delay = Math.max(150, minInterval - timeSinceLastRender);
+  
+  renderOddsTimeout = setTimeout(() => {
+    if (pendingRenderOdds) {
+      pendingRenderOdds = false;
+      lastRenderTime = Date.now();
+      requestAnimationFrame(() => {
+        renderOdds();
+      });
+    }
+  }, delay);
+}
+
 function renderOdds() {
   const container = document.getElementById('odds-list');
   
@@ -2031,8 +2052,6 @@ function renderOdds() {
   }
   
   const gameId = parseInt(selectedGame.id);
-  console.log('🎮 Rendering odds for game:', gameId, selectedGame);
-  console.log('📊 Available gameOdds keys:', Object.keys(gameOdds).map(k => parseInt(k)));
   
   // Ensure we're using the correct game ID
   const odds = gameOdds[gameId] || {};
@@ -2108,25 +2127,6 @@ function renderOdds() {
     return true;
   });
   
-  const filteredCount = allOddsList.length - oddsList.length;
-  if (filteredCount > 0) {
-    console.log(`🧹 Filtered out ${filteredCount} ghost line(s) for game ${gameId}`);
-  }
-  
-  console.log(`📈 Found ${oddsList.length} placeable odds for game ${gameId} (${allOddsList.length} total)`);
-  
-  // Debug: Check if odds belong to this game
-  if (oddsList.length > 0) {
-    const sampleOdd = oddsList[0];
-    console.log('🔍 Sample odd data:', {
-      id: sampleOdd.id,
-      market: sampleOdd.market,
-      selection: sampleOdd.selection,
-      event: sampleOdd.event,
-      channelId: sampleOdd.channelId,
-      _debug: sampleOdd._debug
-    });
-  }
   
   if (oddsList.length === 0) {
     container.innerHTML = `
@@ -2169,18 +2169,6 @@ function renderOdds() {
       tabsFromClassCodes.get(key).count++;
     }
     
-    // Debug: Log props categorization for debugging
-    const market = (odd.market || '').toLowerCase();
-    const debugInfo = result._debug || {};
-    
-    // Log all "Goals" markets to debug categorization
-    if (market.includes('goal') || market === 'goals') {
-      console.log(`⚽ Goals market: Tab=${tab} | Section=${section} | Type=${type} | Codes=${marketClassCodes?.join(',')} | Market: ${odd.market} | Selection: ${odd.selection?.substring(0, 60)} | isPlayerProp=${debugInfo.isPlayerProp} | selectionHasPlayer=${debugInfo.selectionHasPlayerOverUnder}`);
-    }
-    
-    if (section.includes('Props') || type.includes('Props') || tab === 'Player Props' || tab === 'Team Props') {
-      console.log(`🎯 Prop detected: Tab=${tab} | Section=${section} | Type=${type} | Codes=${marketClassCodes?.join(',')} | Market: ${odd.market} | Selection: ${odd.selection?.substring(0, 50)}`);
-    }
     
     // Debug: Track market names
     if (type === 'Point Spread' || type === 'Alternative Point Spread') {
@@ -2211,17 +2199,6 @@ function renderOdds() {
     organizedOdds[section][subsection][type].push(odd);
   });
   
-  // Debug logging
-  if (marketDebug.spreads.size > 0 || marketDebug.alternativeSpreads.size > 0) {
-    console.log('📊 Spread Markets Found:');
-    console.log('  Regular Spreads:', Array.from(marketDebug.spreads));
-    console.log('  Alternative Spreads:', Array.from(marketDebug.alternativeSpreads));
-  }
-  if (marketDebug.totalScores.size > 0 || marketDebug.alternativeTotalScores.size > 0) {
-    console.log('📊 Total Score Markets Found:');
-    console.log('  Regular Total Scores:', Array.from(marketDebug.totalScores));
-    console.log('  Alternative Total Scores:', Array.from(marketDebug.alternativeTotalScores));
-  }
   
   // Sort odds within each type by market name, then selection
   Object.keys(organizedOdds).forEach(section => {
@@ -2236,21 +2213,18 @@ function renderOdds() {
     });
   });
   
-  // Debug logging
-  console.log('📊 Total odds:', oddsList.length);
-  console.log('📊 Organized by sections:', Array.from(sectionsFound));
-  console.log('📊 Tabs from market_class_codes:');
-  tabsFromClassCodes.forEach((info, codes) => {
-    console.log(`  [${codes}] → ${info.tab} (${info.count} odds, sample: ${info.sample})`);
-  });
-  
   // Sort sections
   const sortedSections = Object.keys(organizedOdds).sort((a, b) => {
     return getSectionOrder(a) - getSectionOrder(b);
   });
-  // Decide which section is currently active; default to first available
+  
+  // Preserve activeSection if it still exists, otherwise use first available
+  // This prevents tab switching on every odds update
   if (!activeSection || !organizedOdds[activeSection]) {
-    activeSection = sortedSections[0];
+    // Only reset if the section truly doesn't exist
+    if (sortedSections.length > 0) {
+      activeSection = sortedSections[0];
+    }
   }
 
   const activeSectionData = organizedOdds[activeSection];
@@ -2401,7 +2375,7 @@ function renderOdds() {
         if (typeOdds.length === 0) return;
 
         // Check if this is a Totals type (Over/Under)
-        const isTotalsType = type === 'Totals' || type === 'Total Score' || type === 'Alternative Total Score' ||
+        const isTotalsType = type === 'Totals' || type === 'Total Score' || type === 'Alternative Total Score' || 
                             type === 'Alternative Totals' || type === 'Team Totals' || type === 'Alternative Team Totals';
 
         html += `
@@ -2906,10 +2880,8 @@ async function selectGame(gameId) {
   const gameIdInt = parseInt(gameId);
   
   selectedGame = games[gameIdInt];
-  console.log(`🎮 Selected game ${gameIdInt}:`, selectedGame);
   
   if (!selectedGame) {
-    console.error('❌ Game not found:', gameIdInt, 'Available:', Object.keys(games).map(k => parseInt(k)));
     return;
   }
   
@@ -2943,7 +2915,6 @@ async function selectGame(gameId) {
   // Subscribe to game updates via WebSocket FIRST (to receive data ASAP)
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'subscribe', gameId: gameIdInt, priority: true }));
-    console.log('Subscribed to game (priority):', gameIdInt);
   }
   
   // Load existing odds for this game from backend
@@ -2962,15 +2933,13 @@ async function selectGame(gameId) {
     
     // Check if we have enough data (at least 10 odds OR 8 seconds elapsed)
     if (oddsCount >= 10) {
-      console.log(`✅ Game data loaded: ${oddsCount} odds in ${elapsed}ms`);
       clearInterval(pendingGameLoadCheckInterval);
       pendingGameLoadCheckInterval = null;
       pendingGameLoad = null;
       hideGameLoadingOverlay();
-      renderOdds(); // Force re-render with loaded data
+      renderOdds(); // Force re-render with loaded data (user-initiated, not debounced)
     } else if (elapsed > 8000) {
       // Timeout after 8 seconds
-      console.log(`⏱️ Game data timeout: ${oddsCount} odds after ${elapsed}ms`);
       clearInterval(pendingGameLoadCheckInterval);
       pendingGameLoadCheckInterval = null;
       pendingGameLoad = null;
@@ -2981,7 +2950,7 @@ async function selectGame(gameId) {
         markEventUnavailable('No markets available - event may have ended or is not available');
       }
       
-      renderOdds();
+      renderOdds(); // User-initiated, not debounced
     }
   }, 200); // Check every 200ms
 }
@@ -3100,11 +3069,8 @@ function hideGameLoadingOverlay() {
 async function navigateMainProfileToGame(gameId) {
   const game = games[gameId];
   if (!game) {
-    console.log('⚠️ Game not found for navigation:', gameId);
     return false;
   }
-  
-  console.log(`🎯 Auto-navigating main profile to: ${game.home} vs ${game.away}`);
   
   // Update loading subtitle
   const subtitle = document.getElementById('loading-subtitle');
@@ -3132,8 +3098,6 @@ async function navigateMainProfileToGame(gameId) {
     const result = await response.json();
     
     if (result.success) {
-      console.log(`✅ Main profile navigated to game: ${game.conflictFkey || gameId}`);
-      
       // Update loading subtitle
       if (subtitle) {
         subtitle.textContent = 'Loading markets and odds...';
@@ -3142,14 +3106,12 @@ async function navigateMainProfileToGame(gameId) {
       showToast(`🎯 Browser synced<br>${game.home} vs ${game.away}`, 'success', 2000);
       return true;
     } else {
-      console.log(`⚠️ Navigation failed: ${result.error}`);
       if (subtitle) {
         subtitle.textContent = 'Loading from cache...';
       }
       return false;
     }
   } catch (e) {
-    console.log(`⚠️ Could not navigate main profile: ${e.message}`);
     if (subtitle) {
       subtitle.textContent = 'Loading from cache...';
     }
@@ -3158,6 +3120,11 @@ async function navigateMainProfileToGame(gameId) {
 }
 
 function closeGamePanel() {
+  // Unsubscribe from game updates when leaving game view
+  if (ws && ws.readyState === WebSocket.OPEN && selectedGame) {
+    ws.send(JSON.stringify({ type: 'unsubscribe' }));
+  }
+  
   selectedGame = null;
   eventUnavailable = false;
   hideEventUnavailableBanner();
@@ -3169,7 +3136,6 @@ function closeGamePanel() {
 function markEventUnavailable(message) {
   eventUnavailable = true;
   showEventUnavailableBanner(message);
-  console.log(`⚠️ Event marked unavailable: ${message}`);
 }
 
 // Show event unavailable banner on dashboard

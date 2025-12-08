@@ -16,22 +16,22 @@
   "profiles": {
     "ll": {
       "directory": "profiles\\Live Event",
-      "registeredAt": "2025-12-07T18:16:25.731Z",
+      "registeredAt": "2025-12-08T12:06:51.667Z",
       "isRunning": true
     },
     "Justin voneck ": {
       "directory": "profiles\\justin-voneck",
-      "registeredAt": "2025-12-07T18:16:42.108Z",
+      "registeredAt": "2025-12-08T12:07:05.697Z",
       "isRunning": true
     },
     "Morgan Williamson": {
       "directory": "profiles\\morgan-williamson",
-      "registeredAt": "2025-12-07T18:17:01.102Z",
+      "registeredAt": "2025-12-08T12:07:22.045Z",
       "isRunning": true
     },
     "Sean stackpoole ": {
       "directory": "profiles\\sean-stackpoole",
-      "registeredAt": "2025-12-07T18:17:21.019Z",
+      "registeredAt": "2025-12-08T12:07:39.649Z",
       "isRunning": true
     }
   },
@@ -47,4 +47,3 @@
     }
   }
 }
-

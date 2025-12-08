@@ -17,6 +17,51 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// =============================================
+// SEPARATE LOGGING SERVER (Port 3002)
+// =============================================
+const LOGGING_PORT = 3002;
+const loggingServer = http.createServer();
+const loggingWss = new WebSocket.Server({ server: loggingServer });
+const loggingClients = new Set();
+
+// Logging function that routes to separate server
+function logToSeparateServer(type, message, data = {}) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    type,
+    message,
+    ...data
+  };
+  
+  // Send to all connected logging clients
+  const logString = JSON.stringify(logEntry);
+  loggingClients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(logString);
+    }
+  });
+  
+  // Also log to console with prefix (optional - can be disabled)
+  // console.log(`[${type}] ${message}`);
+}
+
+// =============================================
+// LOGGING SERVER WEBSOCKET CONNECTIONS
+// =============================================
+loggingWss.on('connection', (ws) => {
+  loggingClients.add(ws);
+  logToSeparateServer('SYSTEM', '📊 Logging client connected to port 3002');
+  
+  ws.on('close', () => {
+    loggingClients.delete(ws);
+  });
+  
+  ws.on('error', (error) => {
+    // Silent error handling for logging server
+  });
+});
+
 // Initialize User Manager
 const userManager = new UserManager();
 
@@ -124,7 +169,7 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 const novncPath = path.join(__dirname, '..', 'frontend', 'novnc');
 if (fs.existsSync(novncPath)) {
   app.use('/novnc', express.static(novncPath));
-  console.log('✅ Serving noVNC files from /novnc');
+  logSystem('✅ Serving noVNC files from /novnc');
   
   // Serve noVNC viewer page
   app.get('/novnc-viewer', (req, res) => {
@@ -448,7 +493,7 @@ app.post('/api/admin/stop-profile', async (req, res) => {
     // Update user manager
     userManager.updateProfileStatus(profileName, false);
     
-    console.log(`🛑 Profile ${profileName} stopped`);
+    logSystem(`🛑 Profile ${profileName} stopped`);
     res.json({ success: true, message: `Profile ${profileName} stopped` });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
@@ -575,7 +620,7 @@ app.post('/api/admin/stop-all-profiles', async (req, res) => {
     }
   }
   
-  console.log(`🛑 All profiles stopped`);
+  logSystem(`🛑 All profiles stopped`);
   res.json({
     success: true,
     results,
@@ -601,7 +646,7 @@ async function startSingleProfile(profileDirectory) {
   
   const isLiveEvent = settings.isLiveEvent || false;
   
-  console.log(`🚀 Starting profile: ${settings.name} (${isLiveEvent ? 'Live Event' : 'Betting'})...`);
+  logSystem(`🚀 Starting profile: ${settings.name} (${isLiveEvent ? 'Live Event' : 'Betting'})...`);
   
   // Create FliffClient
   const client = new FliffClient({
@@ -627,7 +672,7 @@ async function startSingleProfile(profileDirectory) {
   client.start = async function() {
     const browserDataPath = path.join(__dirname, '..', 'profiles', profileDirectory, 'browser_data');
     
-    console.log(`🎮 Starting Fliff Client for ${settings.name}...`);
+    logSystem(`🎮 Starting Fliff Client for ${settings.name}...`);
     
     try {
       let chromePath;
@@ -699,7 +744,7 @@ async function startSingleProfile(profileDirectory) {
     fliffClient = client;
   }
   
-  console.log(`✅ Profile ${settings.name} started successfully`);
+  logSystem(`✅ Profile ${settings.name} started successfully`);
   
   return { success: true, message: `${settings.name} started successfully` };
 }
@@ -1224,7 +1269,7 @@ app.post('/api/main-profile', (req, res) => {
   }
   
   mainProfile = profile;
-  console.log(`📌 Main profile set to: ${mainProfile}`);
+  logSystem(`📌 Main profile set to: ${mainProfile}`);
   
   res.json({
     success: true,
@@ -1353,7 +1398,7 @@ app.post('/api/profile/:profileName/capture-token', async (req, res) => {
     const result = await client.captureCurrentBearerToken();
     
     if (result.success) {
-      console.log(`🔑 [${profileName}] Bearer token captured (source: ${result.source})`);
+      logSystem(`🔑 [${profileName}] Bearer token captured (source: ${result.source})`);
       res.json({
         success: true,
         profile: profileName,
@@ -1400,7 +1445,7 @@ app.post('/api/capture-all-tokens', async (req, res) => {
   }
   
   const successCount = results.filter(r => r.success).length;
-  console.log(`🔑 Token capture complete: ${successCount}/${results.length} profiles`);
+  logSystem(`🔑 Token capture complete: ${successCount}/${results.length} profiles`);
   
   res.json({
     totalProfiles: results.length,
@@ -1653,7 +1698,7 @@ app.post('/api/performance/select-game', (req, res) => {
   
   if (gameId === null || gameId === undefined) {
     selectedGameId = null;
-    console.log('🔓 Selected game cleared - processing ALL games (may lag)');
+    logSystem('🔓 Selected game cleared - processing ALL games (may lag)');
     return res.json({ success: true, selectedGameId: null, message: 'Processing all games' });
   }
   
@@ -1663,14 +1708,14 @@ app.post('/api/performance/select-game', (req, res) => {
   }
   
   selectedGameId = gid;
-  console.log(`🎯 Selected game set to ${gid} - ONLY processing odds for this game`);
+  logSystem(`🎯 Selected game set to ${gid} - ONLY processing odds for this game`);
   res.json({ success: true, selectedGameId: gid, message: `Only processing odds for game ${gid}` });
 });
 
 // Clear selected game (process all games - may cause lag)
 app.post('/api/performance/clear-selection', (req, res) => {
   selectedGameId = null;
-  console.log('🔓 Selected game cleared - processing ALL games');
+  logSystem('🔓 Selected game cleared - processing ALL games');
   res.json({ success: true, message: 'Processing all games now' });
 });
 
@@ -1684,7 +1729,7 @@ app.post('/api/performance/logging', (req, res) => {
   if (typeof live === 'boolean') LOG_CONFIG.LIVE = live;
   if (typeof performance === 'boolean') LOG_CONFIG.PERFORMANCE = performance;
   
-  console.log('📝 Log config updated:', LOG_CONFIG);
+  logSystem('📝 Log config updated', { config: LOG_CONFIG });
   res.json({ success: true, logConfig: LOG_CONFIG });
 });
 
@@ -2052,7 +2097,7 @@ app.post('/api/burn-prefire', async (req, res) => {
   
   // Log which accounts are processing
   readyClients.forEach(({ name }) => {
-    console.log(`🔥 ${name} processing BURN bet: BURN_PREFIRE_${oddId || 'unknown'}`);
+    logBetting(`🔥 ${name} processing BURN bet: BURN_PREFIRE_${oddId || 'unknown'}`);
   });
   
   try {
@@ -2175,6 +2220,10 @@ app.post('/api/burn-prefire', async (req, res) => {
 
 // LOCK AND LOAD - Places $0.20 bet with Cash and refreshes page during submission to lock odds
 // Now works with ALL profiles - only shows "locked and loaded" when ALL profiles' odds don't change
+// =============================================
+// LOCK & LOAD - PRIORITIZED ENDPOINT
+// This endpoint is optimized for speed and should process quickly
+// =============================================
 app.post('/api/lock-and-load', async (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Invalid request body' });
@@ -2190,10 +2239,10 @@ app.post('/api/lock-and-load', async (req, res) => {
     return res.status(500).json({ error: 'No Fliff profiles connected' });
   }
   
-    const lockWager = 0.20; // Always use $0.20 for lock and load
+  const lockWager = 0.20; // Always use $0.20 for lock and load
   // Lock and load captures the exact API request and saves it - no page reload needed!
   // When placing the actual bet, we reuse that locked API request (only changing wager amount)
-  logBetting(`🔒 LOCK & LOAD (${fliffClients.size} profile(s)): ${selection} @ ${odds} - $${lockWager} (Cash) [capturing locked API request]`);
+  logBetting(`🔒 LOCK & LOAD (${fliffClients.size} profile(s)): ${selection} @ ${odds} - $${lockWager} (Cash) [PRIORITIZED - fast processing]`);
   
   try {
     const gameOddsMap = gameOdds.get(parseInt(gameId));
@@ -2533,23 +2582,33 @@ app.post('/api/lock-and-load', async (req, res) => {
     accountStats.totalBets += results.filter(r => r.betPlaced).length;
     accountStats.totalWagered += lockWager * results.filter(r => r.betPlaced).length;
     
-    // Only show "ARMED" if ALL profiles' odds are locked (don't change)
-    // But if all bets were placed successfully, consider them locked (API accepted them)
+    // Calculate success/failure counts
+    const successfulResults = results.filter(r => r.betPlaced && r.success && r.oddsLocked);
+    const successCount = successfulResults.length;
+    const failedResults = results.filter(r => !r.success || !r.betPlaced);
+    const failedCount = failedResults.length;
+    const totalProfiles = results.length;
+    
+    // Show "ARMED" if AT LEAST ONE profile succeeded (partial success is OK)
+    // This allows betting even if some accounts fail
+    const anyLocked = successCount > 0;
     const allLocked = (allOddsLocked && !anyOddsChanged) || (allBetsPlaced && allProfilesSuccess);
     
     let message;
     if (anyMarketNotAvailable) {
       // Market not available - highest priority message
       message = `⚠️ Market Not Available: ${finalSelection} @ ${finalOdds} - This market is no longer available for betting`;
-    } else if (allLocked) {
-      const successCount = results.filter(r => r.betPlaced && r.success).length;
-      message = `🔒 ARMED (${successCount}/${fliffClients.size} profiles): ${finalSelection} @ ${finalOdds} - Odds locked, ready to place bet!`;
+    } else if (anyLocked) {
+      // Partial or full success - show ready to bet
+      if (successCount === totalProfiles) {
+        message = `🔒 ARMED (${successCount}/${totalProfiles} profiles): ${finalSelection} @ ${finalOdds} - All accounts locked, ready to place bet!`;
+      } else {
+        const failedNames = failedResults.map(r => r.profileName).join(', ');
+        message = `🔒 ARMED (${successCount}/${totalProfiles} profiles): ${finalSelection} @ ${finalOdds} - Partial success! ${failedCount} account(s) failed: ${failedNames}. Ready to place bet on ${successCount} account(s)!`;
+      }
     } else if (anyOddsChanged) {
       const changedProfiles = results.filter(r => r.oddsChanged).map(r => r.profileName);
       message = `❌ Lock & Load Failed (${changedProfiles.length} profile(s)): ${finalSelection} @ ${finalOdds} - Odds changed on: ${changedProfiles.join(', ')}`;
-    } else if (allBetsPlaced) {
-      const successCount = results.filter(r => r.betPlaced && r.success).length;
-      message = `🔒 ARMED (${successCount}/${fliffClients.size} profiles): ${finalSelection} @ ${finalOdds} - All bets placed, ready to place bet!`;
     } else {
       const failedProfiles = results.filter(r => !r.success);
       const failedNames = failedProfiles.map(r => r.profileName);
@@ -2565,16 +2624,17 @@ app.post('/api/lock-and-load', async (req, res) => {
         .filter(err => err && err !== 'Unknown error');
       
       if (failedErrors.length > 0) {
-        message = `❌ Lock & Load Failed: ${failedNames.join(', ')} - ${failedErrors.join('; ')}`;
+        message = `❌ Lock & Load Failed (${failedCount}/${totalProfiles} profiles): ${failedNames.join(', ')} - ${failedErrors.join('; ')}`;
       } else {
-        message = `❌ Lock & Load Failed: ${failedNames.join(', ')} - Unknown error`;
+        message = `❌ Lock & Load Failed (${failedCount}/${totalProfiles} profiles): ${failedNames.join(', ')} - Unknown error`;
       }
     }
     
+    // Use already calculated counts for broadcast (no need to recalculate)
     broadcast({
       type: 'prefire_result',
-      success: allLocked,
-      armed: allLocked,
+      success: anyLocked, // Success if ANY account succeeded
+      armed: anyLocked, // ARMED if ANY account succeeded
       allOddsLocked,
       anyOddsChanged,
       marketNotAvailable: anyUnavailable,
@@ -2583,6 +2643,10 @@ app.post('/api/lock-and-load', async (req, res) => {
       gameId,
       selection: finalSelection,
       odds: finalOdds,
+      successCount, // Number of successful accounts
+      failedCount, // Number of failed accounts
+      totalProfiles: results.length,
+      isPartialSuccess: successCount > 0 && successCount < results.length,
       message: anyUnavailable
         ? `⚠️ Market / Event Not Available: This selection is no longer available for betting`
         : message,
@@ -2592,24 +2656,36 @@ app.post('/api/lock-and-load', async (req, res) => {
     // Save logs after response is sent
     setImmediate(() => saveLogs());
     
+    // Use already calculated counts for response (no need to recalculate)
+    let responseMessage;
+    if (anyMarketNotAvailable) {
+      responseMessage = `⚠️ Market Not Available: This market is no longer available for betting`;
+    } else if (anyLocked) {
+      if (successCount === results.length) {
+        responseMessage = `🔒 ARMED! All ${successCount} profile(s) verified locked at ${finalOdds}. Ready to place bet!`;
+      } else {
+        responseMessage = `🔒 ARMED! ${successCount}/${results.length} profile(s) locked at ${finalOdds}. ${failedCount} profile(s) failed. Ready to place bet on ${successCount} account(s)!`;
+      }
+    } else if (anyOddsChanged) {
+      responseMessage = `❌ Lock & Load Failed. Odds changed on some profiles. Expected ${finalOdds}, but odds may have moved.`;
+    } else {
+      responseMessage = `❌ Lock & Load Failed. ${failedCount}/${results.length} profile(s) failed to place bet.`;
+    }
+    
     return res.json({ 
-      success: allLocked, // Only true if ALL profiles' odds are locked
-      armed: allLocked, // ARMED status - ready to place bet
-      message: anyMarketNotAvailable
-        ? `⚠️ Market Not Available: This market is no longer available for betting`
-        : allLocked 
-          ? `🔒 ARMED! All ${fliffClients.size} profile(s) verified locked at ${finalOdds}. Ready to place bet!`
-          : anyOddsChanged
-            ? `❌ Lock & Load Failed. Odds changed on some profiles. Expected ${finalOdds}, but odds may have moved.`
-            : allBetsPlaced
-              ? `Bet placed on all profiles but could not verify if all odds are locked.`
-              : `Some profiles failed to place bet.`,
+      success: anyLocked, // Success if ANY profile succeeded (partial success OK)
+      armed: anyLocked, // ARMED status - ready to place bet if ANY succeeded
+      message: responseMessage,
       betPlaced: allBetsPlaced,
-      allOddsLocked: allLocked,
+      allOddsLocked: allLocked, // True only if ALL succeeded
       anyOddsChanged: anyOddsChanged,
-      marketNotAvailable: anyUnavailable, // Treat event-not-available same as market-not-available
+      marketNotAvailable: anyUnavailable,
       eventNotAvailable: anyEventNotAvailable,
-      lockedOdds: allLocked ? finalOdds : null,
+      lockedOdds: anyLocked ? finalOdds : null, // Use odds if ANY succeeded
+      successCount, // Number of successful accounts
+      failedCount, // Number of failed accounts
+      totalProfiles: results.length,
+      isPartialSuccess: successCount > 0 && successCount < results.length,
       profileResults: results
     });
     
@@ -3189,50 +3265,41 @@ function logBet(bet) {
 // SEPARATE CONSOLE LOGGING - Reduced noise
 // =============================================
 
-// Odds fetching logs (SEPARATE from betting) - Only logs if enabled
+// Odds fetching logs - ROUTE TO SEPARATE LOGGING SERVER (Port 3002)
 function logOdds(message, data = {}) {
-  // Skip verbose odds logs if disabled
   if (!LOG_CONFIG.ODDS_VERBOSE && !LOG_CONFIG.ODDS_SUMMARY) return;
-  
-  // Skip detailed logs unless ODDS_VERBOSE is true
   if (!LOG_CONFIG.ODDS_VERBOSE && !data.summary) return;
-  
-  const timestamp = new Date().toLocaleTimeString();
-  if (data.gameId && data.count !== undefined) {
-    console.log(`📊 [ODDS ${timestamp}] Game ${data.gameId}: ${message} (${data.count} odds)`);
-  } else if (data.gameId) {
-    console.log(`📊 [ODDS ${timestamp}] Game ${data.gameId}: ${message}`);
-  } else {
-    console.log(`📊 [ODDS ${timestamp}] ${message}`);
-  }
+  logToSeparateServer('ODDS', message, data);
 }
 
-// Summary-only odds log (always shows if ODDS_SUMMARY is true)
+// Summary-only odds log - ROUTE TO SEPARATE LOGGING SERVER
 function logOddsSummary(message) {
   if (!LOG_CONFIG.ODDS_SUMMARY) return;
-  const timestamp = new Date().toLocaleTimeString();
-  console.log(`📊 [ODDS ${timestamp}] ${message}`);
+  logToSeparateServer('ODDS_SUMMARY', message);
 }
 
-// Betting action logs (SEPARATE CONSOLE for betting)
+// Betting action logs - MAIN CONSOLE ONLY (Port 3001) - PRIORITY
 function logBetting(message) {
   if (!LOG_CONFIG.BETTING) return;
   const timestamp = new Date().toLocaleTimeString();
   console.log(`💰 [BET ${timestamp}] ${message}`);
 }
 
-// Live game/score logs
+// Live game/score logs - ROUTE TO SEPARATE LOGGING SERVER
 function logLive(message) {
   if (!LOG_CONFIG.LIVE) return;
-  const timestamp = new Date().toLocaleTimeString();
-  console.log(`🎮 [LIVE ${timestamp}] ${message}`);
+  logToSeparateServer('LIVE', message);
 }
 
-// Performance warnings (always important)
+// Performance warnings - ROUTE TO SEPARATE LOGGING SERVER
 function logPerf(message) {
   if (!LOG_CONFIG.PERFORMANCE) return;
-  const timestamp = new Date().toLocaleTimeString();
-  console.log(`⚡ [PERF ${timestamp}] ${message}`);
+  logToSeparateServer('PERFORMANCE', message);
+}
+
+// Profile/WebSocket/System logs - ROUTE TO SEPARATE LOGGING SERVER
+function logSystem(message, data = {}) {
+  logToSeparateServer('SYSTEM', message, data);
 }
 
 // =============================================
@@ -3241,7 +3308,7 @@ function logPerf(message) {
 
 wss.on('connection', (ws) => {
   clients.add(ws);
-  console.log('📱 Client connected');
+  logSystem('📱 Client connected');
   
   ws.send(JSON.stringify({
     type: 'init',
@@ -3263,12 +3330,12 @@ wss.on('connection', (ws) => {
         // All other game odds are SKIPPED to prevent lag
         // =============================================
         selectedGameId = gameId;
-        console.log(`🎯 SELECTED GAME: ${gameId} - Only processing odds for this game now`);
+        logSystem(`🎯 SELECTED GAME: ${gameId} - Only processing odds for this game now`);
         
         const odds = gameOdds.get(gameId) || new Map();
         const oddsArray = Array.from(odds.values());
         
-        console.log(`📺 Subscribe: game ${gameId}, sending ${oddsArray.length} odds${data.priority ? ' (PRIORITY)' : ''}`);
+        logSystem(`📺 Subscribe: game ${gameId}, sending ${oddsArray.length} odds${data.priority ? ' (PRIORITY)' : ''}`);
         
         // Send existing odds immediately
         ws.send(JSON.stringify({
@@ -3310,7 +3377,7 @@ wss.on('connection', (ws) => {
                 clearInterval(priorityGameUpdateInterval);
                 priorityGameUpdateInterval = null;
               }
-              console.log(`🔓 Priority cleared for game ${gameId}`);
+              logSystem(`🔓 Priority cleared for game ${gameId}`);
             }
           }, 30000);
         }
@@ -3319,19 +3386,19 @@ wss.on('connection', (ws) => {
       // Handle unsubscribe - clear selected game when user leaves game view
       if (data.type === 'unsubscribe') {
         if (selectedGameId === ws.gameId) {
-          console.log(`🔓 SELECTED GAME CLEARED - will process all odds again`);
+          logSystem(`🔓 SELECTED GAME CLEARED - will process all odds again`);
           selectedGameId = null;
         }
         ws.gameId = null;
       }
     } catch (e) {
-      console.error('WS message error:', e);
+      logSystem(`WS message error: ${e.message}`, { error: e.stack });
     }
   });
   
   ws.on('close', () => {
     clients.delete(ws);
-    console.log('📱 Client disconnected');
+    logSystem('📱 Client disconnected');
   });
 });
 
@@ -3359,6 +3426,19 @@ function broadcastToGame(gameId, data) {
 // =============================================
 
 function handleGameUpdate(game) {
+  // =============================================
+  // PERFORMANCE: Only process selected game
+  // Skip ALL game processing for non-selected games
+  // =============================================
+  if (selectedGameId !== null && game.id !== selectedGameId) {
+    // Silently skip - don't process games that aren't selected
+    // Only store minimal game info for the list view
+    if (!liveGames.has(game.id)) {
+      liveGames.set(game.id, game);
+    }
+    return;
+  }
+  
   const existing = liveGames.get(game.id);
   
   // Only log score changes and new games (reduces noise)
@@ -3389,6 +3469,20 @@ function handleOddsUpdate(gameId, odd) {
   // =============================================
   if (selectedGameId !== null && gid !== selectedGameId) {
     // Silently skip - don't even log (causes lag)
+    // Early return saves CPU cycles and memory
+    return;
+  }
+  
+  // Additional optimization: Skip if no clients are subscribed to this game
+  let hasSubscribers = false;
+  clients.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN && ws.gameId === gid) {
+      hasSubscribers = true;
+    }
+  });
+  
+  if (!hasSubscribers && selectedGameId === null) {
+    // No one is watching this game, skip processing
     return;
   }
   
@@ -3485,7 +3579,7 @@ function discoverProfiles() {
     '.idea'
   ]);
   
-  console.log('🔍 Discovering profiles...');
+  logSystem('🔍 Discovering profiles...');
   
   // Check if profiles directory exists
   if (!fs.existsSync(profilesDir)) {
@@ -3527,10 +3621,10 @@ function discoverProfiles() {
         
         if (isLiveEvent) {
           liveEventProfiles.push(profileData);
-          console.log(`   📡 Found LIVE EVENT profile: ${profileName} (${item.name}) - for data scraping only`);
+          logSystem(`   📡 Found LIVE EVENT profile: ${profileName} (${item.name}) - for data scraping only`);
         } else {
           bettingProfiles.push(profileData);
-          console.log(`   💰 Found BETTING profile: ${profileName} (${item.name}) - account: ${settings.account_number || 'N/A'}`);
+          logSystem(`   💰 Found BETTING profile: ${profileName} (${item.name}) - account: ${settings.account_number || 'N/A'}`);
         }
       } catch (e) {
         console.log(`   ⚠️ Could not load profile ${item.name}: ${e.message}`);
@@ -3538,9 +3632,9 @@ function discoverProfiles() {
     }
   }
   
-  console.log(`\n📋 Total profiles discovered:`);
-  console.log(`   📡 Live Event (scraping only): ${liveEventProfiles.length}`);
-  console.log(`   💰 Betting (with accounts): ${bettingProfiles.length}\n`);
+  logSystem(`\n📋 Total profiles discovered:`);
+  logSystem(`   📡 Live Event (scraping only): ${liveEventProfiles.length}`);
+  logSystem(`   💰 Betting (with accounts): ${bettingProfiles.length}\n`);
   
   return { liveEvent: liveEventProfiles, betting: bettingProfiles };
 }
@@ -3582,10 +3676,10 @@ async function startFliff() {
     return;
   }
   
-  console.log(`\n📋 Starting ${allProfiles.length} profile(s):`);
-  console.log(`   📡 Live Event profiles: ${liveEventProfiles.length} (data scraping only)`);
-  console.log(`   💰 Betting profiles: ${bettingProfiles.length} (with logged-in accounts)`);
-  console.log('');
+  logSystem(`\n📋 Starting ${allProfiles.length} profile(s):`);
+  logSystem(`   📡 Live Event profiles: ${liveEventProfiles.length} (data scraping only)`);
+  logSystem(`   💰 Betting profiles: ${bettingProfiles.length} (with logged-in accounts)`);
+  logSystem('');
   
   // Track which profiles failed to start
   const failedProfiles = [];
@@ -3601,12 +3695,12 @@ async function startFliff() {
       // Add delay between profile startups to avoid browser conflicts
       if (i > 0) {
         const delay = delayBetweenProfiles * i; // Staggered delay
-        console.log(`⏳ [${i + 1}/${allProfiles.length}] Waiting ${(delay/1000).toFixed(1)}s before starting ${profile.name}...`);
+        logSystem(`⏳ [${i + 1}/${allProfiles.length}] Waiting ${(delay/1000).toFixed(1)}s before starting ${profile.name}...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
       
       const profileType = isLiveEvent ? '📡 LIVE EVENT' : '💰 BETTING';
-      console.log(`🚀 [${i + 1}/${allProfiles.length}] Starting ${profileType} profile: ${profile.name}...`);
+      logSystem(`🚀 [${i + 1}/${allProfiles.length}] Starting ${profileType} profile: ${profile.name}...`);
       
       // Extract profile directory name from profile.directory (e.g., "profiles/justin-voneck" -> "justin-voneck")
       const profileDirName = path.basename(profile.directory);
@@ -3651,20 +3745,20 @@ async function startFliff() {
         const browserDataPath = path.join(__dirname, '..', profile.directory, 'browser_data');
         
         // Call original start but with modified browser data path
-        console.log(`🎮 Starting Fliff Client for ${profile.name}...`);
-        console.log(`Profile: ${this.settings.name}`);
+        logSystem(`🎮 Starting Fliff Client for ${profile.name}...`);
+        logSystem(`Profile: ${this.settings.name}`);
         
         const proxy = this.parseProxy(this.settings.proxy);
         if (proxy) {
-          console.log(`Proxy: ${proxy.host}:${proxy.port}`);
+          logSystem(`Proxy: ${proxy.host}:${proxy.port}`);
         }
         
         // Show API credentials status
         if (this.bettingEndpoint) {
-          console.log(`📂 Using persisted betting endpoint: ${this.bettingEndpoint}`);
+          logSystem(`📂 Using persisted betting endpoint: ${this.bettingEndpoint}`);
         }
         if (this.bearerToken || this.authToken) {
-          console.log(`📂 Using persisted authentication tokens`);
+          logSystem(`📂 Using persisted authentication tokens`);
         }
 
         try {
@@ -3695,18 +3789,18 @@ async function startFliff() {
             }
           }
           
-          console.log(`🚀 [${profile.name}] Launching browser with data dir: ${browserDataPath}`);
+          logSystem(`🚀 [${profile.name}] Launching browser with data dir: ${browserDataPath}`);
           
           // Ensure browser data directory exists
           if (!fs.existsSync(browserDataPath)) {
             fs.mkdirSync(browserDataPath, { recursive: true });
-            console.log(`📁 [${profile.name}] Created browser data directory`);
+            logSystem(`📁 [${profile.name}] Created browser data directory`);
           }
           
           // Check for lockfile that might indicate browser is already running
           const lockfilePath = path.join(browserDataPath, 'lockfile');
           if (fs.existsSync(lockfilePath)) {
-            console.log(`⚠️ [${profile.name}] Lockfile found - browser may already be running for this profile`);
+            logSystem(`⚠️ [${profile.name}] Lockfile found - browser may already be running for this profile`);
             console.log(`   Attempting to continue anyway...`);
             // Try to remove lockfile (it's safe if browser isn't actually running)
             try {
@@ -3723,7 +3817,7 @@ async function startFliff() {
             try {
               const portContent = fs.readFileSync(devToolsPortPath, 'utf8').trim();
               if (portContent) {
-                console.log(`⚠️ [${profile.name}] DevToolsActivePort file exists - browser may be running`);
+                logSystem(`⚠️ [${profile.name}] DevToolsActivePort file exists - browser may be running`);
                 console.log(`   Port: ${portContent}`);
               }
             } catch (e) {
@@ -3746,7 +3840,7 @@ async function startFliff() {
             `--user-data-dir=${browserDataPath}` // Explicitly set user data dir
           ].filter(Boolean);
           
-          console.log(`🔧 [${profile.name}] Browser args: ${browserArgs.filter(a => !a.includes('proxy')).join(', ')}`);
+          logSystem(`🔧 [${profile.name}] Browser args: ${browserArgs.filter(a => !a.includes('proxy')).join(', ')}`);
           
           this.browser = await puppeteer.launch({
             executablePath: chromePath,
@@ -3763,13 +3857,13 @@ async function startFliff() {
           
           // Set proxy authentication BEFORE navigating
           if (proxy) {
-            console.log(`🔐 [${profile.name}] Setting proxy authentication: ${proxy.username}@${proxy.host}:${proxy.port}`);
+            logSystem(`🔐 [${profile.name}] Setting proxy authentication: ${proxy.username}@${proxy.host}:${proxy.port}`);
             try {
               await this.page.authenticate({ 
                 username: proxy.username, 
                 password: proxy.password 
               });
-              console.log(`✅ [${profile.name}] Proxy authentication set successfully`);
+              logSystem(`✅ [${profile.name}] Proxy authentication set successfully`);
             } catch (authError) {
               console.error(`⚠️ [${profile.name}] Proxy authentication error:`, authError.message);
               // Continue anyway - some proxies don't require explicit auth
@@ -3802,7 +3896,7 @@ async function startFliff() {
             userAgent: mobileUserAgent
           });
           
-          console.log(`📱 [${profile.name}] Mobile emulation enabled`);
+          logSystem(`📱 [${profile.name}] Mobile emulation enabled`);
 
           // CDP for WebSocket interception
           this.cdp = await this.page.target().createCDPSession();
@@ -3824,18 +3918,18 @@ async function startFliff() {
               longitude: geoLon,
               accuracy: geoAcc
             });
-            console.log(`📍 [${profile.name}] Geolocation set: ${geoLat}, ${geoLon} (accuracy: ${geoAcc}m)`);
+            logSystem(`📍 [${profile.name}] Geolocation set: ${geoLat}, ${geoLon} (accuracy: ${geoAcc}m)`);
           } catch (e) {
-            console.log(`⚠️ [${profile.name}] Could not set geolocation via CDP: ${e.message}`);
+            logSystem(`⚠️ [${profile.name}] Could not set geolocation via CDP: ${e.message}`);
           }
 
           // Grant geolocation permissions BEFORE navigation
           const context = this.browser.defaultBrowserContext();
           try {
             await context.overridePermissions('https://sports.getfliff.com', ['geolocation']);
-            console.log(`✅ [${profile.name}] Geolocation permissions granted`);
+            logSystem(`✅ [${profile.name}] Geolocation permissions granted`);
           } catch (e) {
-            console.log(`⚠️ [${profile.name}] Could not override permissions: ${e.message}`);
+            logSystem(`⚠️ [${profile.name}] Could not override permissions: ${e.message}`);
           }
 
           // Capture auth tokens and betting API endpoints (same as original)
@@ -3851,7 +3945,7 @@ async function startFliff() {
                 const wasNew = !this.bearerToken;
                 this.bearerToken = newToken;
                 if (wasNew) {
-                  console.log(`🔑 [${profile.name}] Captured bearer token`);
+                  logSystem(`🔑 [${profile.name}] Captured bearer token`);
                 }
                 this.saveAPICredentials();
               }
@@ -3863,7 +3957,7 @@ async function startFliff() {
                 const newToken = match[1];
                 if (this.authToken !== newToken) {
                   this.authToken = newToken;
-                  console.log(`🔑 [${profile.name}] Captured auth token`);
+                  logSystem(`🔑 [${profile.name}] Captured auth token`);
                   this.saveAPICredentials();
                 }
               }
@@ -3939,13 +4033,13 @@ async function startFliff() {
 
           this.cdp.on('Network.webSocketCreated', (params) => {
             if (params.url?.includes('heraldz')) {
-              console.log(`🔌 [${profile.name}] Fliff WebSocket connected`);
+              logSystem(`🔌 [${profile.name}] Fliff WebSocket connected`);
               this.onConnect();
             }
           });
 
           this.cdp.on('Network.webSocketClosed', () => {
-            console.log(`⚫ [${profile.name}] WebSocket disconnected`);
+            logSystem(`⚫ [${profile.name}] WebSocket disconnected`);
             this.onDisconnect();
           });
 
@@ -3997,7 +4091,7 @@ async function startFliff() {
           
           console.log(`🔒 [${profile.name}] Geolocation bypass script injected`);
 
-          console.log(`📱 [${profile.name}] Loading Fliff...`);
+          logSystem(`📱 [${profile.name}] Loading Fliff...`);
           
           // Try to navigate with retries
           let navigationSuccess = false;
@@ -4059,7 +4153,7 @@ async function startFliff() {
           // Wait a bit more for page to fully initialize
           await new Promise(resolve => setTimeout(resolve, 2000));
           
-          console.log(`🟢 [${profile.name}] Fliff ready!\n`);
+          logSystem(`🟢 [${profile.name}] Fliff ready!\n`);
         } catch (error) {
           console.error(`❌ [${profile.name}] Error starting Fliff:`, error.message);
           throw error;
@@ -4090,7 +4184,7 @@ async function startFliff() {
           fliffClient = client;
         }
         
-        console.log(`✅ [${i + 1}/${allProfiles.length}] Profile ${profile.name} started successfully`);
+        logSystem(`✅ [${i + 1}/${allProfiles.length}] Profile ${profile.name} started successfully`);
         console.log(`   Browser: ${client.browser ? '✅' : '❌'}, Page: ${client.page ? '✅' : '❌'}\n`);
         
         // Add a small delay after successful start to ensure stability
@@ -4131,67 +4225,77 @@ async function startFliff() {
     }
   }
   
-  console.log(`\n✅ Started ${fliffClients.size} profile(s) out of ${allProfiles.length} total`);
+  logSystem(`\n✅ Started ${fliffClients.size} profile(s) out of ${allProfiles.length} total`);
   if (failedProfiles.length > 0) {
-    console.log(`\n❌ Failed to start ${failedProfiles.length} profile(s):`);
+    logSystem(`\n❌ Failed to start ${failedProfiles.length} profile(s):`);
     failedProfiles.forEach(fp => {
-      console.log(`   - ${fp.name}: ${fp.error}`);
+      logSystem(`   - ${fp.name}: ${fp.error}`);
     });
   }
   
   // List all successfully started profiles
-  console.log(`\n📋 Successfully started profiles:`);
+  logSystem(`\n📋 Successfully started profiles:`);
   fliffClients.forEach((client, name) => {
-    console.log(`   ✅ ${name}`);
+    logSystem(`   ✅ ${name}`);
   });
-  console.log('');
+  logSystem('');
 }
 
 const PORT = process.env.PORT || 3001;
 
+// Start logging server first
+loggingServer.listen(LOGGING_PORT, () => {
+  console.log(`📊 LOGGING SERVER: Port ${LOGGING_PORT} (WebSocket for verbose logs)`);
+  console.log(`   Connect: ws://localhost:${LOGGING_PORT}`);
+});
+
+// Start main server
 server.listen(PORT, () => {
-  console.log('\n🚀 FLIFF BACKEND SERVER (OPTIMIZED)');
-  console.log('═'.repeat(50));
-  console.log(`📡 API:       http://localhost:${PORT}/api`);
-  console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
-  console.log('═'.repeat(50));
+  console.log('\n🚀 FLIFF BACKEND SERVER - BETTING PRIORITY MODE');
+  console.log('═'.repeat(60));
+  console.log(`💰 MAIN SERVER (Port ${PORT}):`);
+  console.log(`   📡 API:       http://localhost:${PORT}/api`);
+  console.log(`   🔌 WebSocket: ws://localhost:${PORT}`);
+  console.log(`   📊 LOGS:      Only BETTING actions shown here`);
+  console.log('');
+  console.log(`📊 LOGGING SERVER (Port ${LOGGING_PORT}):`);
+  console.log(`   🔌 WebSocket: ws://localhost:${LOGGING_PORT}`);
+  console.log(`   📊 LOGS:      Odds, profiles, websocket, system logs`);
+  console.log('═'.repeat(60));
   
-  console.log('\n⚡ PERFORMANCE MODE ENABLED:');
-  console.log('  - Odds processed ONLY for clicked game');
-  console.log('  - Verbose logging disabled by default');
-  console.log('  - Broadcast optimized (game subscribers only)');
+  console.log('\n⚡ PERFORMANCE OPTIMIZATIONS:');
+  console.log('  ✅ Odds processed ONLY for selected game');
+  console.log('  ✅ Non-betting logs routed to port 3002');
+  console.log('  ✅ Betting logs prioritized in main console');
+  console.log('  ✅ Broadcast optimized (game subscribers only)');
   
-  console.log('\nBetting Endpoints:');
+  console.log('\n💰 BETTING ENDPOINTS (Priority):');
   console.log('  POST /api/prefire        - Place bet (all profiles)');
   console.log('  POST /api/place-bet      - Place bet (all profiles)');
   console.log('  POST /api/burn-prefire   - Burn prefire (fast bet)');
   console.log('  POST /api/lock-and-load  - Lock & Load');
   console.log('  POST /api/reload-page    - Reload page');
   
-  console.log('\nData Endpoints:');
+  console.log('\n📊 DATA ENDPOINTS:');
   console.log('  GET  /api/games          - All live games');
   console.log('  GET  /api/games/:id/odds - Game odds');
   console.log('  GET  /api/status         - Server & profile status');
-  
-  console.log('\nPerformance Endpoints:');
-  console.log('  GET  /api/performance              - Current settings');
-  console.log('  POST /api/performance/select-game  - Set game to process');
-  console.log('  POST /api/performance/logging      - Toggle log levels');
-  console.log('─'.repeat(50));
+  console.log('─'.repeat(60));
   
   startFliff();
 });
 
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down...');
+  logSystem('🛑 Server shutting down...');
   saveLogs();
   // Stop all profile clients
   for (const [profileName, client] of fliffClients.entries()) {
     try {
       client.stop();
-      console.log(`   Stopped profile: ${profileName}`);
+      logSystem(`   Stopped profile: ${profileName}`);
     } catch (e) {
-      console.error(`   Error stopping profile ${profileName}:`, e.message);
+      logSystem(`   Error stopping profile ${profileName}: ${e.message}`);
     }
   }
   // Also stop primary client if different

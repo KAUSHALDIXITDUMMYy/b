@@ -85,5 +85,3 @@ esac
 echo ""
 echo -e "${GREEN}Application started!${NC}"
 echo "Access at: http://$(hostname -I | awk '{print $1}'):3001"
-
-

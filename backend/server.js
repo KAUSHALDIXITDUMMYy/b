@@ -2946,25 +2946,35 @@ app.post('/api/place-bet', async (req, res) => {
       
       const profilePromise = (async () => {
         try {
-          // Refresh bearer token from page before placing bet (tokens can expire/change)
+          // STEP 1: Acquire bearer token at this moment (when Ready to Bet is clicked)
+          logBetting(`   [${profileName}] 🔑 Step 1: Acquiring bearer token...`);
+          let tokenAcquired = false;
           try {
-            const injectedToken = await client.page.evaluate(() => {
-              return window.__fliffBearerToken || null;
-            });
-            
-            if (injectedToken && injectedToken !== client.bearerToken) {
-              client.bearerToken = injectedToken;
-              logBetting(`   [${profileName}] 🔑 Refreshed bearer token from page`);
+            const tokenResult = await client.captureCurrentBearerToken();
+            if (tokenResult.success && tokenResult.token) {
+              client.bearerToken = tokenResult.token;
               client.saveAPICredentials();
-            } else if (!client.bearerToken && !client.authToken) {
-              logBetting(`   [${profileName}] ⚠️ No bearer token or auth token available - may fail`);
+              tokenAcquired = true;
+              logBetting(`   [${profileName}] ✅ Bearer token acquired from ${tokenResult.source || 'page'}`);
+            } else {
+              // Fallback to existing token if available
+              if (client.bearerToken || client.authToken) {
+                logBetting(`   [${profileName}] ⚠️ Could not acquire new token, using stored token`);
+              } else {
+                logBetting(`   [${profileName}] ⚠️ No bearer token available - bet may fail`);
+              }
             }
           } catch (e) {
-            // Ignore if page context not ready, but log warning
-            if (client.bearerToken || client.authToken) {
-              logBetting(`   [${profileName}] ⚠️ Could not refresh token from page, using stored token`);
-            } else {
-              logBetting(`   [${profileName}] ⚠️ Could not refresh token and no stored token available`);
+            logBetting(`   [${profileName}] ⚠️ Error acquiring token: ${e.message}, using stored token if available`);
+            if (!client.bearerToken && !client.authToken) {
+              return {
+                profileName,
+                success: false,
+                retry: false,
+                message: 'Error acquiring bearer token',
+                error: `Could not acquire bearer token: ${e.message}`,
+                unauthorized: false
+              };
             }
           }
           
@@ -2978,11 +2988,15 @@ app.post('/api/place-bet', async (req, res) => {
             logBetting(`   [${profileName}] ✅ API ready: endpoint + auth token available`);
           }
           
-          // Check if we have a locked API request for this oddId (from lock and load)
+          // STEP 2: Check if we have a locked API request for this oddId (from lock and load)
           const hasLockedRequest = client.getLockedAPIRequest(oddId);
           if (hasLockedRequest) {
-            logBetting(`   [${profileName}] 🔒 Using locked API request for oddId: ${oddId} - odds are locked!`);
+            logBetting(`   [${profileName}] 🔒 Step 2: Using stored locked endpoint for oddId: ${oddId}`);
+            logBetting(`   [${profileName}] 🔒 Step 3: Placing bet with locked endpoint (ignoring odds changes)...`);
+            
             // Use locked API request - only change the wager amount
+            // IMPORTANT: We don't check for odds changes when using locked requests
+            // The user only cares about using the stored endpoint
             const betResult = await client.placeBetViaAPI(finalSelection, finalOdds, wager, 'cash', finalParam, finalMarket, oddId, true);
             
             if (betResult.success) {
@@ -2997,11 +3011,14 @@ app.post('/api/place-bet', async (req, res) => {
                 timestamp: Date.now()
               });
               
+              logBetting(`   [${profileName}] ✅ Step 4: Bet placed successfully using locked endpoint`);
+              
               return {
                 profileName,
                 success: true,
-                message: `Bet placed (locked odds): ${finalSelection} @ ${finalOdds} - $${wager}`,
-                error: null
+                message: `Bet placed (locked endpoint): ${finalSelection} @ ${finalOdds} - $${wager}`,
+                error: null,
+                step: 'completed'
               };
             }
             
@@ -3011,6 +3028,8 @@ app.post('/api/place-bet', async (req, res) => {
                                   errorMsg.toLowerCase().includes('401') ||
                                   errorMsg.toLowerCase().includes('authentication');
             
+            logBetting(`   [${profileName}] ❌ Step 4: Bet failed: ${errorMsg}`);
+            
             return {
               profileName,
               success: false,
@@ -3019,11 +3038,15 @@ app.post('/api/place-bet', async (req, res) => {
               error: errorMsg || 'Bet failed',
               marketNotAvailable: betResult.marketNotAvailable || betResult.eventNotAvailable || false,
               eventNotAvailable: betResult.eventNotAvailable || false,
-              unauthorized: isUnauthorized
+              unauthorized: isUnauthorized,
+              step: 'failed'
             };
           }
           
           // No locked request - use regular place bet method
+          logBetting(`   [${profileName}] ⚠️ No locked endpoint found, using regular method`);
+          logBetting(`   [${profileName}] Step 2: Placing bet with regular method...`);
+          
           // Place bet with Fliff Cash (uses profile's bearer token automatically)
           const betResult = await client.placeBet(finalSelection, finalOdds, wager, 'cash', finalParam, finalMarket, oddId);
           
@@ -3039,21 +3062,28 @@ app.post('/api/place-bet', async (req, res) => {
               timestamp: Date.now()
             });
             
+            logBetting(`   [${profileName}] ✅ Bet placed successfully`);
+            
             return {
               profileName,
               success: true,
               message: `Bet placed: ${finalSelection} @ ${finalOdds} - $${wager}`,
-              error: null
+              error: null,
+              step: 'completed'
             };
           }
           
+          // Only check for odds changed if NOT using locked request
+          // When using locked request, we ignore odds changes
           if (betResult.oddsChanged) {
+            logBetting(`   [${profileName}] ⚠️ Odds changed (but this is only checked for non-locked bets)`);
             return {
               profileName,
               success: false,
               retry: true,
               message: 'Odds changed',
-              error: 'Odds changed'
+              error: 'Odds changed',
+              step: 'odds_changed'
             };
           }
           
@@ -3063,13 +3093,16 @@ app.post('/api/place-bet', async (req, res) => {
                                 errorMsg.toLowerCase().includes('401') ||
                                 errorMsg.toLowerCase().includes('authentication');
           
+          logBetting(`   [${profileName}] ❌ Bet failed: ${errorMsg}`);
+          
           return {
             profileName,
             success: false,
             retry: isUnauthorized,
             message: 'Bet failed',
             error: errorMsg || 'Bet failed',
-            unauthorized: isUnauthorized
+            unauthorized: isUnauthorized,
+            step: 'failed'
           };
         } catch (e) {
           logBetting(`   [${profileName}] ❌ Error: ${e.message}`);
@@ -3084,7 +3117,8 @@ app.post('/api/place-bet', async (req, res) => {
             retry: isUnauthorized,
             message: 'Error',
             error: errorMsg,
-            unauthorized: isUnauthorized
+            unauthorized: isUnauthorized,
+            step: 'error'
           };
         }
       })();

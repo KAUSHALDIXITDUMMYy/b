@@ -611,7 +611,12 @@ async function placeBet(oddId) {
   const effectiveOddsDisplay =
     effectiveOdds > 0 ? `+${effectiveOdds}` : `${effectiveOdds}`;
 
-  showPrefireStatus(`💰 PLACING BET: ${odd.selection} @ ${effectiveOddsDisplay} → $${wagerAmount} (Cash)`);
+  // Check if we have a locked request (from lock and load)
+  const hasLockedRequest = lockedOddsMap[lockKey] !== undefined;
+  
+  // Step 1: Show initial notification
+  showPrefireStatus(`🔑 Step 1: Acquiring bearer token...`);
+  showToast(`🔑 Step 1: Acquiring bearer token from page...`, 'info', 2000);
   
   const betData = {
     gameId: selectedGame.id,
@@ -630,6 +635,20 @@ async function placeBet(oddId) {
       ? `${API_URL}/api/user/${window.CURRENT_USERNAME}/place-bet`
       : `${API_URL}/api/place-bet`;
     
+    // Step 2: Show notification about using stored endpoint
+    if (hasLockedRequest) {
+      setTimeout(() => {
+        showPrefireStatus(`🔒 Step 2: Using stored locked endpoint...`);
+        showToast(`🔒 Step 2: Using stored locked endpoint (ignoring odds changes)...`, 'info', 2000);
+      }, 500);
+    }
+    
+    // Step 3: Show notification about placing bet
+    setTimeout(() => {
+      showPrefireStatus(`💰 Step 3: Placing bet with ${hasLockedRequest ? 'locked endpoint' : 'regular method'}...`);
+      showToast(`💰 Step 3: Placing bet: ${odd.selection} @ ${effectiveOddsDisplay} → $${wagerAmount}...`, 'info', 2000);
+    }, 1500);
+    
     const response = await fetch(betEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -647,16 +666,18 @@ async function placeBet(oddId) {
       }
       const placedOddsDisplay = placedOdds > 0 ? `+${placedOdds}` : `${placedOdds}`;
 
-      showPrefireStatus(`✅ BET PLACED: ${odd.selection} @ ${placedOddsDisplay} - $${wagerAmount}`);
-      // Show success pop-up with locked odds
+      // Step 4: Show success notification
+      showPrefireStatus(`✅ Step 4: Bet placed successfully!`);
       showToast(
-        `💰 BET PLACED SUCCESSFULLY!<br><strong>${odd.selection}</strong> @ ${placedOddsDisplay}<br>Amount: $${wagerAmount} (Fliff Cash)`,
+        `✅ Step 4: BET PLACED SUCCESSFULLY!<br><strong>${odd.selection}</strong> @ ${placedOddsDisplay}<br>Amount: $${wagerAmount} (Fliff Cash)`,
         'success',
         5000
       );
       
       setTimeout(hidePrefireStatus, 4000);
-    } else if (result.retry) {
+    } else if (result.retry && !hasLockedRequest) {
+      // Only show odds changed if NOT using locked request
+      // When using locked request, we ignore odds changes
       showPrefireStatus(`⚠️ Odds changed! ${result.newOdds ? `New: ${result.newOdds}` : 'Click again to retry.'}`);
       showToast(`⚠️ Odds Changed! ${result.newOdds ? `New odds: ${result.newOdds}` : 'Please try again.'}`, 'warning', 4000);
       setTimeout(hidePrefireStatus, 3000);

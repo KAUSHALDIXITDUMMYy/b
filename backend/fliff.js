@@ -1670,7 +1670,7 @@ class FliffClient {
     if (useLockedRequest && oddId) {
       lockedRequest = this.getLockedAPIRequest(oddId);
       if (lockedRequest) {
-        console.log(`🔒 Using locked API request for oddId: ${oddId}`);
+        console.log(`🔒 Using locked API request for oddId: ${oddId} - IGNORING odds changes, using stored endpoint only`);
       }
     }
     
@@ -1877,16 +1877,30 @@ class FliffClient {
         headers = { ...lockedRequest.headers };
         
         // IMPORTANT: Update bearer token to use current profile's token (tokens can expire/change)
+        // This is critical - we MUST use the fresh bearer token acquired when "Ready to Bet" was clicked
         if (this.bearerToken) {
-          headers['Authorization'] = this.bearerToken;
-          console.log(`🔑 Updated locked request with current bearer token`);
+          // Ensure bearer token format is correct - some APIs expect "Bearer <token>" format
+          let bearerToken = this.bearerToken;
+          if (!bearerToken.startsWith('Bearer ')) {
+            // If it doesn't start with "Bearer ", add it
+            bearerToken = `Bearer ${bearerToken}`;
+          }
+          headers['Authorization'] = bearerToken;
+          console.log(`🔑 Updated locked request with current bearer token (acquired at bet time)`);
+          console.log(`🔑 Bearer token format: ${bearerToken.substring(0, 30)}...`);
         } else if (this.authToken) {
           // Fallback to auth token if bearer token not available
           headers['X-Auth-Token'] = this.authToken;
           headers['Authorization'] = `Bearer ${this.authToken}`;
           console.log(`🔑 Updated locked request with current auth token`);
         } else {
-          console.log(`⚠️ No current bearer/auth token available - using locked request token (may be expired)`);
+          console.log(`❌ CRITICAL: No current bearer/auth token available - bet will likely fail!`);
+          console.log(`   This should not happen - bearer token should have been acquired before calling placeBetViaAPI`);
+          // Try to use the token from locked request as last resort
+          if (lockedRequest.headers['Authorization']) {
+            console.log(`   ⚠️ Using token from locked request as fallback (may be expired)`);
+            headers['Authorization'] = lockedRequest.headers['Authorization'];
+          }
         }
       } else {
         // Build headers from captured data
@@ -1974,6 +1988,11 @@ class FliffClient {
       const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       console.log(`📤 Sending API request...`);
+      if (lockedRequest) {
+        console.log(`   Using locked endpoint: ${requestUrl.substring(0, 100)}...`);
+        console.log(`   Has Authorization header: ${!!headers['Authorization']}`);
+        console.log(`   Request body has picks: ${!!(requestBody.invocation?.request?.picks?.length > 0)}`);
+      }
       
       // If this is a lock and load request ($0.20), capture it for later use
       const isLockAndLoad = wager === 0.20 && oddId;
@@ -2024,6 +2043,9 @@ class FliffClient {
       
       // Log response status with actual data
       console.log(`📥 Response: ${response.status} | Status: ${apiStatus || 'N/A'}`);
+      if (lockedRequest) {
+        console.log(`📥 Using locked endpoint - response should indicate bet was placed`);
+      }
       if (apiStatus) {
         console.log(`Final result: ${JSON.stringify({ status: apiStatus, hasPickResult: responseData.hasPickResult || responseData.result?.hasPickResult || false })}`);
       } else if (responseData) {
@@ -2039,6 +2061,15 @@ class FliffClient {
             console.log(`Result content: ${JSON.stringify(responseData.result).substring(0, 500)}`);
           }
         }
+      }
+      
+      // Additional logging for locked requests to verify bet placement
+      if (lockedRequest && response.ok) {
+        console.log(`🔒 Locked request response received - checking for success indicators...`);
+        // Check if response indicates bet was placed
+        const hasSuccessStatus = apiStatus === 8301 || apiStatus === 8300 || apiStatus === '8301' || apiStatus === '8300';
+        const hasPickResult = responseData.hasPickResult || responseData.result?.hasPickResult || false;
+        console.log(`   Success status: ${hasSuccessStatus}, Has pick result: ${hasPickResult}`);
       }
       
       // Check for unauthorized errors first (401, 403) - but ONLY if response is not OK
@@ -2073,6 +2104,10 @@ class FliffClient {
         // Status 8301 and 8300 are SUCCESS - return immediately if found
         if (actualStatus === 8301 || actualStatus === '8301' || actualStatus === 8300 || actualStatus === '8300') {
           console.log(`✅ Bet successful (status: ${actualStatus})`);
+          console.log(`✅ Bet was placed on the website - status code ${actualStatus} indicates success`);
+          if (lockedRequest) {
+            console.log(`✅ Used locked endpoint successfully - bet should appear on website`);
+          }
           return { success: true, response: responseData, status: actualStatus };
         }
         
@@ -2175,9 +2210,15 @@ class FliffClient {
                     };
                   }
                   
-                  if (resultErrorLower.includes('odds') || resultErrorLower.includes('price') || resultErrorLower.includes('changed')) {
+                  // Only check for odds changed if NOT using locked request
+                  // When using locked request, user doesn't care about odds changes - only the stored endpoint matters
+                  if (!lockedRequest && (resultErrorLower.includes('odds') || resultErrorLower.includes('price') || resultErrorLower.includes('changed'))) {
                     console.log(`⚠️ Odds changed detected in result.${field}: ${errorStr}`);
                     return { oddsChanged: true, error: errorStr };
+                  } else if (lockedRequest && (resultErrorLower.includes('odds') || resultErrorLower.includes('price') || resultErrorLower.includes('changed'))) {
+                    // When using locked request, ignore odds changed errors - just log it
+                    console.log(`⚠️ Odds changed message detected but IGNORING (using locked endpoint): ${errorStr}`);
+                    // Continue processing - don't return oddsChanged error
                   }
                   
                   // Check for MARKET NOT AVAILABLE (error_code 30721) - specific error, don't retry
@@ -2271,9 +2312,14 @@ class FliffClient {
             };
           }
           
-          // Check for odds changed
-          if (errorMsgLower.includes('odds') || errorMsgLower.includes('price') || errorMsgLower.includes('changed')) {
+          // Only check for odds changed if NOT using locked request
+          // When using locked request, user doesn't care about odds changes - only the stored endpoint matters
+          if (!lockedRequest && (errorMsgLower.includes('odds') || errorMsgLower.includes('price') || errorMsgLower.includes('changed'))) {
             return { oddsChanged: true, error: String(errorMsg || 'Odds changed') };
+          } else if (lockedRequest && (errorMsgLower.includes('odds') || errorMsgLower.includes('price') || errorMsgLower.includes('changed'))) {
+            // When using locked request, ignore odds changed errors - just log it
+            console.log(`⚠️ Odds changed message detected but IGNORING (using locked endpoint): ${errorMsg}`);
+            // Continue processing - don't return oddsChanged error
           }
           
           // Check for MARKET NOT AVAILABLE

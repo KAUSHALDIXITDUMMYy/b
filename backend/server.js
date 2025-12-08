@@ -283,6 +283,86 @@ app.post('/api/admin/users', (req, res) => {
   }
 });
 
+// =============================================
+// ADMIN API - PROFILE CREATION
+// =============================================
+
+// Create new profile (similar to "with Auto bet" project)
+app.post('/api/admin/create-profile', (req, res) => {
+  const { name, proxy, latitude, longitude, accuracy, account_number, multiplier } = req.body;
+  
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ success: false, error: 'Profile name cannot be empty' });
+  }
+  
+  try {
+    // Slugify profile name for directory name (similar to Python slugify)
+    const slugify = (text) => {
+      return text
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')           // Replace spaces with -
+        .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+        .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+        .replace(/^-+/, '')             // Trim - from start
+        .replace(/-+$/, '');            // Trim - from end
+    };
+    
+    const profileSlug = slugify(name);
+    const profilesDir = path.join(__dirname, '..', 'profiles');
+    const profilePath = path.join(profilesDir, profileSlug);
+    
+    // Check if profile already exists
+    if (fs.existsSync(profilePath)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Profile "${name}" already exists` 
+      });
+    }
+    
+    // Create profile directory
+    fs.mkdirSync(profilePath, { recursive: true });
+    
+    // Create browser_data directory (will be used by browser)
+    const browserDataPath = path.join(profilePath, 'browser_data');
+    fs.mkdirSync(browserDataPath, { recursive: true });
+    
+    // Create settings.json file
+    const profileData = {
+      name: name.trim(),
+      proxy: proxy || '',
+      latitude: parseFloat(latitude) || 0,
+      longitude: parseFloat(longitude) || 0,
+      accuracy: parseFloat(accuracy) || 100,
+      account_number: account_number || '',
+      multiplier: parseFloat(multiplier) || 1.0
+    };
+    
+    const settingsPath = path.join(profilePath, 'settings.json');
+    fs.writeFileSync(settingsPath, JSON.stringify(profileData, null, 2), 'utf8');
+    
+    logSystem(`✅ Created new profile: ${name} (${profileSlug})`);
+    
+    res.json({ 
+      success: true, 
+      message: `Profile "${name}" created successfully`,
+      profile: {
+        name: profileData.name,
+        slug: profileSlug,
+        directory: `profiles/${profileSlug}`,
+        ...profileData
+      }
+    });
+  } catch (e) {
+    logSystem(`❌ Error creating profile: ${e.message}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: `Failed to create profile: ${e.message}` 
+    });
+  }
+});
+
 // Update user
 app.put('/api/admin/users/:username', (req, res) => {
   const { username } = req.params;

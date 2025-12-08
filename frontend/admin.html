@@ -754,6 +754,48 @@
         </div>
       </div>
       
+      <!-- Create New Profile -->
+      <div class="management-card" style="margin-bottom: 20px; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(34, 197, 94, 0.1) 100%);">
+        <h3>➕ Create New Profile</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 13px;">
+          Add a new account profile with proxy and location settings. Browser data will be created automatically.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px;">
+          <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 12px; color: var(--text-secondary);">Profile Name *</label>
+            <input type="text" id="new-profile-name" placeholder="e.g., John Doe" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 12px; color: var(--text-secondary);">Account Number (Phone)</label>
+            <input type="text" id="new-profile-account" placeholder="e.g., +1234567890" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 12px; color: var(--text-secondary);">Proxy</label>
+            <input type="text" id="new-profile-proxy" placeholder="user:pass@host:port" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 12px; color: var(--text-secondary);">Latitude</label>
+            <input type="number" id="new-profile-latitude" placeholder="40.7128" step="0.0001" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 12px; color: var(--text-secondary);">Longitude</label>
+            <input type="number" id="new-profile-longitude" placeholder="-74.0060" step="0.0001" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 12px; color: var(--text-secondary);">Accuracy (meters)</label>
+            <input type="number" id="new-profile-accuracy" placeholder="100" value="100" step="1" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 12px; color: var(--text-secondary);">Multiplier</label>
+            <input type="number" id="new-profile-multiplier" placeholder="1.0" value="1.0" step="0.1" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+        </div>
+        <button class="btn-add" onclick="createProfile()" style="width: 100%; padding: 12px;">
+          ➕ Create Profile
+        </button>
+        <div id="create-profile-status" style="margin-top: 10px; padding: 10px; border-radius: 6px; display: none; font-size: 13px;"></div>
+      </div>
+      
       <!-- Start User Profiles -->
       <div class="management-card" style="margin-bottom: 20px;">
         <h3>👤 Start Profiles by User</h3>
@@ -1069,6 +1111,88 @@
           </div>
         </div>
       `).join('');
+    }
+    
+    // =============================================
+    // PROFILE CREATION
+    // =============================================
+    
+    async function createProfile() {
+      const statusDiv = document.getElementById('create-profile-status');
+      statusDiv.style.display = 'none';
+      
+      const name = document.getElementById('new-profile-name').value.trim();
+      const account = document.getElementById('new-profile-account').value.trim();
+      const proxy = document.getElementById('new-profile-proxy').value.trim();
+      const latitude = document.getElementById('new-profile-latitude').value;
+      const longitude = document.getElementById('new-profile-longitude').value;
+      const accuracy = document.getElementById('new-profile-accuracy').value || '100';
+      const multiplier = document.getElementById('new-profile-multiplier').value || '1.0';
+      
+      if (!name) {
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusDiv.style.border = '1px solid var(--accent-red)';
+        statusDiv.style.color = 'var(--accent-red)';
+        statusDiv.textContent = '❌ Profile name is required';
+        return;
+      }
+      
+      try {
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = 'rgba(99, 102, 241, 0.2)';
+        statusDiv.style.border = '1px solid var(--accent)';
+        statusDiv.style.color = 'var(--accent)';
+        statusDiv.textContent = '⏳ Creating profile...';
+        
+        const response = await fetch(`${API_URL}/api/admin/create-profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            account_number: account,
+            proxy,
+            latitude: latitude ? parseFloat(latitude) : 0,
+            longitude: longitude ? parseFloat(longitude) : 0,
+            accuracy: accuracy ? parseFloat(accuracy) : 100,
+            multiplier: multiplier ? parseFloat(multiplier) : 1.0
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          statusDiv.style.background = 'rgba(34, 197, 94, 0.2)';
+          statusDiv.style.border = '1px solid var(--accent-green)';
+          statusDiv.style.color = 'var(--accent-green)';
+          statusDiv.textContent = `✅ ${result.message}`;
+          
+          // Clear form
+          document.getElementById('new-profile-name').value = '';
+          document.getElementById('new-profile-account').value = '';
+          document.getElementById('new-profile-proxy').value = '';
+          document.getElementById('new-profile-latitude').value = '';
+          document.getElementById('new-profile-longitude').value = '';
+          document.getElementById('new-profile-accuracy').value = '100';
+          document.getElementById('new-profile-multiplier').value = '1.0';
+          
+          // Reload profiles list
+          setTimeout(() => {
+            loadAvailableProfiles();
+            statusDiv.style.display = 'none';
+          }, 2000);
+        } else {
+          statusDiv.style.background = 'rgba(239, 68, 68, 0.2)';
+          statusDiv.style.border = '1px solid var(--accent-red)';
+          statusDiv.style.color = 'var(--accent-red)';
+          statusDiv.textContent = `❌ ${result.error || 'Failed to create profile'}`;
+        }
+      } catch (e) {
+        statusDiv.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusDiv.style.border = '1px solid var(--accent-red)';
+        statusDiv.style.color = 'var(--accent-red)';
+        statusDiv.textContent = `❌ Error: ${e.message}`;
+      }
     }
     
     async function startProfile(directory) {

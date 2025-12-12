@@ -2072,13 +2072,26 @@ class FliffClient {
         console.log(`   Success status: ${hasSuccessStatus}, Has pick result: ${hasPickResult}`);
       }
       
-      // Check for unauthorized errors first (401, 403) - but ONLY if response is not OK
+      // Check for rate limiting errors (420) - retry with exponential backoff
+      if (response.status === 420) {
+        console.error(`⚠️ Rate limit error (420): Too many requests. Will retry with backoff.`);
+        return { 
+          success: false, 
+          error: `Rate limit (420): Too many requests`,
+          rateLimited: true,
+          retryable: true,
+          response: responseData
+        };
+      }
+      
+      // Check for unauthorized errors (401, 403) - but ONLY if response is not OK
       if (response.status === 401 || response.status === 403) {
         console.error(`❌ Unauthorized error (${response.status}): Bearer token may be expired or invalid`);
         return { 
           success: false, 
           error: `Unauthorized (${response.status}): Bearer token may be expired or invalid`,
           unauthorized: true,
+          retryable: true, // Allow retry for 403/401 to refresh token
           response: responseData
         };
       }

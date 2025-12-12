@@ -367,11 +367,14 @@ function getBetButtonsHTML(oddId, isLocked = false, isUnavailable = false, isSus
   }
   
   if (isLocked) {
-    // Show "Ready to Bet" when locked
+    // Show "Ready to Bet" and "Relock" buttons when locked
     return `
       <div class="d-flex gap-1 mt-2" style="gap: 4px;">
         <button class="btn btn-sm btn-success flex-fill locked-ready-btn" onclick="placeBet('${oddId}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600; animation: pulse-glow 2s infinite;">
           ✅ Ready to Bet
+        </button>
+        <button class="btn btn-sm btn-warning flex-fill" onclick="relockAndLoad('${oddId}')" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 600;">
+          🔄 Relock
         </button>
       </div>
     `;
@@ -572,6 +575,63 @@ async function lockAndLoad(oddId) {
   }
   
   isPrefiring = false;
+}
+
+// Relock and Load - Relocks odds at current price (useful when odds change in favor)
+async function relockAndLoad(oddId) {
+  if (isPrefiring) {
+    return;
+  }
+  
+  if (!selectedGame || !selectedGame.id) {
+    return;
+  }
+  
+  const odd = gameOdds[selectedGame.id]?.[oddId];
+  if (!odd || !odd.selection || odd.odds === undefined) {
+    return;
+  }
+  
+  const lockKey = `${selectedGame.id}_${oddId}`;
+  
+  // Check if line is actually locked
+  if (!lockedLines.has(lockKey)) {
+    showToast(`⚠️ This line is not locked. Use "Lock & Load" first.`, 'warning', 3000);
+    return;
+  }
+  
+  // Get previously locked odds
+  const previousLockedOdds = lockedOddsMap[lockKey] || odd.odds;
+  const currentOdds = odd.odds;
+  const oddsDifference = currentOdds - previousLockedOdds;
+  
+  // Show comparison
+  const oddsChangeText = oddsDifference > 0 
+    ? `+${oddsDifference} (better)` 
+    : oddsDifference < 0 
+      ? `${oddsDifference} (worse)` 
+      : `(same)`;
+  
+  const confirmMessage = `Relock at new odds?\n\n` +
+    `Previous: ${previousLockedOdds > 0 ? '+' : ''}${previousLockedOdds}\n` +
+    `Current: ${currentOdds > 0 ? '+' : ''}${currentOdds}\n` +
+    `Change: ${oddsChangeText}\n\n` +
+    `This will place a new $0.20 bet to lock the current odds.`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  // Remove from locked lines temporarily (will be re-added if successful)
+  lockedLines.delete(lockKey);
+  delete lockedOddsMap[lockKey];
+  
+  // Show relock status
+  showPrefireStatus(`🔄 RELOCKING: ${odd.selection} @ ${currentOdds > 0 ? '+' : ''}${currentOdds} (was ${previousLockedOdds > 0 ? '+' : ''}${previousLockedOdds})...`);
+  showToast(`🔄 Relocking at current odds: ${currentOdds > 0 ? '+' : ''}${currentOdds}`, 'info', 2000);
+  
+  // Call lockAndLoad with current odds
+  await lockAndLoad(oddId);
 }
 
 // Place Bet - Places bet with Fliff Cash
@@ -1375,11 +1435,105 @@ function categorizeOdd(odd) {
   // PROPS (only if not a main game line)
   // ==========================================
   else if (isDefinitelyPlayerProp && !isMainGameLine) {
-    type = 'Player Props';
+    // Detect specific player prop market categories from market name/selection
+    // Check both market field and marketVisualName if available
+    const marketField = market.toUpperCase().trim();
+    const marketVisualName = ((odd.marketVisualName || '').toUpperCase().trim());
+    const selectionUpper = selection.toUpperCase().trim();
+    
+    // Check for specific player prop categories (from actual Fliff UI)
+    // Priority: exact match > contains match > pattern match
+    
+    // ANYTIME SCORE
+    if (marketField === 'ANYTIME SCORE' || marketVisualName === 'ANYTIME SCORE' ||
+        marketField.includes('ANYTIME SCORE') || marketVisualName.includes('ANYTIME SCORE') ||
+        selectionUpper.includes('ANYTIME SCORE') || 
+        (marketField.includes('ANYTIME') && (marketField.includes('SCORE') || marketField.includes('GOAL'))) ||
+        (marketVisualName.includes('ANYTIME') && (marketVisualName.includes('SCORE') || marketVisualName.includes('GOAL')))) {
+      type = 'ANYTIME SCORE';
+    }
+    // PLAYER TO SCORE 3 OR MORE GOALS (check 3 before 2)
+    else if (marketField.includes('PLAYER TO SCORE 3 OR MORE GOALS') || 
+             marketVisualName.includes('PLAYER TO SCORE 3 OR MORE GOALS') ||
+             marketField.includes('3 OR MORE GOALS') || marketVisualName.includes('3 OR MORE GOALS') ||
+             selectionUpper.includes('3 OR MORE GOALS') ||
+             (marketField.includes('TO SCORE') && marketField.includes('3')) ||
+             (marketVisualName.includes('TO SCORE') && marketVisualName.includes('3'))) {
+      type = 'PLAYER TO SCORE 3 OR MORE GOALS';
+    }
+    // PLAYER TO SCORE 2 OR MORE GOALS
+    else if (marketField.includes('PLAYER TO SCORE 2 OR MORE GOALS') || 
+             marketVisualName.includes('PLAYER TO SCORE 2 OR MORE GOALS') ||
+             marketField.includes('2 OR MORE GOALS') || marketVisualName.includes('2 OR MORE GOALS') ||
+             selectionUpper.includes('2 OR MORE GOALS') ||
+             (marketField.includes('TO SCORE') && marketField.includes('2')) ||
+             (marketVisualName.includes('TO SCORE') && marketVisualName.includes('2'))) {
+      type = 'PLAYER TO SCORE 2 OR MORE GOALS';
+    }
+    // HOME TEAM - FIRST GOALSCORER
+    else if (marketField.includes('HOME TEAM - FIRST GOALSCORER') || 
+             marketVisualName.includes('HOME TEAM - FIRST GOALSCORER') ||
+             (marketField.includes('FIRST GOALSCORER') && (marketField.includes('HOME') || selectionUpper.includes('HOME'))) ||
+             (marketVisualName.includes('FIRST GOALSCORER') && (marketVisualName.includes('HOME') || selectionUpper.includes('HOME')))) {
+      type = 'HOME TEAM - FIRST GOALSCORER';
+    }
+    // AWAY TEAM - FIRST GOALSCORER
+    else if (marketField.includes('AWAY TEAM - FIRST GOALSCORER') || 
+             marketVisualName.includes('AWAY TEAM - FIRST GOALSCORER') ||
+             (marketField.includes('FIRST GOALSCORER') && (marketField.includes('AWAY') || selectionUpper.includes('AWAY'))) ||
+             (marketVisualName.includes('FIRST GOALSCORER') && (marketVisualName.includes('AWAY') || selectionUpper.includes('AWAY')))) {
+      type = 'AWAY TEAM - FIRST GOALSCORER';
+    }
+    // Generic FIRST GOALSCORER (fallback)
+    else if (marketField.includes('FIRST GOALSCORER') || marketVisualName.includes('FIRST GOALSCORER') ||
+             selectionUpper.includes('FIRST GOALSCORER')) {
+      type = 'FIRST GOALSCORER';
+    }
+    else {
+      // Fallback to generic Player Props for other player prop types
+      type = 'Player Props';
+    }
   } else if (isDefinitelyTeamProp && !isMainGameLine) {
     type = 'Team Props';
   } else if (isDefinitelyGameProp && !isMainGameLine) {
-    type = 'Game Props';
+    // Detect specific game prop market categories from market name/selection
+    // Check both market field and marketVisualName if available
+    const marketField = market.toUpperCase().trim();
+    const marketVisualName = ((odd.marketVisualName || '').toUpperCase().trim());
+    const selectionUpper = selection.toUpperCase().trim();
+    
+    // Check for specific game prop categories (from actual Fliff UI)
+    // Priority: exact match > contains match > pattern match
+    
+    // NUMBER OF GOALS
+    if (marketField === 'NUMBER OF GOALS' || marketVisualName === 'NUMBER OF GOALS' ||
+        marketField.includes('NUMBER OF GOALS') || marketVisualName.includes('NUMBER OF GOALS') ||
+        (marketField.includes('GOALS') && marketField.includes('NUMBER'))) {
+      type = 'NUMBER OF GOALS';
+    }
+    // TOTAL SHOTS
+    else if (marketField === 'TOTAL SHOTS' || marketVisualName === 'TOTAL SHOTS' ||
+             marketField.includes('TOTAL SHOTS') || marketVisualName.includes('TOTAL SHOTS') ||
+             (marketField.includes('SHOTS') && marketField.includes('TOTAL'))) {
+      type = 'TOTAL SHOTS';
+    }
+    // SHOTS ON TARGET
+    else if (marketField === 'SHOTS ON TARGET' || marketVisualName === 'SHOTS ON TARGET' ||
+             marketField.includes('SHOTS ON TARGET') || marketVisualName.includes('SHOTS ON TARGET') ||
+             (marketField.includes('SHOTS') && marketField.includes('TARGET'))) {
+      type = 'SHOTS ON TARGET';
+    }
+    // 1X2 AND BOTH TEAMS TO SCORE
+    else if (marketField.includes('1X2 AND BOTH TEAMS TO SCORE') || 
+             marketVisualName.includes('1X2 AND BOTH TEAMS TO SCORE') ||
+             (marketField.includes('1X2') && marketField.includes('BOTH TEAMS')) ||
+             (marketVisualName.includes('1X2') && marketVisualName.includes('BOTH TEAMS'))) {
+      type = '1X2 AND BOTH TEAMS TO SCORE';
+    }
+    else {
+      // Fallback to generic Game Props for other game prop types
+      type = 'Game Props';
+    }
   }
   // ==========================================
   // FALLBACK DETECTION from selection patterns
@@ -1583,11 +1737,25 @@ function getTypeOrder(type) {
     'Alternative Totals': 23,          // Alt totals
     'Alternative Team Totals': 24,     // Alt team totals
     
-    // === PROPS (AFTER ALTERNATES) ===
-    'Game Props': 30,
-    'Player Props': 31,
-    'Team Props': 32,
-    'Props': 33,              // General props fallback
+    // === PLAYER PROPS - SPECIFIC CATEGORIES (from Fliff UI) ===
+    'ANYTIME SCORE': 30,
+    'PLAYER TO SCORE 2 OR MORE GOALS': 31,
+    'PLAYER TO SCORE 3 OR MORE GOALS': 32,
+    'HOME TEAM - FIRST GOALSCORER': 33,
+    'AWAY TEAM - FIRST GOALSCORER': 34,
+    'FIRST GOALSCORER': 35,
+    
+    // === GAME PROPS - SPECIFIC CATEGORIES (from Fliff UI) ===
+    'NUMBER OF GOALS': 36,
+    'TOTAL SHOTS': 37,
+    'SHOTS ON TARGET': 38,
+    '1X2 AND BOTH TEAMS TO SCORE': 39,
+    
+    // === OTHER PROPS (AFTER SPECIFIC PROPS) ===
+    'Game Props': 40,
+    'Player Props': 41,        // Generic player props fallback
+    'Team Props': 42,
+    'Props': 43,              // General props fallback
     
     // === OTHER ===
     'Other': 999
@@ -1613,7 +1781,21 @@ function getTypeDisplayName(type) {
     'Alternative Totals': 'Alternative Totals',
     'Alternative Team Totals': 'Alternative Team Totals',
     
-    // Props - keep as is
+    // Player Props - specific categories (use exact labels from Fliff UI)
+    'ANYTIME SCORE': 'ANYTIME SCORE',
+    'PLAYER TO SCORE 2 OR MORE GOALS': 'PLAYER TO SCORE 2 OR MORE GOALS',
+    'PLAYER TO SCORE 3 OR MORE GOALS': 'PLAYER TO SCORE 3 OR MORE GOALS',
+    'HOME TEAM - FIRST GOALSCORER': 'HOME TEAM - FIRST GOALSCORER',
+    'AWAY TEAM - FIRST GOALSCORER': 'AWAY TEAM - FIRST GOALSCORER',
+    'FIRST GOALSCORER': 'FIRST GOALSCORER',
+    
+    // Game Props - specific categories (use exact labels from Fliff UI)
+    'NUMBER OF GOALS': 'NUMBER OF GOALS',
+    'TOTAL SHOTS': 'TOTAL SHOTS',
+    'SHOTS ON TARGET': 'SHOTS ON TARGET',
+    '1X2 AND BOTH TEAMS TO SCORE': '1X2 AND BOTH TEAMS TO SCORE',
+    
+    // Other Props - keep as is
     'Player Props': 'Player Props',
     'Team Props': 'Team Props',
     'Game Props': 'Game Props',
@@ -1739,9 +1921,24 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
 
       sortedPairs.forEach(({ over, under, lineKey }) => {
         const param = over?.param || under?.param || lineKey;
+        // Get market name from either over or under (they should be the same)
+        const marketName = over?.market || under?.market || over?.marketVisualName || under?.marketVisualName || 'Line';
+        // Get change indicators (show if either has a change)
+        const overChange = over?.prevOdds ? over.odds - over.prevOdds : 0;
+        const underChange = under?.prevOdds ? under.odds - under.prevOdds : 0;
+        const hasChange = overChange !== 0 || underChange !== 0;
+        const changeText = hasChange ? 
+          (overChange !== 0 ? (overChange > 0 ? `↑${overChange}` : `↓${Math.abs(overChange)}`) : '') +
+          (underChange !== 0 ? (underChange > 0 ? `↑${underChange}` : `↓${Math.abs(underChange)}`) : '') : '';
+        const changeClass = (overChange > 0 || underChange > 0) ? 'text-success' : (overChange < 0 || underChange < 0) ? 'text-danger' : '';
 
+        // Market name appears ABOVE the pair (faint grey text) - not inside the data block
         h += `
           <div class="col-12 mb-3">
+            <div style="margin-bottom: 4px;">
+              <small class="text-muted" style="font-size: 0.7rem; font-weight: 500; color: rgba(255,255,255,0.5) !important;">${marketName}</small>
+              ${changeText ? `<small class="${changeClass}" style="font-weight: 600; font-size: 0.7rem; margin-left: 8px;">${changeText}</small>` : ''}
+            </div>
             <div class="d-flex gap-2" style="gap: 8px;">
         `;
 
@@ -1770,7 +1967,7 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
                 <div class="card-body p-3">
                   <div class="d-flex justify-content-between align-items-start mb-2">
                     <small style="font-size: 0.75rem; font-weight: 600; color: white;">${label}</small>
-                    ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
+                    ${changeText ? `<small class="${changeClass}" style="font-weight: 600; color: white;">${changeText}</small>` : ''}
                   </div>
                   <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || label}</div>
                   ${param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${param}</small>` : ''}
@@ -1829,8 +2026,24 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
       h += `<div class="row g-2">`;
 
       Object.values(groupedByLine).forEach(({ positive, negative }) => {
+        // Get market name from either positive or negative (they should be the same)
+        const marketName = positive?.market || negative?.market || positive?.marketVisualName || negative?.marketVisualName || 'Line';
+        // Get change indicators (show if either has a change)
+        const positiveChange = positive?.prevOdds ? positive.odds - positive.prevOdds : 0;
+        const negativeChange = negative?.prevOdds ? negative.odds - negative.prevOdds : 0;
+        const hasChange = positiveChange !== 0 || negativeChange !== 0;
+        const changeText = hasChange ? 
+          (positiveChange !== 0 ? (positiveChange > 0 ? `↑${positiveChange}` : `↓${Math.abs(positiveChange)}`) : '') +
+          (negativeChange !== 0 ? (negativeChange > 0 ? `↑${negativeChange}` : `↓${Math.abs(negativeChange)}`) : '') : '';
+        const changeClass = (positiveChange > 0 || negativeChange > 0) ? 'text-success' : (positiveChange < 0 || negativeChange < 0) ? 'text-danger' : '';
+
+        // Market name appears ABOVE the pair (faint grey text) - not inside the data block
         h += `
           <div class="col-12 mb-3">
+            <div style="margin-bottom: 4px;">
+              <small class="text-muted" style="font-size: 0.7rem; font-weight: 500; color: rgba(255,255,255,0.5) !important;">${marketName}</small>
+              ${changeText ? `<small class="${changeClass}" style="font-weight: 600; font-size: 0.7rem; margin-left: 8px;">${changeText}</small>` : ''}
+            </div>
             <div class="d-flex gap-2" style="gap: 8px;">
         `;
 
@@ -1854,10 +2067,6 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
                 ${lockedBadge}
                 ${suspendedBadge}
                 <div class="card-body p-3">
-                  <div class="d-flex justify-content-between align-items-start mb-2">
-                    <small style="font-size: 0.75rem; font-weight: 600; color: white;">${odd.market || 'Line'}</small>
-                    ${changeText ? `<small class="${changeClass}" style="font-weight: 600; color: white;">${changeText}</small>` : ''}
-                  </div>
                   <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || ''}</div>
                   ${odd.param ? `<small style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8);">${odd.param}</small>` : ''}
                   <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
@@ -1908,20 +2117,23 @@ function buildVerticalOddsHtml({ organizedOdds, oddsList, gameId }) {
         const unavailableBadge = isUnavailableCheck ? '<div class="unavailable-badge">⚠️ Market Unavailable</div>' : '';
         const suspendedBadge = isSuspendedCheck && !isLockedCheck && !isUnavailableCheck ? '<div class="suspended-badge">🔒 SUSPENDED</div>' : '';
 
+        // Market name appears ABOVE the card (faint grey text) - not inside the data block
+        const marketName = odd.market || odd.marketVisualName || 'Line';
+        
         h += `
           <div class="col-6">
+            <div style="margin-bottom: 4px;">
+              <small class="text-muted" style="font-size: 0.7rem; font-weight: 500; color: rgba(255,255,255,0.5) !important;">${marketName}</small>
+              ${changeText ? `<small class="${changeClass}" style="font-weight: 600; font-size: 0.7rem; margin-left: 8px;">${changeText}</small>` : ''}
+            </div>
             <div class="card h-100 odd-card ${lockedClass} ${unavailableClass} ${suspendedClass}">
               ${lockedBadge}
               ${unavailableBadge}
               ${suspendedBadge}
               <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                  <small class="text-muted" style="font-size: 0.75rem; font-weight: 600;">${odd.market || 'Line'}</small>
-                  ${changeText ? `<small class="${changeClass}" style="font-weight: 600;">${changeText}</small>` : ''}
-                </div>
-                <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4;">${odd.selection || '-'}</div>
-                ${odd.param ? `<small class="text-muted d-block mb-2" style="font-size: 0.75rem; font-weight: 500;">${odd.param}</small>` : ''}
-                <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700;">
+                <div class="fw-bold mb-2" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: white;">${odd.selection || '-'}</div>
+                ${odd.param ? `<small class="text-muted d-block mb-2" style="font-size: 0.75rem; font-weight: 500; color: rgba(255,255,255,0.8) !important;">${odd.param}</small>` : ''}
+                <div class="odd-value ${oddClass} fw-bold mb-2" style="font-size: 1.25rem; font-weight: 700; color: white;">
                   ${odd.odds > 0 ? '+' : ''}${odd.odds}
                 </div>
                 ${getBetButtonsHTML(odd.id, isLockedCheck, isUnavailableCheck, isSuspendedCheck)}
@@ -2221,15 +2433,95 @@ function renderOdds() {
   });
   
   
-  // Sort odds within each type by market name, then selection
+  // Filter and deduplicate odds, especially in player props
   Object.keys(organizedOdds).forEach(section => {
     Object.keys(organizedOdds[section]).forEach(subsection => {
       Object.keys(organizedOdds[section][subsection]).forEach(type => {
-        organizedOdds[section][subsection][type].sort((a, b) => {
+        let oddsArray = organizedOdds[section][subsection][type];
+        
+        // Special filtering for Player Props to eliminate unnecessary/redundant odds
+        if (section === 'Player Props' || section.includes('Player Props')) {
+          // Deduplicate by selection + param + odds (keep only unique combinations)
+          const seen = new Map();
+          oddsArray = oddsArray.filter(odd => {
+            const key = `${(odd.selection || '').toLowerCase()}_${(odd.param || '').toLowerCase()}_${odd.odds}`;
+            if (seen.has(key)) {
+              // Keep the one with more complete data (has market, has playerFkey, etc.)
+              const existing = seen.get(key);
+              const existingScore = (existing.market ? 1 : 0) + (existing.playerFkey ? 1 : 0) + (existing.groupVisualName ? 1 : 0);
+              const currentScore = (odd.market ? 1 : 0) + (odd.playerFkey ? 1 : 0) + (odd.groupVisualName ? 1 : 0);
+              if (currentScore > existingScore) {
+                seen.set(key, odd);
+                return true;
+              }
+              return false;
+            }
+            seen.set(key, odd);
+            return true;
+          });
+          
+          // Filter out odds with very similar selections (e.g., "Player Points Over 10.5" and "Player Points Over 10")
+          // Keep only the most relevant ones (typically the standard lines)
+          const filteredOdds = [];
+          const selectionGroups = new Map();
+          
+          oddsArray.forEach(odd => {
+            const selection = (odd.selection || '').toLowerCase();
+            const param = (odd.param || '').toLowerCase();
+            
+            // Group by player name (extract player name from selection)
+            const playerMatch = selection.match(/^([a-z]+\s+[a-z]+(?:\s+[a-z]+)?)/i);
+            if (playerMatch) {
+              const playerName = playerMatch[1].toLowerCase();
+              const groupKey = `${playerName}_${param}`;
+              
+              if (!selectionGroups.has(groupKey)) {
+                selectionGroups.set(groupKey, []);
+              }
+              selectionGroups.get(groupKey).push(odd);
+            } else {
+              // No player name found, keep as is
+              filteredOdds.push(odd);
+            }
+          });
+          
+          // For each player group, keep only the most relevant odds (standard lines)
+          selectionGroups.forEach((groupOdds, groupKey) => {
+            // Sort by odds value (keep standard lines like .5, 1.5, etc.)
+            groupOdds.sort((a, b) => {
+              const aParam = parseFloat(a.param || 0);
+              const bParam = parseFloat(b.param || 0);
+              return aParam - bParam;
+            });
+            
+            // Keep up to 5 most relevant odds per player (to prevent excessive scrolling)
+            const relevantOdds = groupOdds.slice(0, 5);
+            filteredOdds.push(...relevantOdds);
+          });
+          
+          oddsArray = filteredOdds;
+        }
+        
+        // Filter out props from Game Lines section (prevent duplication)
+        if (section === 'Game Lines' || section === 'Gameline') {
+          oddsArray = oddsArray.filter(odd => {
+            const result = categorizeOdd(odd);
+            // If it's categorized as a prop, don't show it in Game Lines
+            const isProp = result.tab === 'Player Props' || result.tab === 'Team Props' || 
+                          result.tab === 'Game Props' || result.tab === 'Props' ||
+                          result.tab === 'Fast Props';
+            return !isProp;
+          });
+        }
+        
+        // Sort odds within each type by market name, then selection
+        oddsArray.sort((a, b) => {
           const marketCompare = (a.market || '').localeCompare(b.market || '');
           if (marketCompare !== 0) return marketCompare;
           return (a.selection || '').localeCompare(b.selection || '');
         });
+        
+        organizedOdds[section][subsection][type] = oddsArray;
       });
     });
   });
@@ -2391,9 +2683,28 @@ function renderOdds() {
       `;
 
       // Render each type within subsection (reuse existing logic)
-      sortedTypes.forEach(type => {
+      let lastTypeOrder = -1;
+      sortedTypes.forEach((type, typeIndex) => {
         const typeOdds = subsectionData[type];
         if (typeOdds.length === 0) return;
+        
+        const currentTypeOrder = getTypeOrder(type);
+        const isAlternate = type.includes('Alternative');
+        const wasAlternate = lastTypeOrder >= 20 && lastTypeOrder < 30;
+        const isFirstAlternate = isAlternate && !wasAlternate && lastTypeOrder < 20;
+        
+        // Add separator before alternate markets
+        if (isFirstAlternate) {
+          html += `
+            <div class="mb-3" style="border-top: 2px solid var(--border); padding-top: 15px; margin-top: 15px;">
+              <h6 class="text-muted" style="font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.6) !important; text-transform: uppercase; letter-spacing: 1px;">
+                ═══ Alternate Markets ═══
+              </h6>
+            </div>
+          `;
+        }
+        
+        lastTypeOrder = currentTypeOrder;
 
         // Check if this is a Totals type (Over/Under)
         const isTotalsType = type === 'Totals' || type === 'Total Score' || type === 'Alternative Total Score' || 
@@ -3252,6 +3563,74 @@ function setActiveSection(sectionName) {
 // EXPORTS
 // =============================================
 
+// Refresh profiles - reload all profile data
+async function refreshProfiles() {
+  try {
+    showToast('🔄 Refreshing profiles...', 'info', 2000);
+    // Reload games and odds
+    await loadGames();
+    if (selectedGame) {
+      await loadGameOdds(selectedGame.id);
+    }
+    showToast('✅ Profiles refreshed successfully', 'success', 2000);
+  } catch (error) {
+    console.error('Error refreshing profiles:', error);
+    showToast('❌ Failed to refresh profiles', 'error', 3000);
+  }
+}
+
+// Restart profiles - restart all running profiles
+async function restartProfiles() {
+  if (!confirm('Are you sure you want to restart all profiles? This will disconnect and reconnect all active profiles.')) {
+    return;
+  }
+  
+  try {
+    showToast('🔄 Restarting profiles...', 'info', 2000);
+    
+    // Get all profiles
+    const profilesResponse = await fetch(`${API_URL}/api/admin/profiles`);
+    const profiles = await profilesResponse.json();
+    
+    // Stop all running profiles
+    const stopPromises = profiles
+      .filter(p => p.isRunning)
+      .map(profile => 
+        fetch(`${API_URL}/api/admin/stop-profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileName: profile.name })
+        })
+      );
+    
+    await Promise.all(stopPromises);
+    
+    // Wait a bit before restarting
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Start all profiles
+    const startPromises = profiles.map(profile =>
+      fetch(`${API_URL}/api/admin/start-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileDirectory: profile.directory })
+      })
+    );
+    
+    await Promise.all(startPromises);
+    
+    showToast('✅ All profiles restarted successfully', 'success', 3000);
+    
+    // Refresh data after restart
+    setTimeout(() => {
+      refreshProfiles();
+    }, 3000);
+  } catch (error) {
+    console.error('Error restarting profiles:', error);
+    showToast('❌ Failed to restart profiles: ' + (error.message || 'Unknown error'), 'error', 4000);
+  }
+}
+
 window.FliffApp = {
   games,
   gameOdds,
@@ -3259,6 +3638,7 @@ window.FliffApp = {
   selectGame,
   clickOdds,
   lockAndLoad,
+  relockAndLoad,
   placeBet,
   setWager,
   toggleUnavailableFilter,
@@ -3267,5 +3647,7 @@ window.FliffApp = {
   setActiveSection,
   handleLeagueFilterChange,
   handleGameStatusFilterChange,
-  markEventUnavailable
+  markEventUnavailable,
+  refreshProfiles,
+  restartProfiles
 };

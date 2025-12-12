@@ -2486,42 +2486,14 @@ app.post('/api/lock-and-load', async (req, res) => {
           // API METHOD: Place $0.20 bet via API and capture the exact request
           // This request will be saved and reused for the actual bet (locks odds without reload!)
           logBetting(`   [${profileName}] Placing $${lockWager} bet via API to capture locked request...`);
-          let betResult = await client.placeBetViaAPI(
-            finalSelection,
-            finalOdds,
-            lockWager,
-            'cash',
-            finalParam,
-            finalMarket,
-            oddId,
-            false
-          );
-
-          // If we hit an unauthorized error (401), refresh bearer token from page and retry once
-          if (!betResult.success && betResult.unauthorized) {
-            logBetting(
-              `   [${profileName}] ⚠️ Unauthorized (401) from API. Refreshing bearer token from page and retrying once...`
-            );
-            try {
-              const injectedToken = await client.page.evaluate(() => {
-                return window.__fliffBearerToken || null;
-              });
-              if (injectedToken && injectedToken !== client.bearerToken) {
-                client.bearerToken = injectedToken;
-                client.saveAPICredentials();
-                logBetting(`   [${profileName}] 🔑 Bearer token refreshed after 401`);
-              } else {
-                logBetting(
-                  `   [${profileName}] ⚠️ No new bearer token found in page after 401 (using existing token)`
-                );
-              }
-            } catch (e) {
-              logBetting(
-                `   [${profileName}] ⚠️ Failed to refresh bearer token from page after 401: ${e.message}`
-              );
-            }
-
-            // Retry once with (possibly) refreshed token
+          
+          // Retry logic for 403, 420, and 401 errors with exponential backoff
+          let betResult;
+          const maxRetries = 3;
+          let retryCount = 0;
+          let retryDelay = 1000; // Start with 1 second
+          
+          while (retryCount <= maxRetries) {
             betResult = await client.placeBetViaAPI(
               finalSelection,
               finalOdds,
@@ -2532,6 +2504,54 @@ app.post('/api/lock-and-load', async (req, res) => {
               oddId,
               false
             );
+            
+            // If successful or not retryable, break
+            if (betResult.success || !betResult.retryable) {
+              break;
+            }
+            
+            // Check for retryable errors (403, 420, 401)
+            const isRetryableError = betResult.unauthorized || betResult.rateLimited || 
+                                    (betResult.error && (
+                                      betResult.error.includes('403') || 
+                                      betResult.error.includes('420') ||
+                                      betResult.error.includes('401') ||
+                                      betResult.error.includes('Unauthorized') ||
+                                      betResult.error.includes('Rate limit')
+                                    ));
+            
+            if (!isRetryableError || retryCount >= maxRetries) {
+              break;
+            }
+            
+            retryCount++;
+            logBetting(
+              `   [${profileName}] ⚠️ Error ${betResult.error} (attempt ${retryCount}/${maxRetries}). Retrying in ${retryDelay}ms...`
+            );
+            
+            // Refresh bearer token before retry
+            try {
+              const tokenResult = await client.captureCurrentBearerToken();
+              if (tokenResult.success) {
+                logBetting(`   [${profileName}] 🔑 Bearer token refreshed (source: ${tokenResult.source})`);
+              } else {
+                // Fallback: try the old method
+                const injectedToken = await client.page.evaluate(() => {
+                  return window.__fliffBearerToken || null;
+                });
+                if (injectedToken && injectedToken !== client.bearerToken) {
+                  client.bearerToken = injectedToken;
+                  client.saveAPICredentials();
+                  logBetting(`   [${profileName}] 🔑 Bearer token refreshed from page (fallback)`);
+                }
+              }
+            } catch (e) {
+              logBetting(`   [${profileName}] ⚠️ Failed to refresh bearer token: ${e.message}`);
+            }
+            
+            // Wait with exponential backoff
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            retryDelay = Math.min(retryDelay * 2, 10000); // Max 10 seconds
           }
 
           if (!betResult.success) {

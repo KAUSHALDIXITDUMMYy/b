@@ -16,22 +16,37 @@
   "profiles": {
     "ll": {
       "directory": "profiles\\Live Event",
-      "registeredAt": "2025-12-08T19:07:20.300Z",
+      "registeredAt": "2025-12-12T21:37:55.974Z",
       "isRunning": true
     },
     "Justin voneck ": {
       "directory": "profiles\\justin-voneck",
-      "registeredAt": "2025-12-08T19:07:34.213Z",
+      "registeredAt": "2025-12-12T21:39:11.289Z",
       "isRunning": true
     },
     "Morgan Williamson": {
       "directory": "profiles\\morgan-williamson",
-      "registeredAt": "2025-12-08T19:07:50.278Z",
+      "registeredAt": "2025-12-12T21:39:35.027Z",
       "isRunning": true
     },
     "Sean stackpoole ": {
       "directory": "profiles\\sean-stackpoole",
-      "registeredAt": "2025-12-08T19:08:07.916Z",
+      "registeredAt": "2025-12-12T21:40:00.112Z",
+      "isRunning": true
+    },
+    "Colin mcgarth ": {
+      "directory": "profiles\\colin-mcgarth",
+      "registeredAt": "2025-12-12T21:38:11.762Z",
+      "isRunning": true
+    },
+    "Ella becker ": {
+      "directory": "profiles\\ella-becker",
+      "registeredAt": "2025-12-12T21:38:29.547Z",
+      "isRunning": true
+    },
+    "Jack vesey ": {
+      "directory": "profiles\\jack-vesey",
+      "registeredAt": "2025-12-12T21:38:49.529Z",
       "isRunning": true
     }
   },

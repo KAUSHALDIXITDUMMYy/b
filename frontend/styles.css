@@ -37,6 +37,45 @@
     -moz-osx-font-smoothing: grayscale;
   }
   
+  /* Ensure all text is white for readability */
+  * {
+    color: white !important;
+  }
+  
+  /* Override specific elements that need different colors */
+  .text-success {
+    color: var(--accent-green) !important;
+  }
+  
+  .text-danger {
+    color: var(--accent-red) !important;
+  }
+  
+  .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+  
+  .odd-value.text-success {
+    color: var(--accent-green) !important;
+  }
+  
+  .odd-value.text-danger {
+    color: var(--accent-red) !important;
+  }
+  
+  /* Buttons and links can have their own colors */
+  .btn, a, button {
+    color: inherit !important;
+  }
+  
+  .btn-primary, .btn-success, .btn-warning, .btn-danger {
+    color: #000 !important;
+  }
+  
+  .section-tab.active {
+    color: #000 !important;
+  }
+  
   /* =============================================
      HEADER
      ============================================= */
